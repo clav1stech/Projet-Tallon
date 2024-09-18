@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #timeline {
+            width: 600px;
+            background-color: #333;
+            padding: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .station {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            color: white;
+        }
+
+        .station span:nth-child(1) {
+            flex-basis: 13%; /* 10% pour l'heure */
+            text-align: left; /* Alignement à gauche pour l'heure */
+        }
+
+        .station span:nth-child(2) {
+            flex-basis: 25%; /* 10% pour le PK */
+            text-align: left; /* Alignement au centre pour le PK */
+        }
+
+        .station span:nth-child(3) {
+            flex-basis: 62%; /* 80% pour le nom */
+            text-align: left; /* Alignement à droite pour le nom */
+        }
+
+        .current-station {
+            background-color: green;
+        }
+        #info {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Labo</h1>
+    
+    <label for="departure-time">Heure de départ (HH:MM):</label>
+    <input type="time" id="departure-time" required>
+    
+    <h2>Choisissez la méthode de localisation :</h2>
+    <label><input type="radio" name="locationMethod" value="geo" checked> Utiliser la géolocalisation</label><br>
+    <label><input type="radio" name="locationMethod" value="manual"> Saisir les coordonnées manuellement</label><br><br>
+
+    <div id="manualCoords" style="display:none;">
+        <label for="manualLat">Latitude :</label>
+        <input type="number" id="manualLat" step="0.00001" placeholder="Entrez la latitude"><br>
+        <label for="manualLon">Longitude :</label>
+        <input type="number" id="manualLon" step="0.00001" placeholder="Entrez la longitude"><br>
+    </div>
+
+    
+    <button onclick="startTracking()">Démarrer</button>
+
+    <div id="timeline"></div>
+    <p id="info"></p>
+
+    <script>
+        // Liste des points de passage avec PK, lat, lon et durée
+        const pointsDePassage = [
+            { name: "Paris-Lyon", PK: 0, duree: 0, lat: 48.84431, lon: 2.37564 },  // 0 min 00 sec
+            { name: "Bif. de Créteil", PK: 9.326, duree: 350, lat: 48.77490, lon: 2.43626 },  // 6 min 50 sec
+            { name: "Tunnel de Limeil-Brevannes", PK: 4.117, duree: 142, lat: 48.74884, lon: 2.47240 },  // 2 min 22 sec
+            { name: "Tranchée couverte de Villecresne", PK: 7.633, duree: 118, lat: 48.73355, lon: 2.50744 },  // 2 min 58 sec
+            { name: "Bif. de Chevry-Cossigny", PK: 21.486, duree: 300, lat: 48.70186, lon: 2.68159 },  // 5 min 00 sec
+            { name: "Bif. V.1 de Solers", PK: 26.5, duree: 86, lat: 48.67599, lon: 2.72792 },  // 1 min 26 sec
+            { name: "Bif. de Moisenay", PK: 17.099, duree: 220, lat: 48.56911, lon: 2.75358 },  // 4 min 40 sec
+            { name: "Viaduc de Montereau", PK: 42.74, duree: 343, lat: 48.39683, lon: 2.97820 },  // 6 min 43 sec
+            { name: "PRS de Marolles", PK: 49.23, duree: 83, lat: 48.37260, lon: 3.05381 },  // 1 min 23 sec
+            { name: "Passage sous l'A19", PK: 72.2, duree: 299, lat: 48.25960, lon: 3.28652 },  // 5 min 59 sec
+            { name: "PRS de Vaumort", PK: 92.778, duree: 290, lat: 48.11586, lon: 3.44976 },  // 5 min 50 sec
+            { name: "Viaduc sur le canal de Bourgogne", PK: 115.752, duree: 294, lat: 47.98193, lon: 3.67834 },  // 5 min 54 sec
+            { name: "Pont sur la ligne Paris-Lyon à Marseille", PK: 117.171, duree: 18, lat: 47.97407, lon: 3.69335 },  // 0 min 18 sec
+            { name: "PRS Tonnerre", PK: 139.817, duree: 298, lat: 47.85008, lon: 3.92233 },  // 5 min 58 sec
+            { name: "Bif. V.1 de Pasilly", PK: 161.746, duree: 294, lat: 47.68374, lon: 4.07910 },  // 5 min 54 sec
+            { name: "Viaduc d'Époisses", PK: 185.353, duree: 330, lat: 47.48607, lon: 4.15635 },  // 6 min 30 sec
+            { name: "PRS de Lacour d'Arcenay", PK: 202.367, duree: 255, lat: 47.34790, lon: 4.24603 },  // 4 min 15 sec
+            { name: "Viaduc de Saulieu", PK: 208.686, duree: 95, lat: 47.29473, lon: 4.27178 },  // 2 min 35 sec
+            { name: "PRS de Vianges", PK: 225.809, duree: 225, lat: 47.14900, lon: 4.34201 },  // 4 min 45 sec
+            { name: "PRS de Sully", PK: 247.214, duree: 270, lat: 46.99679, lon: 4.45548 },  // 5 min 30 sec
+            { name: "Viaduc de la Digoine (Drée)", PK: 253.454, duree: 85, lat: 46.94780, lon: 4.48808 },  // 1 min 25 sec
+            { name: "Le Creusot – Montceau – Montchanin TGV", PK: 273.816, duree: 284, lat: 46.76534, lon: 4.50010 },  // 5 min 44 sec
+            { name: "PRS de Vaux-en-Pré", PK: 292.995, duree: 279, lat: 46.61190, lon: 4.60418 },  // 5 min 39 sec
+            { name: "PRS de Cluny", PK: 313.579, duree: 270, lat: 46.43449, lon: 4.67387 },  // 5 min 30 sec
+            { name: "Viaduc de la Roche", PK: 321.187, duree: 108, lat: 46.37125, lon: 4.67518 },  // 2 min 48 sec
+            { name: "Macon – Loché TGV", PK: 333.917, duree: 165, lat: 46.28338, lon: 4.77797 },  // 3 min 45 sec
+            { name: "PRS de Cessein", PK: 361.134, duree: 392, lat: 46.06674, lon: 4.84928 },  // 7 min 32 sec
+            { name: "Passage sous l'A46", PK: 379.572, duree: 260, lat: 45.90156, lon: 4.87495 },  // 4 min 20 sec
+            { name: "Bif. V.1 de Montanay", PK: 380.54, duree: 13, lat: 45.89360, lon: 4.87707 },  // 0 min 13 sec
+            { name: "Pont sur l'A46", PK: 385.133, duree: 62, lat: 45.86041, lon: 4.90772 },  // 1 min 02 sec
+            { name: "Viaduc de la Cotière", PK: 394.06, duree: 125, lat: 45.84303, lon: 5.01456 },  // 2 min 05 sec
+            { name: "Lyon-Saint-Exupéry TGV", PK: 409.705, duree: 205, lat: 45.72106, lon: 5.07589 },  // 3 min 25 sec
+            { name: "Bif. (V. 1) de Grenay-Nord", PK: 416.647, duree: 95, lat: 45.66017, lon: 5.07287 },  // 2 min 35 sec
+            { name: "Tunnel de Meyssiez", PK: 440.545, duree: 340, lat: 45.46091, lon: 5.04418 },  // 6 min 40 sec
+            { name: "Viaduc de la Galaure", PK: 471.869, duree: 395, lat: 45.19677, lon: 4.91898 },  // 7 min 35 sec
+            { name: "PRCI de Claveyson - Bren", PK: 476.336, duree: 58, lat: 45.15760, lon: 4.92203 },  // 1 min 58 sec
+            { name: "Valence TGV", PK: 495.464, duree: 245, lat: 44.99112, lon: 4.97879 },  // 4 min 05 sec
+            { name: "Tunnel de Tartaiguille (2 340 m)", PK: 531.661, duree: 500, lat: 44.68243, lon: 4.93530 },  // 8 min 20 sec
+            { name: "SEI d'Allan", PK: 556.011, duree: 314, lat: 44.49641, lon: 4.77729 },  // 5 min 14
