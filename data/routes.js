@@ -1,6 +1,6 @@
 // data/routes.js
 
-const routes = [
+const trajets = [
     {
         id: "PARMRS",
         name: "Paris - Marseille",
