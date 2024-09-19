@@ -250,64 +250,65 @@ function getLocation() {
 }
 
 // Fonction pour afficher la position et mettre à jour l'avancement
+// Fonction pour afficher la position et mettre à jour l'avancement
 function showPosition(position) {
     const userLat = position.coords.latitude;
     const userLon = position.coords.longitude;
 
-    // Trouver le point de passage le plus proche basé sur la direction
-    let currentPoint = null;
+    // Déterminer le dernier point franchi et le prochain point en fonction de la direction
+    let lastPassedPoint = null;
     let nextPoint = null;
 
     if (direction === 'north-south') {
-        // Trouver le dernier point dont la latitude est inférieure ou égale à celle de l'utilisateur
-        currentPoint = pointsDePassage.reduce((prev, point) => {
-            if (point.lat <= userLat) {
-                if (!prev || point.lat > prev.lat) {
-                    return point;
-                }
+        // Pour Nord-Sud : latitudes décroissantes
+        for (let i = 0; i < pointsDePassage.length; i++) {
+            if (userLat <= pointsDePassage[i].lat) {
+                lastPassedPoint = pointsDePassage[i];
+                nextPoint = pointsDePassage[i + 1] || null;
+                break;
             }
-            return prev;
-        }, null);
-
-        // Trouver le premier point dont la latitude est supérieure à celle de l'utilisateur
-        nextPoint = pointsDePassage.find(point => point.lat > userLat);
-    } 
-    else if (direction === 'south-north') {
-        // Trouver le dernier point dont la latitude est supérieure ou égale à celle de l'utilisateur
-        currentPoint = pointsDePassage.reduce((prev, point) => {
-            if (point.lat >= userLat) {
-                if (!prev || point.lat < prev.lat) {
-                    return point;
-                }
+        }
+        // Si l'utilisateur a dépassé tous les points
+        if (!lastPassedPoint && pointsDePassage.length > 0) {
+            lastPassedPoint = pointsDePassage[pointsDePassage.length - 1];
+            nextPoint = null;
+        }
+    } else if (direction === 'south-north') {
+        // Pour Sud-Nord : latitudes croissantes
+        for (let i = 0; i < pointsDePassage.length; i++) {
+            if (userLat >= pointsDePassage[i].lat) {
+                lastPassedPoint = pointsDePassage[i];
+                nextPoint = pointsDePassage[i + 1] || null;
+                break;
             }
-            return prev;
-        }, null);
-
-        // Trouver le premier point dont la latitude est inférieure à celle de l'utilisateur
-        nextPoint = pointsDePassage.find(point => point.lat < userLat);
+        }
+        // Si l'utilisateur a dépassé tous les points
+        if (!lastPassedPoint && pointsDePassage.length > 0) {
+            lastPassedPoint = pointsDePassage[0];
+            nextPoint = null;
+        }
     }
 
-    // Retirer la classe 'current-station' de toutes les stations
+    // Mettre à jour la classe 'current-station' dans la timeline
     Array.from(timelineElement.children).forEach(station => {
         station.classList.remove("current-station");
     });
 
-    // Ajouter la classe 'current-station' au point actuel
-    if (currentPoint) {
+    if (lastPassedPoint) {
         Array.from(timelineElement.children).forEach(station => {
-            if (station.textContent.includes(currentPoint.name)) {
+            if (station.textContent.includes(lastPassedPoint.name)) {
                 station.classList.add("current-station");
             }
         });
     }
 
-    // Calculer la distance en latitude (approximation)
+    // Calculer la distance restante (optionnel, peut être amélioré)
     let distance = 0;
     if (nextPoint) {
-        distance = Math.abs(nextPoint.lat - userLat) * 111; // Approximation: 1 degré latitude ≈ 111 km
+        distance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
     }
 
-    // Affichage de la position et du prochain point de passage avec la distance en latitude
+    // Affichage de la position et du prochain point de passage
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
             <strong>Position actuelle :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
@@ -322,6 +323,7 @@ function showPosition(position) {
         `;
     }
 }
+
 
 // Fonction pour gérer les erreurs de géolocalisation
 // Définie dans functions.js, pas besoin de la redéfinir ici
