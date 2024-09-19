@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Fonction pour peupler le menu déroulant des trajets
 function populateTrajetDropdown() {
-    const trajetSelect = document.getElementById('trajet-select');
+    const trajetSelect = document.getElementById('routeSelect');
     
     // Vérifie si l'objet 'trajets' existe et contient des trajets
     if (typeof trajets !== 'undefined' && Object.keys(trajets).length > 0) {
@@ -40,7 +40,7 @@ function populateTrajetDropdown() {
 
 // Fonction pour charger le trajet sélectionné
 function loadSelectedTrajet() {
-    const trajetSelect = document.getElementById('trajet-select');
+    const trajetSelect = document.getElementById('routeSelect');
     const selectedName = trajetSelect.value;
 
     if (trajets[selectedName]) {
