@@ -167,7 +167,7 @@ function displayTimeline() {
             <span>${arrivalTimeStr}</span>
             <span>${point.PK.toFixed(3)}</span>
             <span>${pointName}</span>
-            <span><input type="number" id="${retardInputId}" min="0" step="1" value="${retardMinutes}" style="width: 60px;"></span>
+
         `;
         timelineElement.appendChild(stationDiv);
 
