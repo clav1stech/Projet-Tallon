@@ -2,6 +2,5 @@
     { "name": "Marseille Saint-Charles", "PK": 861.800, "duree": 360, "lat": 43.30334, "lon": 5.38096, "retard": 0 },
     { "name": "Bif. des Tuileries", "PK": 711.001, "duree": 300, "lat": 43.35441, "lon": 5.35259, "retard": 0 },
     { "name": "Tunnel des Pennes-Mirabeau", "PK": 702.280, "duree": 240, "lat": 43.42822, "lon": 5.32977, "retard": 0 },
-    // ... autres points
     { "name": "Paris-Lyon", "PK": 0.000, "duree": 0, "lat": 48.84431, "lon": 2.37564, "retard": 0 }
 ]
