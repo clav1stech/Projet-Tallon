@@ -4,14 +4,14 @@ const trajets = [
     {
         id: "PARMRS",
         name: "Paris - Marseille",
-        direction: "NS", // NS: Nord vers Sud
-        pointsFile: "points_route1.js"
+        direction: "north-south", // 'north-south' ou 'south-north'
+        pointsFile: "points_route1.json" // Modifiez en .js si vous utilisez toujours des fichiers JS
     },
     {
         id: "MRSPAR",
         name: "Marseille - Paris",
-        direction: "SN", // SN: Sud vers Nord
-        pointsFile: "points_route2.js"
+        direction: "south-north",
+        pointsFile: "points_route2.json" // Modifiez en .js si vous utilisez toujours des fichiers JS
     }
-    // Ajoutez d'autres trajets ici
+    // Ajoutez d'autres trajets ici si nécessaire
 ];
