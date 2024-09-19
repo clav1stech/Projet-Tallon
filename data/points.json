@@ -45,9 +45,9 @@
     { "name": "Avignon TGV", "PK": 625.162, "duree": 180, "lat": 43.92171, "lon": 4.78642, "delay": 0 },
     { "name": "Viaduc de Cheval-Blanc (900 m)", "PK": 650.559, "duree": 660, "lat": 43.80702, "lon": 5.04268, "delay": 0 },
     { "name": "Viaduc de Vernègues (1 211 m)", "PK": 669.022, "duree": 240, "lat": 43.68812, "lon": 5.19707, "delay": 0 },
-    { "name": "Viaduc de Ventabren (1 730 m)", "PK": 688.232, "duree": 300, "lat": 43.54931, "lon": 5.32919, "delay": 0 },  // 5 min 00 sec
-    { "name": "Aix-en-Provence TGV", "PK": 699.140, "duree": 240, "lat": 43.45553, "lon": 5.31718, "delay": 0 },  // 4 min 00 sec
-    { "name": "Tunnel des Pennes-Mirabeau", "PK": 702.280, "duree": 240, "lat": 43.42822, "lon": 5.32977, "delay": 0 },  // 4 min 00 sec
-    { "name": "Bif. des Tuileries", "PK": 711.001, "duree": 300, "lat": 43.35441, "lon": 5.35259, "delay": 0 },  // 5 min 00 sec
+    { "name": "Viaduc de Ventabren (1 730 m)", "PK": 688.232, "duree": 300, "lat": 43.54931, "lon": 5.32919, "delay": 0 },  
+    { "name": "Aix-en-Provence TGV", "PK": 699.140, "duree": 240, "lat": 43.45553, "lon": 5.31718, "delay": 0 }, 
+    { "name": "Tunnel des Pennes-Mirabeau", "PK": 702.280, "duree": 240, "lat": 43.42822, "lon": 5.32977, "delay": 0 },  
+    { "name": "Bif. des Tuileries", "PK": 711.001, "duree": 300, "lat": 43.35441, "lon": 5.35259, "delay": 0 },  
     { "name": "Marseille Saint-Charles", "PK": 861.800, "duree": 360, "lat": 43.30334, "lon": 5.38096, "delay": 0 }
 ]
