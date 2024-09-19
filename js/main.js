@@ -38,6 +38,7 @@ function populateTrajetDropdown() {
     }
 }
 
+
 // Fonction pour charger le trajet sélectionné
 function loadSelectedTrajet() {
     const trajetSelect = document.getElementById('routeSelect');
