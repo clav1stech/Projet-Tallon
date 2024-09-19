@@ -27,7 +27,7 @@
     <button onclick="startTracking()">Démarrer</button>
 
     <h2>Choisissez le trajet :</h2>
-    <select id="routeSelect" onchange="loadRoute()">
+    <select id="routeSelect" onchange="loadSelectedTrajet()">
         <option value="">-- Sélectionnez un trajet --</option>
         <!-- Les options seront ajoutées dynamiquement via JavaScript -->
     </select>
@@ -44,8 +44,6 @@
 
     <!-- Inclusion des fichiers JavaScript -->
     <script src="data/routes.js"></script>
-    <script src="data/points_route1.js"></script>
-    <script src="data/points_route2.js"></script>
     <script src="js/functions.js"></script>
     <script src="js/main.js"></script>
 </body>
