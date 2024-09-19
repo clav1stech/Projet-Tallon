@@ -44,24 +44,16 @@ function loadSelectedTrajet() {
     const trajetSelect = document.getElementById('routeSelect');
     const selectedPointsFile = trajetSelect.value;
 
-    if (selectedPointsFile) {
-        // Charger dynamiquement le fichier de points correspondant
-        const script = document.createElement('script');
-        script.src = `data/${selectedPointsFile}`;
-        script.onload = () => {
-            // Utiliser la variable 'pointsDePassage' ou 'pointsRoute2' selon le fichier chargé
-            if (typeof pointsDePassage !== 'undefined') {
-                pointsDePassage = pointsDePassage;
-            } else if (typeof pointsRoute2 !== 'undefined') {
-                pointsDePassage = pointsRoute2;
-            }
-            displayTimeline();  // Appel à l'affichage de la timeline
-        };
-        document.body.appendChild(script);
-    } else {
-        console.error(`Le fichier des points de passage "${selectedPointsFile}" n'est pas défini.`);
+    // Charger dynamiquement le fichier de points correspondant
+    if (selectedPointsFile === 'points_route1.js') {
+        pointsDePassage = pointsRoute1;
+    } else if (selectedPointsFile === 'points_route2.js') {
+        pointsDePassage = pointsRoute2;
     }
+    
+    displayTimeline();  // Appel à l'affichage de la timeline
 }
+
 
 
 // Fonction pour configurer l'affichage des champs manuels en fonction de la méthode de localisation
