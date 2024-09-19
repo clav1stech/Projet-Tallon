@@ -1,0 +1,54 @@
+body {
+    font-family: Arial, sans-serif;
+}
+#timeline {
+    width: 700px; /* Élargi pour inclure le champ de retard */
+    background-color: #333;
+    padding: 10px;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+.station {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    color: white;
+}
+.station.header {
+    font-weight: bold;
+    border-bottom: 2px solid white;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.station span:nth-child(1) {
+    flex-basis: 11%; /* 10% pour l'heure */
+    text-align: left; /* Alignement à gauche pour l'heure */
+}
+
+.station span:nth-child(2) {
+    flex-basis: 18%; /* 10% pour le PK */
+    text-align: left; /* Alignement au centre pour le PK */
+}
+
+.station span:nth-child(3) {
+    flex-basis: 60%; /* Ajusté pour inclure la colonne de retard */
+    text-align: left; /* Alignement à droite pour le nom */
+}
+
+.station span:nth-child(4) {
+    flex-basis: 11%; /* 10% pour le retard */
+    text-align: center; /* Alignement centré pour le retard */
+}
+
+.current-station {
+    background-color: green;
+}
+
+.delayed {
+    color: red;
+}
+
+#info {
+    margin-top: 20px;
+}
