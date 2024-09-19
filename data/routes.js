@@ -4,7 +4,7 @@ const trajets = [
     {
         id: "PARMRS",
         name: "Paris - Marseille",
-        direction: "north-south", // 'north-south' ou 'south-north'
+        direction: "south-north", // 'north-south' ou 'south-north'
         pointsFile: "points_route1.json" // Utiliser .json si vous avez converti en JSON
     },
     {
