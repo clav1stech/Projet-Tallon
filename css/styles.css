@@ -48,11 +48,13 @@ label {
 
 .current-station {
     background-color: green;
+    color: white; /* Assurez-vous que le texte reste lisible */
 }
 
 .delayed {
     color: red;
 }
+
 
 #info {
     margin-top: 20px;
