@@ -116,7 +116,6 @@ function displayTimeline() {
             <span>Heure</span>
             <span>PK</span>
             <span>Nom du Point</span>
-            <!-- Retard (min) supprimé -->
         </div>
     `;
 
