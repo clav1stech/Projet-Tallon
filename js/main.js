@@ -159,9 +159,9 @@ function displayTimeline() {
 
         // Ajouter chaque point à la timeline avec le PK formaté
         const stationDiv = document.createElement("div");
-        stationDiv.classList.add("station");
+        stationDiv.classList.add("station"); // Toujours ajouter la classe 'station'
         if (delayedClass) {
-            stationDiv.classList.add('delayed');
+            stationDiv.classList.add('delayed'); // Ajouter 'delayed' uniquement si nécessaire
         }
         stationDiv.innerHTML = `
             <span>${arrivalTimeStr}</span>
@@ -261,7 +261,12 @@ function showPosition(position) {
     if (direction === 'north-south') {
         // Trouver le dernier point dont la latitude est inférieure ou égale à celle de l'utilisateur
         currentPoint = pointsDePassage.reduce((prev, point) => {
-            return (point.lat <= userLat) ? point : prev;
+            if (point.lat <= userLat) {
+                if (!prev || point.lat > prev.lat) {
+                    return point;
+                }
+            }
+            return prev;
         }, null);
 
         // Trouver le premier point dont la latitude est supérieure à celle de l'utilisateur
@@ -270,7 +275,12 @@ function showPosition(position) {
     else if (direction === 'south-north') {
         // Trouver le dernier point dont la latitude est supérieure ou égale à celle de l'utilisateur
         currentPoint = pointsDePassage.reduce((prev, point) => {
-            return (point.lat >= userLat) ? point : prev;
+            if (point.lat >= userLat) {
+                if (!prev || point.lat < prev.lat) {
+                    return point;
+                }
+            }
+            return prev;
         }, null);
 
         // Trouver le premier point dont la latitude est inférieure à celle de l'utilisateur
@@ -312,3 +322,9 @@ function showPosition(position) {
         `;
     }
 }
+
+// Fonction pour gérer les erreurs de géolocalisation
+// Définie dans functions.js, pas besoin de la redéfinir ici
+
+// Fonction pour calculer la distance entre deux points GPS (formule de Haversine)
+// Définie dans functions.js, pas besoin de la redéfinir ici
