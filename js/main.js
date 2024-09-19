@@ -1,32 +1,107 @@
 // js/main.js
 
+// Variables globales
 let departureTime;
 let timelineElement = document.getElementById("timeline");
 let trackingInterval = null;  // Variable pour stocker l'intervalle
+let selectedTrajet = null;
+let direction = 'north-south';
+let pointsDePassage = [];
 
-// Fonction pour calculer l'heure d'arrivée
-function calculateArrivalTime(startTime, duration, retard = 0) {
-    const [hours, minutes] = startTime.split(':');
+// Initialisation au chargement du DOM
+document.addEventListener('DOMContentLoaded', () => {
+    populateTrajetDropdown();
+    setupLocationMethodListener();
+});
+
+// Fonction pour peupler le menu déroulant des trajets
+function populateTrajetDropdown() {
+    const trajetSelect = document.getElementById('trajet-select');
+    
+    // Vérifie si l'objet 'trajets' existe et contient des trajets
+    if (typeof trajets !== 'undefined' && Object.keys(trajets).length > 0) {
+        for (let trajetName in trajets) {
+            const option = document.createElement('option');
+            option.value = trajetName;
+            option.textContent = trajetName;
+            trajetSelect.appendChild(option);
+        }
+
+        // Charger le premier trajet par défaut
+        trajetSelect.selectedIndex = 0;
+        loadSelectedTrajet();
+
+        // Ajouter un écouteur d'événement pour le changement de sélection
+        trajetSelect.addEventListener('change', loadSelectedTrajet);
+    } else {
+        console.error("Aucun trajet défini dans 'trajets'.");
+    }
+}
+
+// Fonction pour charger le trajet sélectionné
+function loadSelectedTrajet() {
+    const trajetSelect = document.getElementById('trajet-select');
+    const selectedName = trajetSelect.value;
+
+    if (trajets[selectedName]) {
+        selectedTrajet = trajets[selectedName];
+        direction = selectedTrajet.direction;
+        pointsDePassage = selectedTrajet.points;
+
+        // Réinitialiser la timeline et les informations
+        timelineElement.innerHTML = `
+            <div class="station header">
+                <span>Heure</span>
+                <span>PK</span>
+                <span>Nom du Point</span>
+                <span>Retard (min)</span>
+            </div>
+        `;
+        document.getElementById("info").innerHTML = "";
+    } else {
+        console.error(`Le trajet "${selectedName}" n'est pas défini.`);
+    }
+}
+
+// Fonction pour configurer l'affichage des champs manuels en fonction de la méthode de localisation
+function setupLocationMethodListener() {
+    document.querySelectorAll('input[name="locationMethod"]').forEach((radio) => {
+        radio.addEventListener('change', function () {
+            if (this.value === 'manual') {
+                document.getElementById('manualCoords').style.display = 'block';
+            } else {
+                document.getElementById('manualCoords').style.display = 'none';
+            }
+        });
+    });
+}
+
+// Fonction pour calculer l'heure d'arrivée avec retard
+function calculateArrivalTime(startTime, duration, totalRetardSeconds = 0) {
+    const [hours, minutes] = startTime.split(':').map(Number);
     const startDate = new Date();
-    startDate.setHours(parseInt(hours));
-    startDate.setMinutes(parseInt(minutes));
+    startDate.setHours(hours);
+    startDate.setMinutes(minutes);
     startDate.setSeconds(0);
     startDate.setMilliseconds(0);
 
-    // Ajouter la durée (en secondes) et le retard (en minutes convertis en secondes)
-    startDate.setSeconds(startDate.getSeconds() + duration + retard * 60);
+    // Ajouter la durée (en secondes) et le retard accumulé (en secondes)
+    startDate.setSeconds(startDate.getSeconds() + duration + totalRetardSeconds);
     return startDate;
 }
 
-// Fonction pour afficher la timeline avec les heures d'arrivée prévues
+// Fonction pour afficher la timeline avec les heures d'arrivée prévues et les champs de retard
 function displayTimeline() {
+    // Réinitialiser la timeline avec l'en-tête
     timelineElement.innerHTML = `
         <div class="station header">
             <span>Heure</span>
             <span>PK</span>
             <span>Nom du Point</span>
+            <span>Retard (min)</span>
         </div>
     `;
+
     let [hours, minutes] = departureTime.split(':').map(Number);
     let currentDate = new Date();
     currentDate.setHours(hours);
@@ -34,8 +109,16 @@ function displayTimeline() {
     currentDate.setSeconds(0);
     currentDate.setMilliseconds(0);
 
+    let totalRetardSeconds = 0;
+
     pointsDePassage.forEach((point, index) => {
-        const arrivalTime = calculateArrivalTime(departureTime, point.duree, point.retard);
+        // Récupérer la valeur du retard saisie par l'utilisateur
+        const retardInputId = `retard-${index}`;
+        const retardMinutes = parseInt(document.getElementById(retardInputId)?.value) || 0;
+        totalRetardSeconds += retardMinutes * 60;
+
+        // Calculer l'heure d'arrivée avec le retard accumulé
+        const arrivalTime = calculateArrivalTime(departureTime, point.duree, totalRetardSeconds);
         const arrivalTimeStr = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         // Vérification si c'est une gare
@@ -43,18 +126,16 @@ function displayTimeline() {
         let pointName = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
 
         // Appliquer la classe 'delayed' si retard > 0
-        const delayedClass = point.retard > 0 ? 'delayed' : '';
+        const delayedClass = retardMinutes > 0 ? 'delayed' : '';
 
         // Ajouter chaque point à la timeline avec le PK formaté
         const stationDiv = document.createElement("div");
-        stationDiv.classList.add("station");
-        if (point.retard > 0) {
-            stationDiv.classList.add('delayed');
-        }
+        stationDiv.classList.add("station", delayedClass);
         stationDiv.innerHTML = `
             <span>${arrivalTimeStr}</span>
             <span>${point.PK.toFixed(3)}</span>
             <span>${pointName}</span>
+            <span><input type="number" id="${retardInputId}" min="0" step="1" value="0" style="width: 60px;"></span>
         `;
         timelineElement.appendChild(stationDiv);
 
@@ -101,17 +182,6 @@ function startTracking() {
     }
 }
 
-// Gérer l'affichage des champs manuels lorsque l'utilisateur sélectionne la méthode
-document.querySelectorAll('input[name="locationMethod"]').forEach((radio) => {
-    radio.addEventListener('change', function () {
-        if (this.value === 'manual') {
-            document.getElementById('manualCoords').style.display = 'block';
-        } else {
-            document.getElementById('manualCoords').style.display = 'none';
-        }
-    });
-});
-
 // Fonction pour obtenir la localisation (par géolocalisation ou manuellement)
 function getLocation() {
     const selectedMethod = document.querySelector('input[name="locationMethod"]:checked').value;
@@ -147,9 +217,10 @@ function showPosition(position) {
     const userLat = position.coords.latitude;
     const userLon = position.coords.longitude;
 
-    // Trouver le point de passage le plus proche
+    // Trouver le point de passage le plus proche basé sur la direction
     let nearestPoint = null;
     let minDistance = Infinity;
+
     pointsDePassage.forEach(point => {
         const distance = haversineDistance(userLat, userLon, point.lat, point.lon);
         if (distance < minDistance) {
@@ -163,29 +234,40 @@ function showPosition(position) {
         return;
     }
 
-    // Déterminer les points passés et à venir
-    const passedPoints = pointsDePassage.filter(point => point.PK < nearestPoint.PK);
-    const upcomingPoints = pointsDePassage.filter(point => point.PK >= nearestPoint.PK);
+    // Déterminer le point actuel et le prochain point en fonction de la direction
+    let currentPoint = null;
+    let nextPoint = null;
+
+    if (direction === 'north-south') {
+        // Le dernier point dont la latitude est dépassée
+        currentPoint = pointsDePassage.reduce((prev, point) => {
+            return (point.lat < userLat) ? point : prev;
+        }, null);
+
+        // Le prochain point est le premier point dont la latitude n'est pas encore dépassée
+        nextPoint = pointsDePassage.find(point => point.lat >= userLat);
+    } else if (direction === 'south-north') {
+        // Le dernier point dont la latitude est dépassée
+        currentPoint = pointsDePassage.reduce((prev, point) => {
+            return (point.lat > userLat) ? point : prev;
+        }, null);
+
+        // Le prochain point est le premier point dont la latitude n'est pas encore dépassée
+        nextPoint = pointsDePassage.find(point => point.lat <= userLat);
+    }
 
     // Retirer la classe 'current-station' de toutes les stations
     Array.from(timelineElement.children).forEach(station => {
         station.classList.remove("current-station");
     });
 
-    // Ajouter la classe 'current-station' à la station la plus proche
-    Array.from(timelineElement.children).forEach(station => {
-        if (station.textContent.includes(nearestPoint.name)) {
-            station.classList.add("current-station");
-        }
-    });
-
-    // Déterminer le prochain point de passage (le premier dans upcomingPoints après nearestPoint)
-    let nextPoint = null;
-    for (let point of pointsDePassage) {
-        if (point.PK > nearestPoint.PK) {
-            nextPoint = point;
-            break;
-        }
+    // Ajouter la classe 'current-station' au point actuel
+    if (currentPoint) {
+        Array.from(timelineElement.children).forEach(station => {
+            if (station.textContent.includes(currentPoint.name)) {
+                station.classList.add("current-station");
+            }
+        });
     }
 
     // Affichage de la position et du prochain point de passage avec la distance
@@ -202,4 +284,34 @@ function showPosition(position) {
             <strong>Distance restante :</strong> ${minDistance.toFixed(2)} km
         `;
     }
+}
+
+// Fonction pour gérer les erreurs de géolocalisation
+function showError(error) {
+    switch(error.code) {
+        case error.PERMISSION_DENIED:
+            document.getElementById("info").innerText = "L'utilisateur a refusé la demande de géolocalisation.";
+            break;
+        case error.POSITION_UNAVAILABLE:
+            document.getElementById("info").innerText = "Les informations de localisation ne sont pas disponibles.";
+            break;
+        case error.TIMEOUT:
+            document.getElementById("info").innerText = "La demande de géolocalisation a expiré.";
+            break;
+        case error.UNKNOWN_ERROR:
+            document.getElementById("info").innerText = "Une erreur inconnue s'est produite.";
+            break;
+    }
+}
+
+// Fonction pour calculer la distance entre deux points GPS (formule de Haversine)
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Rayon de la Terre en km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance en km
 }
