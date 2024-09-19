@@ -16,20 +16,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Fonction pour peupler le menu déroulant des trajets
 function populateTrajetDropdown() {
-    const trajetSelect = document.getElementById('routeSelect');
+    const trajetSelect = document.getElementById('routeSelect'); // Utiliser 'routeSelect' pour correspondre à l'ID dans l'HTML
     
-    // Vérifie si l'objet 'trajets' existe et contient des trajets
-    if (typeof trajets !== 'undefined' && Object.keys(trajets).length > 0) {
-        for (let trajetName in trajets) {
+    if (typeof trajets !== 'undefined' && Array.isArray(trajets) && trajets.length > 0) {
+        trajets.forEach(trajet => {
             const option = document.createElement('option');
-            option.value = trajetName;
-            option.textContent = trajetName;
+            option.value = trajet.pointsFile;  // Utiliser 'pointsFile' comme valeur
+            option.textContent = trajet.name;
             trajetSelect.appendChild(option);
-        }
+        });
 
-        // Charger le premier trajet par défaut
+        // Charger le premier trajet par défaut si nécessaire
         trajetSelect.selectedIndex = 0;
-        loadSelectedTrajet();
+        loadSelectedTrajet();  // Appel à la fonction pour charger le trajet sélectionné
 
         // Ajouter un écouteur d'événement pour le changement de sélection
         trajetSelect.addEventListener('change', loadSelectedTrajet);
@@ -39,30 +38,31 @@ function populateTrajetDropdown() {
 }
 
 
+
 // Fonction pour charger le trajet sélectionné
 function loadSelectedTrajet() {
     const trajetSelect = document.getElementById('routeSelect');
-    const selectedName = trajetSelect.value;
+    const selectedPointsFile = trajetSelect.value;
 
-    if (trajets[selectedName]) {
-        selectedTrajet = trajets[selectedName];
-        direction = selectedTrajet.direction;
-        pointsDePassage = selectedTrajet.points;
-
-        // Réinitialiser la timeline et les informations
-        timelineElement.innerHTML = `
-            <div class="station header">
-                <span>Heure</span>
-                <span>PK</span>
-                <span>Nom du Point</span>
-                <span>Retard (min)</span>
-            </div>
-        `;
-        document.getElementById("info").innerHTML = "";
+    if (selectedPointsFile) {
+        // Charger dynamiquement le fichier de points correspondant
+        const script = document.createElement('script');
+        script.src = `data/${selectedPointsFile}`;
+        script.onload = () => {
+            // Utiliser la variable 'pointsDePassage' ou 'pointsRoute2' selon le fichier chargé
+            if (typeof pointsDePassage !== 'undefined') {
+                pointsDePassage = pointsDePassage;
+            } else if (typeof pointsRoute2 !== 'undefined') {
+                pointsDePassage = pointsRoute2;
+            }
+            displayTimeline();  // Appel à l'affichage de la timeline
+        };
+        document.body.appendChild(script);
     } else {
-        console.error(`Le trajet "${selectedName}" n'est pas défini.`);
+        console.error(`Le fichier des points de passage "${selectedPointsFile}" n'est pas défini.`);
     }
 }
+
 
 // Fonction pour configurer l'affichage des champs manuels en fonction de la méthode de localisation
 function setupLocationMethodListener() {
