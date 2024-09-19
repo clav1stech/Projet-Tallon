@@ -13,7 +13,7 @@ label {
 }
 
 #timeline {
-    width: 700px;
+    width: 600px;
     background-color: #333;
     padding: 10px;
     color: white;
@@ -51,9 +51,10 @@ label {
     color: white; /* Assurez-vous que le texte reste lisible */
 }
 
-.delayed {
+/* .delayed {
     color: red;
-}
+} */
+
 
 
 #info {
