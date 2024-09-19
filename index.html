@@ -3,51 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Labo</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-        #timeline {
-            width: 600px;
-            background-color: #333;
-            padding: 10px;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-        .station {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            color: white;
-        }
-
-        .station span:nth-child(1) {
-            flex-basis: 11%; /* 10% pour l'heure */
-            text-align: left; /* Alignement à gauche pour l'heure */
-        }
-
-        .station span:nth-child(2) {
-            flex-basis: 18%; /* 10% pour le PK */
-            text-align: left; /* Alignement au centre pour le PK */
-        }
-
-        .station span:nth-child(3) {
-            flex-basis: 71%; /* 80% pour le nom */
-            text-align: left; /* Alignement à droite pour le nom */
-        }
-
-        .current-station {
-            background-color: green;
-        }
-        #info {
-            margin-top: 20px;
-        }
-    </style>
+    <title>Suivi de Trajet - Labo</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 
 <body>
-    <h1>Labo</h1>
+    <h1>Labo - Suivi de Trajet</h1>
     
     <label for="departure-time">Heure de départ (HH:MM):</label>
     <input type="time" id="departure-time" required>
@@ -63,266 +24,20 @@
         <input type="number" id="manualLon" step="0.00001" placeholder="Entrez la longitude"><br>
     </div>
 
-    
     <button onclick="startTracking()">Démarrer</button>
 
-    <div id="timeline"></div>
+    <div id="timeline">
+        <div class="station header">
+            <span>Heure</span>
+            <span>PK</span>
+            <span>Nom du Point</span>
+        </div>
+    </div>
     <p id="info"></p>
 
-    <script>
-        // Liste des points de passage avec PK, lat, lon et durée
-        const pointsDePassage = [
-            { name: "Paris-Lyon", PK: 0.000, duree: 0, lat: 48.84431, lon: 2.37564 },  // 0 min 00 sec
-            { name: "Bif. de Créteil", PK: 9.326, duree: 350, lat: 48.77490, lon: 2.43626 },  // 6 min 50 sec
-            { name: "Tunnel de Limeil-Brevannes", PK: 4.117, duree: 142, lat: 48.74884, lon: 2.47240 },  // 2 min 22 sec
-            { name: "Tranchée couverte de Villecresne", PK: 7.633, duree: 118, lat: 48.73355, lon: 2.50744 },  // 2 min 58 sec
-            { name: "Bif. de Chevry-Cossigny", PK: 21.486, duree: 300, lat: 48.70186, lon: 2.68159 },  // 5 min 00 sec
-            { name: "Bif. V.1 de Solers", PK: 26.500, duree: 86, lat: 48.67599, lon: 2.72792 },  // 1 min 26 sec
-            { name: "Bif. de Moisenay", PK: 17.099, duree: 220, lat: 48.56911, lon: 2.75358 },  // 4 min 40 sec
-            { name: "Viaduc de Montereau", PK: 42.740, duree: 343, lat: 48.39683, lon: 2.97820 },  // 6 min 43 sec
-            { name: "PRS de Marolles", PK: 49.230, duree: 83, lat: 48.37260, lon: 3.05381 },  // 1 min 23 sec
-            { name: "Passage sous l'A19", PK: 72.200, duree: 299, lat: 48.25960, lon: 3.28652 },  // 5 min 59 sec
-            { name: "PRS de Vaumort", PK: 92.778, duree: 290, lat: 48.11586, lon: 3.44976 },  // 5 min 50 sec
-            { name: "Viaduc sur le canal de Bourgogne", PK: 115.752, duree: 294, lat: 47.98193, lon: 3.67834 },  // 5 min 54 sec
-            { name: "Bif. (V. 2) de Vergigny vers le racc. sud", PK: 117.959, duree: 26, lat: 47.97407, lon: 3.69335 },  // 0 min 26 sec
-            { name: "PRS Tonnerre", PK: 139.817, duree: 290, lat: 47.85008, lon: 3.92233 },  // 5 min 50 sec
-            { name: "Bif. V.1 de Pasilly", PK: 161.746, duree: 294, lat: 47.68374, lon: 4.07910 },  // 5 min 54 sec
-            { name: "Viaduc d'Époisses", PK: 185.353, duree: 330, lat: 47.48607, lon: 4.15635 },  // 6 min 30 sec
-            { name: "PRS de Lacour d'Arcenay", PK: 202.367, duree: 255, lat: 47.34790, lon: 4.24603 },  // 4 min 15 sec
-            { name: "Viaduc de Saulieu", PK: 208.686, duree: 95, lat: 47.29473, lon: 4.27178 },  // 2 min 35 sec
-            { name: "PRS de Vianges", PK: 225.809, duree: 225, lat: 47.14900, lon: 4.34201 },  // 4 min 45 sec
-            { name: "PRS de Sully", PK: 247.214, duree: 270, lat: 46.99679, lon: 4.45548 },  // 5 min 30 sec
-            { name: "Viaduc de la Digoine (Drée)", PK: 253.454, duree: 85, lat: 46.94780, lon: 4.48808 },  // 1 min 25 sec
-            { name: "Le Creusot – Montceau – Montchanin", PK: 273.816, duree: 284, lat: 46.76534, lon: 4.50010 },  // 5 min 44 sec
-            { name: "PRS de Vaux-en-Pré", PK: 292.995, duree: 279, lat: 46.61190, lon: 4.60418 },  // 5 min 39 sec
-            { name: "PRS de Cluny", PK: 313.579, duree: 270, lat: 46.43449, lon: 4.67387 },  // 5 min 30 sec
-            { name: "Viaduc de la Roche", PK: 321.187, duree: 108, lat: 46.37125, lon: 4.67518 },  // 2 min 48 sec
-            { name: "Macon – Loché TGV", PK: 333.917, duree: 165, lat: 46.28338, lon: 4.77797 },  // 3 min 45 sec
-            { name: "PRS de Cessein", PK: 361.134, duree: 392, lat: 46.06674, lon: 4.84928 },  // 7 min 32 sec
-            { name: "Passage sous l'A46", PK: 379.572, duree: 260, lat: 45.90156, lon: 4.87495 },  // 4 min 20 sec
-            { name: "Bif. V.1 de Montanay", PK: 380.540, duree: 13, lat: 45.89360, lon: 4.87707 },  // 0 min 13 sec
-            { name: "Pont sur l'A46", PK: 385.133, duree: 62, lat: 45.86041, lon: 4.90772 },  // 1 min 02 sec
-            { name: "Viaduc de la Cotière", PK: 394.060, duree: 125, lat: 45.84303, lon: 5.01456 },  // 2 min 05 sec
-            { name: "Lyon-Saint-Exupéry TGV", PK: 409.705, duree: 205, lat: 45.72106, lon: 5.07589 },  // 3 min 25 sec
-            { name: "Bif. (V. 1) de Grenay-Nord", PK: 416.647, duree: 95, lat: 45.66017, lon: 5.07287 },  // 2 min 35 sec
-            { name: "Tunnel de Meyssiez", PK: 440.545, duree: 340, lat: 45.46091, lon: 5.04418 },  // 6 min 40 sec
-            { name: "Viaduc de la Galaure", PK: 471.869, duree: 395, lat: 45.19677, lon: 4.91898 },  // 7 min 35 sec
-            { name: "PRCI de Claveyson - Bren", PK: 476.336, duree: 58, lat: 45.15760, lon: 4.92203 },  // 1 min 58 sec
-            { name: "Valence TGV", PK: 495.464, duree: 245, lat: 44.99112, lon: 4.97879 },  // 4 min 05 sec
-            { name: "Tunnel de Tartaiguille (2 340 m)", PK: 531.661, duree: 500, lat: 44.68243, lon: 4.93530 },  // 8 min 20 sec
-            { name: "SEI d'Allan", PK: 556.011, duree: 314, lat: 44.49641, lon: 4.77729 },  // 5 min 14 sec
-            { name: "Viaduc sur l'A7", PK: 569.737, duree: 180, lat: 44.37792, lon: 4.73232 },  // 3 min 00 sec
-            { name: "Bif. (V. 1) vers le racc. de Bollène", PK: 578.411, duree: 115, lat: 44.30675, lon: 4.70120 },  // 2 min 55 sec
-            { name: "SEI de Piolenc", PK: 595.040, duree: 230, lat: 44.16485, lon: 4.73397 },  // 4 min 50 sec
-            { name: "Bif. (V. 1) d'Avignon-Nord", PK: 617.742, duree: 330, lat: 43.97382, lon: 4.73681 },  // 6 min 30 sec
-            { name: "Avignon TGV", PK: 625.162, duree: 180, lat: 43.92171, lon: 4.78642 },  // 3 min 00 sec
-            { name: "Viaduc de Cheval-Blanc (900 m)", PK: 650.559, duree: 660, lat: 43.80702, lon: 5.04268 },  // 11 min 00 sec
-            { name: "Viaduc de Vernègues (1 211 m)", PK: 669.022, duree: 240, lat: 43.68812, lon: 5.19707 },  // 4 min 00 sec
-            { name: "Viaduc de Ventabren (1 730 m)", PK: 688.232, duree: 300, lat: 43.54931, lon: 5.32919 },  // 5 min 00 sec
-            { name: "Aix-en-Provence TGV", PK: 699.140, duree: 240, lat: 43.45553, lon: 5.31718 },  // 4 min 00 sec
-            { name: "Tunnel des Pennes-Mirabeau", PK: 702.280, duree: 240, lat: 43.42822, lon: 5.32977 },  // 4 min 00 sec
-            { name: "Bif. des Tuileries", PK: 711.001, duree: 300, lat: 43.35441, lon: 5.35259 },  // 5 min 00 sec
-            { name: "Marseille Saint-Charles", PK: 861.800, duree: 360, lat: 43.30334, lon: 5.38096 },  // 6 min 00 sec
-        ];
-
-        let departureTime;
-        let timelineElement = document.getElementById("timeline");
-        let trackingInterval = null;  // Variable pour stocker l'intervalle
-
-        // Fonction pour calculer l'heure d'arrivée
-        function calculateArrivalTime(startTime, duration) {
-            const [hours, minutes] = startTime.split(':');
-            const startDate = new Date();
-            startDate.setHours(parseInt(hours));
-            startDate.setMinutes(parseInt(minutes));
-            startDate.setSeconds(0);
-            startDate.setMilliseconds(0);
-
-            // Ajouter la durée (en secondes)
-            startDate.setSeconds(startDate.getSeconds() + duration);
-            return startDate;
-        }
-
-        // Fonction pour afficher la timeline avec les heures d'arrivée prévues
-        function displayTimeline() {
-            timelineElement.innerHTML = '';
-            let [hours, minutes] = departureTime.split(':').map(Number);
-            let currentDate = new Date();
-            currentDate.setHours(hours);
-            currentDate.setMinutes(minutes);
-            currentDate.setSeconds(0);
-            currentDate.setMilliseconds(0);
-
-            const gares = ["Paris-Lyon", "Valence TGV", "Avignon TGV", "Lyon-Saint-Exupéry TGV", "Marseille Saint-Charles", "Macon – Loché TGV", "Le Creusot – Montceau – Montchanin TGV", "Aix-en-Provence TGV"];  // Liste des gares
-
-            pointsDePassage.forEach((point, index) => {
-                const arrivalTime = new Date(currentDate.getTime());
-                arrivalTime.setSeconds(arrivalTime.getSeconds() + point.duree);
-                const arrivalTimeStr = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                // Vérification si c'est une gare
-                let pointName = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
-
-                // Ajouter chaque point à la timeline avec le PK
-                const stationDiv = document.createElement("div");
-                stationDiv.classList.add("station");
-                stationDiv.innerHTML = `<span>${arrivalTimeStr}</span> <span>PK: ${point.PK}</span> <span>${pointName}</span>`;
-                timelineElement.appendChild(stationDiv);
-
-                // Mettre à jour l'heure pour le prochain point
-                currentDate = arrivalTime;
-            });
-        }
-
-        // Fonction pour démarrer le suivi
-        function startTracking() {
-            const departureInput = document.getElementById("departure-time").value;
-            if (!departureInput) {
-                alert("Veuillez entrer une heure de départ.");
-                return;
-            }
-
-            departureTime = departureInput;
-            displayTimeline();
-
-            const selectedMethod = document.querySelector('input[name="locationMethod"]:checked').value;
-
-            if (selectedMethod === 'geo') {
-                // Si l'utilisateur choisit la géolocalisation, on met à jour toutes les 10 secondes
-                if (navigator.geolocation) {
-                    // Nettoyer l'intervalle précédent s'il existe
-                    if (trackingInterval) {
-                        clearInterval(trackingInterval);
-                    }
-
-                    // Appeler une fois immédiatement
-                    navigator.geolocation.getCurrentPosition(showPosition, showError);
-
-                    // Actualiser la position toutes les 10 secondes
-                    trackingInterval = setInterval(() => {
-                        navigator.geolocation.getCurrentPosition(showPosition, showError);
-                    }, 10000);  // 10 000 millisecondes = 10 secondes
-                } else {
-                    document.getElementById("info").innerText = "La géolocalisation n'est pas supportée par ce navigateur.";
-                }
-            } else {
-                // Si l'utilisateur choisit la méthode manuelle, pas besoin de mise à jour périodique
-                getLocation();
-            }
-        }
-
-        // Gérer l'affichage des champs manuels lorsque l'utilisateur sélectionne la méthode
-        document.querySelectorAll('input[name="locationMethod"]').forEach((radio) => {
-            radio.addEventListener('change', function () {
-                if (this.value === 'manual') {
-                    document.getElementById('manualCoords').style.display = 'block';
-                } else {
-                    document.getElementById('manualCoords').style.display = 'none';
-                }
-            });
-        });
-
-        // Fonction pour obtenir la localisation (par géolocalisation ou manuellement)
-        function getLocation() {
-            const selectedMethod = document.querySelector('input[name="locationMethod"]:checked').value;
-
-            if (selectedMethod === 'geo') {
-                // Utiliser la géolocalisation de l'appareil
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(showPosition, showError);
-                } else {
-                    document.getElementById("info").innerText = "La géolocalisation n'est pas supportée par ce navigateur.";
-                }
-            } else {
-                // Utiliser les coordonnées manuellement saisies
-                const manualLat = parseFloat(document.getElementById('manualLat').value);
-                const manualLon = parseFloat(document.getElementById('manualLon').value);
-
-                if (!isNaN(manualLat) && !isNaN(manualLon)) {
-                    const manualPosition = {
-                        coords: {
-                            latitude: manualLat,
-                            longitude: manualLon
-                        }
-                    };
-                    showPosition(manualPosition);
-                } else {
-                    document.getElementById("info").innerText = "Veuillez saisir des coordonnées valides.";
-                }
-            }
-        }
-
-        // Fonction pour gérer les erreurs de géolocalisation
-        function showError(error) {
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    document.getElementById("info").innerText = "L'utilisateur a refusé la demande de géolocalisation.";
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    document.getElementById("info").innerText = "Les informations de localisation ne sont pas disponibles.";
-                    break;
-                case error.TIMEOUT:
-                    document.getElementById("info").innerText = "La demande de géolocalisation a expiré.";
-                    break;
-                case error.UNKNOWN_ERROR:
-                    document.getElementById("info").innerText = "Une erreur inconnue s'est produite.";
-                    break;
-            }
-        }
-
-       // Fonction pour afficher la position et mettre à jour l'avancement
-        function showPosition(position) {
-            const userLat = position.coords.latitude;
-            const userLon = position.coords.longitude;
-
-            // Trouver le point de passage le plus proche
-            let nearestPoint = null;
-            let minDistance = Infinity;
-            pointsDePassage.forEach(point => {
-                const distance = haversineDistance(userLat, userLon, point.lat, point.lon);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    nearestPoint = point;
-                }
-            });
-
-            if (!nearestPoint) {
-                document.getElementById("info").innerText = "Aucun point de passage trouvé.";
-                return;
-            }
-
-            // Retirer la classe 'current-station' de toutes les stations
-            Array.from(timelineElement.children).forEach(station => {
-                station.classList.remove("current-station");
-            });
-
-            // Ajouter la classe 'current-station' à la station la plus proche
-            Array.from(timelineElement.children).forEach(station => {
-                if (station.textContent.includes(nearestPoint.name)) {
-                    station.classList.add("current-station");
-                }
-            });
-
-            // Affichage de la position et du prochain point de passage avec la distance
-            document.getElementById("info").innerHTML = `
-                <strong>Position actuelle :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-                <strong>Prochain point de passage :</strong> ${nearestPoint.name} (PK: ${nearestPoint.PK})<br>
-                <strong>Distance restante :</strong> ${minDistance.toFixed(2)} km
-            `;
-        }
-
-        // Fonction pour calculer la distance entre deux points GPS (formule de Haversine)
-        function haversineDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Rayon de la Terre en km
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c; // Distance en km
-        }
-
-    </script>
+    <!-- Inclusion des fichiers JavaScript -->
+    <script src="data/points.js"></script>
+    <script src="js/functions.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
