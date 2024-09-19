@@ -5,7 +5,7 @@ let departureTime;
 let timelineElement = document.getElementById("timeline");
 let trackingInterval = null;  // Variable pour stocker l'intervalle
 let selectedTrajet = null;
-let direction = 'north-south';
+let direction = 'SN';
 let pointsDePassage = [];
 
 // Initialisation au chargement du DOM
@@ -42,7 +42,7 @@ function loadSelectedTrajet() {
     if (!selectedPointsFile) {
         console.warn("Aucun fichier de points sélectionné.");
         pointsDePassage = [];
-        direction = 'north-south'; // Valeur par défaut ou réinitialiser
+        direction = 'SN'; // Valeur par défaut ou réinitialiser
         return;
     }
 
@@ -259,7 +259,7 @@ function showPosition(position) {
     let lastPassedPoint = null;
     let nextPoint = null;
 
-    if (direction === 'north-south') {
+    if (direction === 'SN') {
         // Pour Nord-Sud : latitudes décroissantes
         for (let i = 0; i < pointsDePassage.length; i++) {
             if (userLat <= pointsDePassage[i].lat) {
@@ -273,7 +273,7 @@ function showPosition(position) {
             lastPassedPoint = pointsDePassage[pointsDePassage.length - 1];
             nextPoint = null;
         }
-    } else if (direction === 'south-north') {
+    } else if (direction === 'NS') {
         // Pour Sud-Nord : latitudes croissantes
         for (let i = 0; i < pointsDePassage.length; i++) {
             if (userLat >= pointsDePassage[i].lat) {
