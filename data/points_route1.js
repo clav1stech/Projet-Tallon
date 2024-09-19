@@ -1,6 +1,6 @@
 // data/points_route1.js
 
-const pointsDePassage = [
+const pointsRoute1 = [
             { name: "Paris-Lyon", PK: 0.000, duree: 0, lat: 48.84431, lon: 2.37564, retard: 0 },
             { name: "Bif. de Créteil", PK: 9.326, duree: 350, lat: 48.77490, lon: 2.43626, retard: 0 },
             { name: "Tunnel de Limeil-Brevannes", PK: 4.117, duree: 142, lat: 48.74884, lon: 2.47240, retard: 0 },
