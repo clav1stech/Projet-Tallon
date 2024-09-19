@@ -2,14 +2,14 @@
 
 const routes = [
     {
-        id: "route1",
-        name: "Trajet Nord-Sud",
+        id: "PARMRS",
+        name: "Paris - Marseille",
         direction: "NS", // NS: Nord vers Sud
         pointsFile: "points_route1.js"
     },
     {
-        id: "route2",
-        name: "Trajet Sud-Nord",
+        id: "MRSPAR",
+        name: "Marseille - Paris",
         direction: "SN", // SN: Sud vers Nord
         pointsFile: "points_route2.js"
     }
