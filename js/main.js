@@ -45,14 +45,26 @@ function loadSelectedTrajet() {
     const selectedPointsFile = trajetSelect.value;
 
     // Charger dynamiquement le fichier de points correspondant
-    if (selectedPointsFile === 'points_route1.js') {
-        pointsDePassage = pointsRoute1;
-    } else if (selectedPointsFile === 'points_route2.js') {
-        pointsDePassage = pointsRoute2;
-    }
-    
-    displayTimeline();  // Appel à l'affichage de la timeline
+    const script = document.createElement('script');
+    script.src = `data/${selectedPointsFile}`;  // Chemin du fichier à charger
+    script.onload = () => {
+        // Le fichier a été chargé avec succès
+        if (selectedPointsFile === 'points_route1.js') {
+            pointsDePassage = pointsRoute1;
+        } else if (selectedPointsFile === 'points_route2.js') {
+            pointsDePassage = pointsRoute2;
+        }
+        console.log("Points de passage chargés : ", pointsDePassage);
+        displayTimeline();  // Appel à l'affichage de la timeline une fois les points chargés
+    };
+    script.onerror = () => {
+        console.error("Erreur lors du chargement du fichier des points.");
+    };
+
+    document.body.appendChild(script);  // Ajoutez le script dynamiquement au document
 }
+
+
 
 
 
@@ -207,46 +219,31 @@ function getLocation() {
 
 // Fonction pour afficher la position et mettre à jour l'avancement
 function showPosition(position) {
-    const userLat = position.coords.latitude;
-    const userLon = position.coords.longitude;
+    const userLat = position.coords.latitude;  // On se base uniquement sur la latitude de l'utilisateur
 
     // Trouver le point de passage le plus proche basé sur la direction
-    let nearestPoint = null;
-    let minDistance = Infinity;
-
-    pointsDePassage.forEach(point => {
-        const distance = haversineDistance(userLat, userLon, point.lat, point.lon);
-        if (distance < minDistance) {
-            minDistance = distance;
-            nearestPoint = point;
-        }
-    });
-
-    if (!nearestPoint) {
-        document.getElementById("info").innerText = "Aucun point de passage trouvé.";
-        return;
-    }
-
-    // Déterminer le point actuel et le prochain point en fonction de la direction
     let currentPoint = null;
     let nextPoint = null;
 
+    // Si la direction est 'north-south' (du nord vers le sud)
     if (direction === 'north-south') {
-        // Le dernier point dont la latitude est dépassée
+        // Trouver le dernier point dont la latitude est inférieure ou égale à celle de l'utilisateur
         currentPoint = pointsDePassage.reduce((prev, point) => {
-            return (point.lat < userLat) ? point : prev;
+            return (point.lat <= userLat) ? point : prev;
         }, null);
 
-        // Le prochain point est le premier point dont la latitude n'est pas encore dépassée
-        nextPoint = pointsDePassage.find(point => point.lat >= userLat);
-    } else if (direction === 'south-north') {
-        // Le dernier point dont la latitude est dépassée
+        // Trouver le premier point dont la latitude est supérieure à celle de l'utilisateur
+        nextPoint = pointsDePassage.find(point => point.lat > userLat);
+    } 
+    // Si la direction est 'south-north' (du sud vers le nord)
+    else if (direction === 'south-north') {
+        // Trouver le dernier point dont la latitude est supérieure ou égale à celle de l'utilisateur
         currentPoint = pointsDePassage.reduce((prev, point) => {
-            return (point.lat > userLat) ? point : prev;
+            return (point.lat >= userLat) ? point : prev;
         }, null);
 
-        // Le prochain point est le premier point dont la latitude n'est pas encore dépassée
-        nextPoint = pointsDePassage.find(point => point.lat <= userLat);
+        // Trouver le premier point dont la latitude est inférieure à celle de l'utilisateur
+        nextPoint = pointsDePassage.find(point => point.lat < userLat);
     }
 
     // Retirer la classe 'current-station' de toutes les stations
@@ -263,21 +260,21 @@ function showPosition(position) {
         });
     }
 
-    // Affichage de la position et du prochain point de passage avec la distance
+    // Affichage de la position et du prochain point de passage avec la distance en latitude
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
-            <strong>Position actuelle :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
+            <strong>Position actuelle :</strong> ${userLat.toFixed(5)}<br>
             <strong>Prochain point de passage :</strong> ${nextPoint.name} (PK: ${nextPoint.PK.toFixed(3)})<br>
-            <strong>Distance restante :</strong> ${minDistance.toFixed(2)} km
+            <strong>Latitude du prochain point :</strong> ${nextPoint.lat.toFixed(5)}
         `;
     } else {
         document.getElementById("info").innerHTML = `
-            <strong>Position actuelle :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-            <strong>Aucun prochain point de passage.</strong><br>
-            <strong>Distance restante :</strong> ${minDistance.toFixed(2)} km
+            <strong>Position actuelle :</strong> ${userLat.toFixed(5)}<br>
+            <strong>Aucun prochain point de passage.</strong>
         `;
     }
 }
+
 
 // Fonction pour gérer les erreurs de géolocalisation
 function showError(error) {
