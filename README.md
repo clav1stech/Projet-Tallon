@@ -1,21 +1,21 @@
-# Projet de Suivi de Trajet
+# Railway Timeline
 
 ## Description
 
-Application web permettant de suivre un trajet avec des points de passage, affichant les horaires et les retards éventuels.
+Application web permettant de suivre un trajet avec des points de passage, affichant les horaires prévus et la position sur le trajet.
 
 ## Structure du Projet
 
 - `index.html` : Fichier HTML principal.
 - `css/styles.css` : Feuilles de style CSS.
-- `js/functions.js` : Scripts JavaScript.
-- `data/points.json` : Données des points de passage.
+- `js/*` : Scripts JavaScript.
+- `data/*` : Données des points de passage.
 
 ## Fonctionnalités
 
 - Suivi en temps réel via géolocalisation ou saisie manuelle des coordonnées.
-- Affichage des horaires avec gestion des retards.
-- Interface responsive et intuitive.
+- Affichage des horaires théoriques
+- Emplacement actuel
 
 ## Installation
 
