@@ -18,16 +18,16 @@
     <label for="departure-time">    Departure time (HH:MM):</label>
     <input type="time" id="departure-time" required>
     
-    <h2>Location :</h2>
-    <label><input type="radio" name="locationMethod" value="geo" checked> Use GPS</label><br>
-    <label><input type="radio" name="locationMethod" value="manual"> Manual input</label><br><br>
+    <h4>Location :</h4>
+    <label><input type="radio" name="locationMethod" value="geo" checked> Use GPS</label>
+    <label><input type="radio" name="locationMethod" value="manual"> Manual input</label>
 
     <div id="manualCoords" style="display:none;">
         <label for="manualLat">Latitude :</label>
         <input type="number" id="manualLat" step="0.00001" placeholder="Entrez la latitude"><br>
         <label for="manualLon">Longitude :</label>
         <input type="number" id="manualLon" step="0.00001" placeholder="Entrez la longitude"><br>
-    </div>
+    </div><br>
 
     <button onclick="startTracking()">Start</button>
 
