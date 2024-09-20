@@ -84,21 +84,14 @@ function setupLocationMethodListener() {
     });
 }
 
-// Fonction pour calculer l'heure d'arrivée avec retard
-function calculateArrivalTime(startTime, duration, totalRetardSeconds = 0) {
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const startDate = new Date();
-    startDate.setHours(hours);
-    startDate.setMinutes(minutes);
-    startDate.setSeconds(0);
-    startDate.setMilliseconds(0);
-
-    // Ajouter la durée (en secondes) et le retard accumulé (en secondes)
-    startDate.setSeconds(startDate.getSeconds() + duration + totalRetardSeconds);
-    return startDate;
+// Fonction pour calculer l'heure d'arrivée de manière cumulative
+function calculateArrivalTime(currentDate, duration) {
+    const newDate = new Date(currentDate.getTime());
+    newDate.setSeconds(newDate.getSeconds() + duration);
+    return newDate;
 }
 
-// Fonction pour afficher la timeline avec les heures d'arrivée prévues et les champs de retard
+// Fonction pour afficher la timeline sans les retards
 function displayTimeline() {
     if (!departureTime) {
         console.error("departureTime n'est pas défini.");
@@ -126,47 +119,22 @@ function displayTimeline() {
     currentDate.setSeconds(0);
     currentDate.setMilliseconds(0);
 
-    let totalRetardSeconds = 0;
-
     pointsDePassage.forEach((point, index) => {
-        // Récupérer la valeur du retard saisie par l'utilisateur
-        const retardInputId = `retard-${index}`;
-        const retardInput = document.getElementById(retardInputId);
-        let retardMinutes = retardInput ? parseInt(retardInput.value) : 0;
-
-        // Validation des entrées de retard
-        if (isNaN(retardMinutes) || retardMinutes < 0) {
-            alert(`Retard invalide pour le point ${point.name}. Veuillez entrer un nombre positif.`);
-            retardMinutes = 0;
-            if (retardInput) {
-                retardInput.value = 0;
-            }
-        }
-
-        totalRetardSeconds += retardMinutes * 60;
-
-        // Calculer l'heure d'arrivée avec le retard accumulé
-        const arrivalTime = calculateArrivalTime(departureTime, point.duree, totalRetardSeconds);
+        // Calculer l'heure d'arrivée de manière cumulative
+        const arrivalTime = calculateArrivalTime(currentDate, point.duree);
         const arrivalTimeStr = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         // Vérification si c'est une gare
         const gares = ["Paris-Lyon", "Valence TGV", "Avignon TGV", "Lyon-Saint-Exupéry TGV", "Marseille Saint-Charles", "Macon – Loché TGV", "Le Creusot – Montceau – Montchanin TGV", "Aix-en-Provence TGV"];
         let pointName = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
 
-        // Appliquer la classe 'delayed' si retard > 0
-        const delayedClass = retardMinutes > 0 ? 'delayed' : '';
-
         // Ajouter chaque point à la timeline avec le PK formaté
         const stationDiv = document.createElement("div");
-        stationDiv.classList.add("station"); // Toujours ajouter la classe 'station'
-        if (delayedClass) {
-            stationDiv.classList.add('delayed'); // Ajouter 'delayed' uniquement si nécessaire
-        }
+        stationDiv.classList.add("station");
         stationDiv.innerHTML = `
             <span>${arrivalTimeStr}</span>
             <span>${point.PK.toFixed(3)}</span>
             <span>${pointName}</span>
-
         `;
         timelineElement.appendChild(stationDiv);
 
@@ -249,7 +217,6 @@ function getLocation() {
 }
 
 // Fonction pour afficher la position et mettre à jour l'avancement
-// Fonction pour afficher la position et mettre à jour l'avancement
 function showPosition(position) {
     const userLat = position.coords.latitude;
     const userLon = position.coords.longitude;
@@ -322,10 +289,3 @@ function showPosition(position) {
         `;
     }
 }
-
-
-// Fonction pour gérer les erreurs de géolocalisation
-// Définie dans functions.js, pas besoin de la redéfinir ici
-
-// Fonction pour calculer la distance entre deux points GPS (formule de Haversine)
-// Définie dans functions.js, pas besoin de la redéfinir ici
