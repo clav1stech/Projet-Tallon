@@ -4,7 +4,6 @@
 let departureTime;
 let timelineElement = document.getElementById("timeline");
 let trackingInterval = null;  // Variable pour stocker l'intervalle
-let selectedTrajet = null;
 let direction = 'north-south';
 let pointsDePassage = [];
 
@@ -65,6 +64,8 @@ function loadSelectedTrajet() {
             pointsDePassage = data;
             direction = trajet.direction;
             console.log("Points de passage chargés : ", pointsDePassage);
+            // Optionnel : Afficher la timeline après le chargement des points
+            // displayTimeline();
         })
         .catch(error => {
             console.error("Erreur lors du chargement du fichier des points:", error);
@@ -86,8 +87,9 @@ function setupLocationMethodListener() {
 
 // Fonction pour calculer l'heure d'arrivée de manière cumulative
 function calculateArrivalTime(currentDate, duration) {
-    const newDate = new Date(currentDate.getTime());
-    newDate.setSeconds(newDate.getSeconds() + duration);
+    // Assurez-vous que 'duration' est en secondes
+    const durationMilliseconds = duration * 1000; // Convertir en millisecondes
+    const newDate = new Date(currentDate.getTime() + durationMilliseconds);
     return newDate;
 }
 
@@ -120,8 +122,15 @@ function displayTimeline() {
     currentDate.setMilliseconds(0);
 
     pointsDePassage.forEach((point, index) => {
+        // Assurez-vous que 'duree' est un nombre
+        const dureeSeconds = Number(point.duree);
+        if (isNaN(dureeSeconds)) {
+            console.error(`Durée invalide pour le point ${point.name}: ${point.duree}`);
+            return;
+        }
+
         // Calculer l'heure d'arrivée de manière cumulative
-        const arrivalTime = calculateArrivalTime(currentDate, point.duree);
+        const arrivalTime = calculateArrivalTime(currentDate, dureeSeconds);
         const arrivalTimeStr = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         // Vérification si c'est une gare
@@ -289,3 +298,6 @@ function showPosition(position) {
         `;
     }
 }
+
+// Fonction pour gérer les erreurs de géolocalisation
+// Définie dans functions.js, pas besoin de la redéfinir ici
