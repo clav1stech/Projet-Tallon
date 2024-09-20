@@ -108,8 +108,8 @@ function displayTimeline() {
     // Réinitialiser la timeline avec l'en-tête
     timelineElement.innerHTML = `
         <div class="station header">
-            <span>Heure</span>
             <span>PK</span>
+            <span>Heure</span>
             <span>Nom du Point</span>
         </div>
     `;
@@ -122,7 +122,6 @@ function displayTimeline() {
     currentDate.setMilliseconds(0);
 
     pointsDePassage.forEach((point, index) => {
-        // Assurez-vous que 'duree' est un nombre
         const dureeSeconds = Number(point.duree);
         if (isNaN(dureeSeconds)) {
             console.error(`Durée invalide pour le point ${point.name}: ${point.duree}`);
@@ -141,9 +140,9 @@ function displayTimeline() {
         const stationDiv = document.createElement("div");
         stationDiv.classList.add("station");
         stationDiv.innerHTML = `
-            <span>${arrivalTimeStr}</span>
-            <span>${point.PK.toFixed(3)}</span>
-            <span>${pointName}</span>
+            <span>${point.PK.toFixed(3)}</span>  <!-- PK en premier -->
+            <span>${arrivalTimeStr}</span>      <!-- Heure en second -->
+            <span>${pointName}</span>           <!-- Nom en dernier -->
         `;
         timelineElement.appendChild(stationDiv);
 
