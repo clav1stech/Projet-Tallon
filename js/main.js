@@ -140,10 +140,11 @@ function displayTimeline() {
         const stationDiv = document.createElement("div");
         stationDiv.classList.add("station");
         stationDiv.innerHTML = `
-            <span>${point.PK.toFixed(3)}</span>  <!-- PK en premier -->
+            <span class="pk">${point.PK.toFixed(3)}</span>  <!-- PK avec la classe pk -->
             <span>${arrivalTimeStr}</span>      <!-- Heure en second -->
             <span>${pointName}</span>           <!-- Nom en dernier -->
         `;
+
         timelineElement.appendChild(stationDiv);
 
         // Mettre à jour l'heure pour le prochain point
