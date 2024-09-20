@@ -32,45 +32,40 @@ label {
 
 .station span {
     flex-basis: 10%; /* PK */
-    font-size: 0.7em;  /* Appliquer directement sur le premier span */
+    font-size: 0.7em;  /* Petite police pour les valeurs PK dans les lignes */
     align-self: center;    
     text-align: left;
 }
 
 .station span:nth-child(2) {
     flex-basis: 17%; /* Heure */
-    font-size: 0.9em;  /* Appliquer directement sur le premier span */
+    font-size: 0.9em;  /* Taille normale pour l'heure */
     text-align: center;
 }
 
 .station span:nth-child(3) {
     flex-basis: 73%; /* Nom */
-    font-size: 0.9em;  /* Appliquer directement sur le premier span */
+    font-size: 0.9em;  /* Taille normale pour le nom de la station */
     text-align: left;
+    padding-bottom: 0; /* Supprimer tout espace supplémentaire en bas */
 }
 
 .header span {
     font-weight: bold;
     border-bottom: 1px solid #fff;
-    padding-bottom: 5px;
+    padding-bottom: 0; /* Réduire l'espace sous la ligne */
+    font-size: 0.9em;  /* Assurez-vous que les titres ont la même taille */
 }
 
 .pk {
-    font-size: 0.8em;  /* Ajustez la taille de la police selon vos besoins */
-    align-self: center;  /* Assurez-vous que l'alignement est centré */
+    font-size: 0.7em;  /* Petite police uniquement pour les valeurs PK */
+    align-self: center;  /* Centrer les valeurs PK dans les lignes */
 }
-
 
 .current-station {
     background-color: green;
     color: white; /* Assurez-vous que le texte reste lisible */
 }
-
-/* .delayed {
-    color: red;
-} */
-
-
 
 #info {
     margin-top: 10px;
