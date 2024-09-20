@@ -1,20 +1,45 @@
+/* Styles globaux */
 body {
     font-family: Arial, sans-serif;
     padding: 10px;
     background-color: #f4f4f4;
 }
-
 h1, h2 {
     color: #333;
+    text-align: left;
+	
 }
-
+/* Conteneur pour les champs de saisie et le bouton */
+.container {
+    max-width: 415px; /* Aligné avec la largeur maximale de la timeline */
+    margin: 0 auto; /* Centrer le conteneur */
+}
 label {
     font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
 }
-
+input[type="number"], input[type="time"], select {
+    width: 100%; /* Tous les champs prennent toute la largeur du conteneur */
+    padding: 1px;
+    margin-bottom: 1px; /* Ajoutez de l'espace entre les champs */
+    font-size: 0.8em;
+}
+button {
+    width: 80%; /* Le bouton est légèrement moins large que les champs */
+    padding: 10px;
+    font-size: 1.2em;
+    background-color: green;
+    color: white;
+    border: none;
+    border-radius: 15px;
+    display: block;
+    margin: 10px; /* Centrer le bouton */
+}
+/* Style de la timeline */
 #timeline {
-    width: 100%; /* Remplacer la largeur fixe par une largeur flexible */
-    max-width: 415px; /* Limiter la largeur à 415px pour les grands écrans */
+    width: 100%; /* Ajuster pour la largeur maximale de 415px */
+    max-width: 415px;
     background-color: #333;
     padding: 10px;
     color: white;
@@ -22,7 +47,6 @@ label {
     margin-top: 20px;
     border-radius: 8px;
 }
-
 .station {
     display: flex;
     justify-content: space-between;
@@ -30,26 +54,22 @@ label {
     color: white;
     align-items: center;
 }
-
 .station span {
-    flex-basis: 10%; /* PK */
+    flex-basis: 15%; /* PK */
     font-size: 0.8em;  /* PK */
-    align-self: center;    
+    align-self: center;   
     text-align: right; /* PK */
 }
-
 .station span:nth-child(2) {
-    flex-basis: 18%; /* Heure */
+    flex-basis: 25%; /* Heure */
     font-size: 0.9em;  /* Heure */
     text-align: center;
 }
-
 .station span:nth-child(3) {
-    flex-basis: 72%; /* Nom */
+    flex-basis: 60%; /* Nom */
     font-size: 0.9em;  /* Nom */
     text-align: left;
 }
-
 .header span {
     font-weight: bold;
     border-bottom: 1px solid #fff;
@@ -57,18 +77,15 @@ label {
     font-size: 0.9em;  /* Titres */
     text-align: left; /* Aligner le titre PK à gauche */
 }
-
 .pk {
     font-size: 0.8em;  /* PK */
     align-self: center;
     text-align: right; /* Aligner les valeurs PK à droite */
 }
-
 .current-station {
     background-color: green;
     color: white;
 }
-
 #info {
     margin-top: 10px;
     font-size: 1em;
@@ -77,9 +94,9 @@ label {
 input[type="number"], input[type="time"], select {
     width: 100%;
     max-width: 415px;
-    padding: 10px;
-    margin: 10px 0;
-    font-size: 1.1em;
+    padding: 1px;
+    margin: 1px 0;
+    font-size: 0.8em;
 }
 
 button {
