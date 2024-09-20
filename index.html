@@ -9,6 +9,12 @@
 
 <body>
     <h1>Labo - Suivi de Trajet</h1>
+
+    <h2>Choisissez le trajet :</h2>
+    <select id="routeSelect" onchange="loadSelectedTrajet()">
+        <option value="">-- Sélectionnez un trajet --</option>
+        <!-- Les options seront ajoutées dynamiquement via JavaScript -->
+    </select>
     
     <label for="departure-time">Heure de départ (HH:MM):</label>
     <input type="time" id="departure-time" required>
@@ -25,12 +31,6 @@
     </div>
 
     <button onclick="startTracking()">Démarrer</button>
-
-    <h2>Choisissez le trajet :</h2>
-    <select id="routeSelect" onchange="loadSelectedTrajet()">
-        <option value="">-- Sélectionnez un trajet --</option>
-        <!-- Les options seront ajoutées dynamiquement via JavaScript -->
-    </select>
 
     <div id="timeline">
         <div class="station header">
