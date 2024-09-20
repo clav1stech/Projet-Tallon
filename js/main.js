@@ -109,8 +109,8 @@ function displayTimeline() {
     timelineElement.innerHTML = `
         <div class="station header">
             <span>PK</span>
-            <span>Heure</span>
-            <span>Nom du Point</span>
+            <span>Time</span>
+            <span>Waypoint</span>
         </div>
     `;
 
@@ -156,12 +156,12 @@ function displayTimeline() {
 function startTracking() {
     const departureInput = document.getElementById("departure-time").value;
     if (!departureInput) {
-        alert("Veuillez entrer une heure de départ.");
+        alert("Please select a departure time.");
         return;
     }
 
     if (!pointsDePassage || pointsDePassage.length === 0) {
-        alert("Veuillez sélectionner un trajet avant de démarrer le suivi.");
+        alert("Please select a route.");
         return;
     }
 
