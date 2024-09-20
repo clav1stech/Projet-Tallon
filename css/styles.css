@@ -32,18 +32,20 @@ label {
 
 .station span {
     flex-basis: 13%; /* PK */
-    font-size: 0.8em;  /* Appliquer directement sur le premier span */
+    font-size: 0.7em;  /* Appliquer directement sur le premier span */
     align-self: center;    
     text-align: left;
 }
 
 .station span:nth-child(2) {
     flex-basis: 15%; /* Heure */
+    font-size: 0.9em;  /* Appliquer directement sur le premier span */
     text-align: center;
 }
 
 .station span:nth-child(3) {
     flex-basis: 72%; /* Nom */
+    font-size: 0.9em;  /* Appliquer directement sur le premier span */
     text-align: left;
 }
 
@@ -72,7 +74,7 @@ label {
 
 #info {
     margin-top: 10px;
-    font-size: 1.1em;
+    font-size: 1em;
 }
 
 input[type="number"] {
