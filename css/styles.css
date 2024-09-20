@@ -31,20 +31,20 @@ label {
 }
 
 .station span {
-    flex-basis: 15%; /* PK */
+    flex-basis: 12%; /* PK */
     font-size: 0.7em;  /* PK */
     align-self: center;    
     text-align: right; /* PK */
 }
 
 .station span:nth-child(2) {
-    flex-basis: 20%; /* Heure */
+    flex-basis: 18%; /* Heure */
     font-size: 0.9em;  /* Heure */
     text-align: center;
 }
 
 .station span:nth-child(3) {
-    flex-basis: 65%; /* Nom */
+    flex-basis: 70%; /* Nom */
     font-size: 0.9em;  /* Nom */
     text-align: left;
     padding-bottom: 0;
@@ -55,11 +55,13 @@ label {
     border-bottom: 1px solid #fff;
     padding-bottom: 0;
     font-size: 0.9em;  /* Titres */
+    text-align: left; /* Aligner le titre PK à gauche */
 }
 
 .pk {
     font-size: 0.7em;  /* PK */
     align-self: center;
+    text-align: right; /* Aligner les valeurs PK à droite */
 }
 
 .current-station {
