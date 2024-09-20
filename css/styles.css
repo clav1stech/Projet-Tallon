@@ -36,12 +36,12 @@ label {
 }
 
 .station span:nth-child(2) {
-    flex-basis: 11%; /* Heure */
-    text-align: left;
+    flex-basis: 14%; /* Heure */
+    text-align: center;
 }
 
 .station span:nth-child(3) {
-    flex-basis: 75%; /* Nom */
+    flex-basis: 72%; /* Nom */
     text-align: left;
 }
 
