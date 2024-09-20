@@ -11,7 +11,65 @@ let pointsDePassage = [];
 document.addEventListener('DOMContentLoaded', () => {
     populateTrajetDropdown();
     setupLocationMethodListener();
+    restoreSettings(); // Restaurer les paramètres sauvegardés
 });
+
+// Fonction pour restaurer les réglages sauvegardés après actualisation de la page
+function restoreSettings() {
+    const savedRoute = localStorage.getItem('selectedRoute');
+    const savedDepartureTime = localStorage.getItem('departureTime');
+    const savedLocationMethod = localStorage.getItem('locationMethod');
+    const savedManualLat = localStorage.getItem('manualLat');
+    const savedManualLon = localStorage.getItem('manualLon');
+
+    if (savedRoute) {
+        document.getElementById('routeSelect').value = savedRoute;
+        loadSelectedTrajet(); // Recharger la route sélectionnée
+    }
+    if (savedDepartureTime) {
+        document.getElementById('departure-time').value = savedDepartureTime;
+    }
+    if (savedLocationMethod) {
+        document.querySelector(`input[name="locationMethod"][value="${savedLocationMethod}"]`).checked = true;
+        if (savedLocationMethod === 'manual') {
+            document.getElementById('manualCoords').style.display = 'block';
+        }
+    }
+    if (savedManualLat) {
+        document.getElementById('manualLat').value = savedManualLat;
+    }
+    if (savedManualLon) {
+        document.getElementById('manualLon').value = savedManualLon;
+    }
+}
+
+// Fonction pour sauvegarder les réglages dans localStorage
+function saveSettings() {
+    const selectedRoute = document.getElementById('routeSelect').value;
+    const departureTime = document.getElementById('departure-time').value;
+    const locationMethod = document.querySelector('input[name="locationMethod"]:checked').value;
+    const manualLat = document.getElementById('manualLat').value;
+    const manualLon = document.getElementById('manualLon').value;
+
+    localStorage.setItem('selectedRoute', selectedRoute);
+    localStorage.setItem('departureTime', departureTime);
+    localStorage.setItem('locationMethod', locationMethod);
+    if (manualLat) {
+        localStorage.setItem('manualLat', manualLat);
+    }
+    if (manualLon) {
+        localStorage.setItem('manualLon', manualLon);
+    }
+}
+
+// Ajouter l'appel à la fonction `saveSettings` à chaque fois qu'une donnée est modifiée
+document.getElementById('routeSelect').addEventListener('change', saveSettings);
+document.getElementById('departure-time').addEventListener('change', saveSettings);
+document.querySelectorAll('input[name="locationMethod"]').forEach(radio => {
+    radio.addEventListener('change', saveSettings);
+});
+document.getElementById('manualLat').addEventListener('input', saveSettings);
+document.getElementById('manualLon').addEventListener('input', saveSettings);
 
 // Fonction pour peupler le menu déroulant des trajets
 function populateTrajetDropdown() {
@@ -300,4 +358,20 @@ function showPosition(position) {
 }
 
 // Fonction pour gérer les erreurs de géolocalisation
-// Définie dans functions.js, pas besoin de la redéfinir ici
+function showError(error) {
+    switch (error.code) {
+        case error.PERMISSION_DENIED:
+            document.getElementById("info").innerText = "L'utilisateur a refusé la demande de géolocalisation.";
+            break;
+        case error.POSITION_UNAVAILABLE:
+            document.getElementById("info").innerText = "Les informations de localisation ne sont pas disponibles.";
+            break;
+        case error.TIMEOUT:
+            document.getElementById("info").innerText = "La requête de géolocalisation a expiré.";
+            break;
+        case error.UNKNOWN_ERROR:
+            document.getElementById("info").innerText = "Une erreur inconnue s'est produite.";
+            break;
+    }
+}
+
