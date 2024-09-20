@@ -13,13 +13,13 @@ label {
 }
 
 #timeline {
-    width: 440px;
+    width: 415px;
     background-color: #333;
     padding: 10px;
     color: white;
     font-family: Arial, sans-serif;
     margin-top: 20px;
-    border-radius: 7px;
+    border-radius: 8px;
 }
 
 .station {
