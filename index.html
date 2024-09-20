@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi de Trajet - Labo</title>
+    <title>Railway Timeline</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 
 <body>
-    <h1>Labo - Suivi de Trajet</h1>
+    <h1>Railway Timeline</h1>
 
-    <h2>Choix du trajet :</h2>
+    <h2>Route :</h2>
     <select id="routeSelect" onchange="loadSelectedTrajet()">
-        <option value="">-- Sélectionnez un trajet --</option>
+        <option value="">-- Select a route --</option>
         <!-- Les options seront ajoutées dynamiquement via JavaScript -->
     </select>
     <br> <br>
-    <label for="departure-time">    Heure de départ (HH:MM):</label>
+    <label for="departure-time">    Departure time (HH:MM):</label>
     <input type="time" id="departure-time" required>
     
-    <h2>Choisissez la méthode de localisation :</h2>
-    <label><input type="radio" name="locationMethod" value="geo" checked> Utiliser la géolocalisation</label><br>
-    <label><input type="radio" name="locationMethod" value="manual"> Saisir les coordonnées manuellement</label><br><br>
+    <h2>Location :</h2>
+    <label><input type="radio" name="locationMethod" value="geo" checked> Use GPS</label><br>
+    <label><input type="radio" name="locationMethod" value="manual"> Manual input</label><br><br>
 
     <div id="manualCoords" style="display:none;">
         <label for="manualLat">Latitude :</label>
@@ -30,13 +30,13 @@
         <input type="number" id="manualLon" step="0.00001" placeholder="Entrez la longitude"><br>
     </div>
 
-    <button onclick="startTracking()">Démarrer</button>
+    <button onclick="startTracking()">Start</button>
 
     <div id="timeline">
         <div class="station header">
             <span>PK</span>
-            <span>Heure</span>
-            <span>Nom du Point</span>
+            <span>Time</span>
+            <span>Waypoint</span>
    <!--     <span>Retard (min)</span> -->
         </div>
     </div>
