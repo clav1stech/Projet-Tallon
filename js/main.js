@@ -243,7 +243,7 @@ function startTracking() {
             // Actualiser la position toutes les 10 secondes
             trackingInterval = setInterval(() => {
                 navigator.geolocation.getCurrentPosition(showPosition, showError);
-            }, 10000);  // 10 000 millisecondes = 10 secondes
+            }, 2500);  // 10 000 millisecondes = 10 secondes
         } else {
             document.getElementById("info").innerText = "La géolocalisation n'est pas supportée par ce navigateur.";
         }
