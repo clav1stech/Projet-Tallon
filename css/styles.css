@@ -13,7 +13,7 @@ label {
 }
 
 #timeline {
-    width: 600px;
+    width: 460px;
     background-color: #333;
     padding: 10px;
     color: white;
@@ -31,17 +31,17 @@ label {
 }
 
 .station span {
-    flex-basis: 15%; /* PK */
+    flex-basis: 14%; /* PK */
     text-align: left;
 }
 
 .station span:nth-child(2) {
-    flex-basis: 15%; /* Heure */
+    flex-basis: 11%; /* Heure */
     text-align: left;
 }
 
 .station span:nth-child(3) {
-    flex-basis: 70%; /* Nom */
+    flex-basis: 75%; /* Nom */
     text-align: left;
 }
 
