@@ -31,7 +31,7 @@ label {
 }
 
 .station span {
-    flex-basis: 13%; /* PK */
+    flex-basis: 11%; /* PK */
     font-size: 0.7em;  /* Appliquer directement sur le premier span */
     align-self: center;    
     text-align: left;
@@ -44,7 +44,7 @@ label {
 }
 
 .station span:nth-child(3) {
-    flex-basis: 72%; /* Nom */
+    flex-basis: 74%; /* Nom */
     font-size: 0.9em;  /* Appliquer directement sur le premier span */
     text-align: left;
 }
