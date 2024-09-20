@@ -31,13 +31,18 @@ label {
 }
 
 .station span {
-    flex-basis: 20%;
+    flex-basis: 15%; /* PK */
     text-align: left;
 }
 
-.station span:nth-child(4) {
-    flex-basis: 15%;
-    text-align: center;
+.station span:nth-child(2) {
+    flex-basis: 15%; /* Heure */
+    text-align: left;
+}
+
+.station span:nth-child(3) {
+    flex-basis: 70%; /* Nom */
+    text-align: left;
 }
 
 .header span {
@@ -45,6 +50,7 @@ label {
     border-bottom: 1px solid #fff;
     padding-bottom: 5px;
 }
+
 
 .current-station {
     background-color: green;
