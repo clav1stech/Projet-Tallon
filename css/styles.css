@@ -55,18 +55,18 @@ button {
     align-items: center;
 }
 .station span {
-    flex-basis: 15%; /* PK */
+    flex-basis: 12%; /* PK */
     font-size: 0.8em;  /* PK */
     align-self: center;   
     text-align: right; /* PK */
 }
 .station span:nth-child(2) {
-    flex-basis: 25%; /* Heure */
+    flex-basis: 18%; /* Heure */
     font-size: 0.9em;  /* Heure */
     text-align: center;
 }
 .station span:nth-child(3) {
-    flex-basis: 60%; /* Nom */
+    flex-basis: 70%; /* Nom */
     font-size: 0.9em;  /* Nom */
     text-align: left;
 }
@@ -74,17 +74,18 @@ button {
     font-weight: bold;
     border-bottom: 1px solid #fff;
     padding-bottom: 0;
-    font-size: 0.9em; /* Assurez-vous que toutes les colonnes ont la même taille de police */
-    text-align: left; /* Aligner le titre PK à gauche */
-    line-height: 1.5; /* Ajuster la hauteur de ligne pour correspondre */
+    font-size: 0.9em; /* Taille de police uniforme pour les en-têtes */
+    text-align: left;
+    line-height: 1.2; /* Ajuster la hauteur de ligne pour correspondre */
 }
 
 .pk {
     font-size: 0.7em; /* Police plus petite pour les valeurs PK */
     text-align: right;
-    vertical-align: middle; /* Assurer un alignement vertical au milieu */
-    line-height: 1.5; /* Adapter la hauteur de ligne */
+    vertical-align: middle; /* Alignement vertical centré pour éviter les décalages */
+    line-height: 1.5; /* Ajuster la hauteur de ligne pour un alignement visuel uniforme */
 }
+
 .current-station {
     background-color: green;
     color: white;
