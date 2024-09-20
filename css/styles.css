@@ -1,6 +1,6 @@
 body {
     font-family: Arial, sans-serif;
-    padding: 20px;
+    padding: 10px;
     background-color: #f4f4f4;
 }
 
@@ -71,7 +71,7 @@ label {
 
 
 #info {
-    margin-top: 20px;
+    margin-top: 10px;
     font-size: 1.1em;
 }
 
