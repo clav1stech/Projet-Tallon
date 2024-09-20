@@ -27,15 +27,17 @@ input[type="number"], input[type="time"], select {
 }
 button {
     width: 80%; /* Le bouton est légèrement moins large que les champs */
+    max-width: 415px;
     padding: 10px;
     font-size: 1.2em;
     background-color: green;
     color: white;
     border: none;
-    border-radius: 15px;
+    border-radius: 10px;
     display: block;
-    margin: 10px; /* Centrer le bouton */
+    margin: 10px auto; /* Centrer le bouton */
 }
+
 /* Style de la timeline */
 #timeline {
     width: 100%; /* Ajuster pour la largeur maximale de 415px */
@@ -80,10 +82,10 @@ button {
 }
 
 .pk {
-    font-size: 0.7em; /* Police plus petite pour les valeurs PK */
+    font-size: 0.7em;
     text-align: right;
-    vertical-align: middle; /* Alignement vertical centré pour éviter les décalages */
-    line-height: 1.5; /* Ajuster la hauteur de ligne pour un alignement visuel uniforme */
+    vertical-align: middle;
+    line-height: 1.5; /* Ajuster légèrement pour un meilleur alignement */
 }
 
 .current-station {
@@ -103,19 +105,8 @@ input[type="number"], input[type="time"], select {
     font-size: 0.8em;
 }
 
-button {
-    width: 100%;
-    max-width: 415px;
-    padding: 10px;
-    font-size: 1.2em;
-    background-color: green;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    margin-top: 10px;
-}
 
-@media screen and (max-width: 768px) {
+/* @media screen and (max-width: 768px) {
     h1, h2 {
         font-size: 1.5em;
     }
@@ -132,4 +123,4 @@ button {
         font-size: 1em;
         padding: 8px;
     }
-}
+} */
