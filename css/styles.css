@@ -13,7 +13,8 @@ label {
 }
 
 #timeline {
-    width: 415px;
+    width: 100%; /* Remplacer la largeur fixe par une largeur flexible */
+    max-width: 415px; /* Limiter la largeur à 415px pour les grands écrans */
     background-color: #333;
     padding: 10px;
     color: white;
@@ -32,7 +33,7 @@ label {
 
 .station span {
     flex-basis: 10%; /* PK */
-    font-size: 0.7em;  /* PK */
+    font-size: 0.8em;  /* PK */
     align-self: center;    
     text-align: right; /* PK */
 }
@@ -47,7 +48,6 @@ label {
     flex-basis: 72%; /* Nom */
     font-size: 0.9em;  /* Nom */
     text-align: left;
-    padding-bottom: 0;
 }
 
 .header span {
@@ -59,7 +59,7 @@ label {
 }
 
 .pk {
-    font-size: 0.7em;  /* PK */
+    font-size: 0.8em;  /* PK */
     align-self: center;
     text-align: right; /* Aligner les valeurs PK à droite */
 }
@@ -74,11 +74,41 @@ label {
     font-size: 1em;
 }
 
-input[type="number"] {
-    width: 150px;
+input[type="number"], input[type="time"], select {
+    width: 100%;
+    max-width: 415px;
+    padding: 10px;
+    margin: 10px 0;
+    font-size: 1.1em;
 }
 
-select {
-    padding: 5px;
-    font-size: 1em;
+button {
+    width: 100%;
+    max-width: 415px;
+    padding: 10px;
+    font-size: 1.2em;
+    background-color: green;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+@media screen and (max-width: 768px) {
+    h1, h2 {
+        font-size: 1.5em;
+    }
+
+    .station span {
+        font-size: 0.8em;
+    }
+
+    #timeline {
+        padding: 5px;
+    }
+
+    input[type="number"], input[type="time"], select, button {
+        font-size: 1em;
+        padding: 8px;
+    }
 }
