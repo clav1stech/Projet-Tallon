@@ -286,15 +286,15 @@ function showPosition(position) {
     // Affichage de la position et du prochain point de passage
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
-            <strong>Position actuelle :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-            <strong>Prochain point de passage :</strong> ${nextPoint.name} (PK: ${nextPoint.PK.toFixed(3)})<br>
-            <strong>Distance restante :</strong> ${distance.toFixed(2)} km
+            <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
+            <strong>Next waypoint :</strong> ${nextPoint.name} (PK: ${nextPoint.PK.toFixed(3)})<br>
+            <strong>Distance remaining :</strong> ${distance.toFixed(2)} km
         `;
     } else {
         document.getElementById("info").innerHTML = `
-            <strong>Position actuelle :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-            <strong>Aucun prochain point de passage.</strong><br>
-            <strong>Distance restante :</strong> ${distance.toFixed(2)} km
+            <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
+            <strong>Route ended.</strong><br>
+            <strong>Remaining distance :</strong> ${distance.toFixed(2)} km
         `;
     }
 }
