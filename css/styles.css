@@ -31,12 +31,12 @@ label {
 }
 
 .station span {
-    flex-basis: 14%; /* PK */
+    flex-basis: 13%; /* PK */
     text-align: left;
 }
 
 .station span:nth-child(2) {
-    flex-basis: 14%; /* Heure */
+    flex-basis: 15%; /* Heure */
     text-align: center;
 }
 
@@ -49,6 +49,11 @@ label {
     font-weight: bold;
     border-bottom: 1px solid #fff;
     padding-bottom: 5px;
+}
+
+.pk {
+    font-size: 0.8em;  /* Ajustez la taille de la police selon vos besoins */
+    align-self: center;  /* Assurez-vous que l'alignement est centré */
 }
 
 
