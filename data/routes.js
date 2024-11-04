@@ -12,7 +12,7 @@ const trajets = [
         name: "Marseille - Paris",
         direction: "north-south",
         pointsFile: "points_route2.json" // Utiliser .json si vous avez converti en JSON
-    }
+    },
     {
         id: "PARLPD0",
         name: "Paris - Lyon sans arrêt",
@@ -20,7 +20,7 @@ const trajets = [
         pointsFile: "PARLPD0.json" // Utiliser .json si vous avez converti en JSON
     },
     {
-        id: "MRSPAR",
+        id: "LPDPAR0",
         name: "Lyon - Paris sans arrêt",
         direction: "north-south",
         pointsFile: "LPDPAR0.json" // Utiliser .json si vous avez converti en JSON
