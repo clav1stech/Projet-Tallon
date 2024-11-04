@@ -1,35 +1,35 @@
 [
-{"PK":0.0,"Ligne":830000,"Nom":"Paris-Lyon","Lat":48.84431,"Lon":2.37564,"Durée":"00:00:00"}
-{"PK":9.326,"Ligne":830000,"Nom":"Bif. de Créteil","Lat":48.7749,"Lon":2.43626,"Durée":"00:05:50"}
-{"PK":4.117,"Ligne":752100,"Nom":"Tunnel de Limeil-Brevannes","Lat":48.74884,"Lon":2.4724,"Durée":"00:02:22"}
-{"PK":7.633,"Ligne":752100,"Nom":"Tranchée couverte de Villecresne","Lat":48.73355,"Lon":2.50744,"Durée":"00:01:58"}
-{"PK":21.486,"Ligne":752100,"Nom":"Bif. de Chevry-Cossigny","Lat":48.70186,"Lon":2.68159,"Durée":"00:05:00"}
-{"PK":26.5,"Ligne":752100,"Nom":"Bif. V.1 de Solers","Lat":48.67599,"Lon":2.72792,"Durée":"00:01:26"}
-{"PK":17.099,"Ligne":752000,"Nom":"Bif. de Moisenay","Lat":48.56911,"Lon":2.75358,"Durée":"00:03:40"}
-{"PK":42.74,"Ligne":752000,"Nom":"Viaduc de Montereau","Lat":48.39683,"Lon":2.9782,"Durée":"00:05:43"}
-{"PK":49.23,"Ligne":752000,"Nom":"PRS de Marolles","Lat":48.3726,"Lon":3.05381,"Durée":"00:01:23"}
-{"PK":72.2,"Ligne":752000,"Nom":"Passage sous l'A19","Lat":48.2596,"Lon":3.28652,"Durée":"00:04:59"}
-{"PK":92.778,"Ligne":752000,"Nom":"PRS de Vaumort","Lat":48.11586,"Lon":3.44976,"Durée":"00:04:50"}
-{"PK":115.752,"Ligne":752000,"Nom":"Viaduc sur le canal de Bourgogne","Lat":47.98193,"Lon":3.67834,"Durée":"00:04:54"}
-{"PK":117.171,"Ligne":752000,"Nom":"Bif. (V. V.2) de Vergigny vers le racc. sud","Lat":47.97407,"Lon":3.69335,"Durée":"00:00:26"}
-{"PK":139.817,"Ligne":752000,"Nom":"PRS Tonnerre","Lat":47.85008,"Lon":3.92233,"Durée":"00:04:50"}
-{"PK":161.746,"Ligne":752000,"Nom":"Bif. V.1 de Pasilly","Lat":47.68374,"Lon":4.0791,"Durée":"00:04:54"}
-{"PK":185.353,"Ligne":752000,"Nom":"Viaduc d'Époisses","Lat":47.48607,"Lon":4.15635,"Durée":"00:05:30"}
-{"PK":202.367,"Ligne":752000,"Nom":"PRS de Lacour d'Arcenay","Lat":47.3479,"Lon":4.24603,"Durée":"00:04:15"}
-{"PK":208.686,"Ligne":752000,"Nom":"Viaduc de Saulieu","Lat":47.29473,"Lon":4.27178,"Durée":"00:01:35"}
-{"PK":225.809,"Ligne":752000,"Nom":"PRS de Vianges","Lat":47.149,"Lon":4.34201,"Durée":"00:03:45"}
-{"PK":247.214,"Ligne":752000,"Nom":"PRS de Sully","Lat":46.99679,"Lon":4.45548,"Durée":"00:04:30"}
-{"PK":253.454,"Ligne":752000,"Nom":"Viaduc de la Digoine (Drée)","Lat":46.9478,"Lon":4.48808,"Durée":"00:01:25"}
-{"PK":273.816,"Ligne":752000,"Nom":"Le Creusot – Montceau – Montchanin","Lat":46.76534,"Lon":4.5001,"Durée":"00:04:44"}
-{"PK":292.995,"Ligne":752000,"Nom":"PRS de Vaux-en-Pré","Lat":46.6119,"Lon":4.60418,"Durée":"00:04:39"}
-{"PK":313.579,"Ligne":752000,"Nom":"PRS de Cluny","Lat":46.43449,"Lon":4.67387,"Durée":"00:04:30"}
-{"PK":321.187,"Ligne":752000,"Nom":"Viaduc de la Roche","Lat":46.37125,"Lon":4.67518,"Durée":"00:01:48"}
-{"PK":333.917,"Ligne":752000,"Nom":"Macon – Loché TGV","Lat":46.28338,"Lon":4.77797,"Durée":"00:02:45"}
-{"PK":361.134,"Ligne":752000,"Nom":"PRS de Cessein","Lat":46.06674,"Lon":4.84928,"Durée":"00:06:32"}
-{"PK":379.572,"Ligne":752000,"Nom":"Passage sous l'A46","Lat":45.90156,"Lon":4.87495,"Durée":"00:04:30"}
-{"PK":380.54,"Ligne":752000,"Nom":"Bif. V.1 de Montanay","Lat":45.8936,"Lon":4.87707,"Durée":"00:00:20"}
-{"PK":389.314,"Ligne":752000,"Nom":"Gare de Sathonay-Rillieu","Lat":45.85896,"Lon":4.90772,"Durée":"00:04:40"}
-{"PK":12.636,"Ligne":886000,"Nom":"Tunnel des Mercières","Lat":45.81778,"Lon":5.01456,"Durée":"00:00:30"}
-{"PK":8.415,"Ligne":886000,"Nom":"Gare de Lyon-Saint-Clair","Lat":45.81778,"Lon":5.07589,"Durée":"00:03:30"}
-{"PK":5.01,"Ligne":890000,"Nom":"Lyon-Part-Dieu","Lat":45.78947,"Lon":5.07287,"Durée":"00:04:20"}
+    { "name": "Paris-Lyon", "PK": 0.0, "duree": 0, "lat": 48.84431, "lon": 2.37564 },
+    { "name": "Bif. de Créteil", "PK": 9.326, "duree": 350, "lat": 48.7749, "lon": 2.43626 },
+    { "name": "Tunnel de Limeil-Brevannes", "PK": 4.117, "duree": 142, "lat": 48.74884, "lon": 2.4724 },
+    { "name": "Tranchée couverte de Villecresne", "PK": 7.633, "duree": 118, "lat": 48.73355, "lon": 2.50744 },
+    { "name": "Bif. de Chevry-Cossigny", "PK": 21.486, "duree": 300, "lat": 48.70186, "lon": 2.68159 },
+    { "name": "Bif. V.1 de Solers", "PK": 26.5, "duree": 86, "lat": 48.67599, "lon": 2.72792 },
+    { "name": "Bif. de Moisenay", "PK": 17.099, "duree": 220, "lat": 48.56911, "lon": 2.75358 },
+    { "name": "Viaduc de Montereau", "PK": 42.74, "duree": 343, "lat": 48.39683, "lon": 2.9782 },
+    { "name": "PRS de Marolles", "PK": 49.23, "duree": 83, "lat": 48.3726, "lon": 3.05381 },
+    { "name": "Passage sous l'A19", "PK": 72.2, "duree": 299, "lat": 48.2596, "lon": 3.28652 },
+    { "name": "PRS de Vaumort", "PK": 92.778, "duree": 290, "lat": 48.11586, "lon": 3.44976 },
+    { "name": "Viaduc sur le canal de Bourgogne", "PK": 115.752, "duree": 294, "lat": 47.98193, "lon": 3.67834 },
+    { "name": "Bif. (V. V.2) de Vergigny vers le racc. sud", "PK": 117.171, "duree": 26, "lat": 47.97407, "lon": 3.69335 },
+    { "name": "PRS Tonnerre", "PK": 139.817, "duree": 290, "lat": 47.85008, "lon": 3.92233 },
+    { "name": "Bif. V.1 de Pasilly", "PK": 161.746, "duree": 294, "lat": 47.68374, "lon": 4.0791 },
+    { "name": "Viaduc d'Époisses", "PK": 185.353, "duree": 330, "lat": 47.48607, "lon": 4.15635 },
+    { "name": "PRS de Lacour d'Arcenay", "PK": 202.367, "duree": 255, "lat": 47.3479, "lon": 4.24603 },
+    { "name": "Viaduc de Saulieu", "PK": 208.686, "duree": 95, "lat": 47.29473, "lon": 4.27178 },
+    { "name": "PRS de Vianges", "PK": 225.809, "duree": 225, "lat": 47.149, "lon": 4.34201 },
+    { "name": "PRS de Sully", "PK": 247.214, "duree": 270, "lat": 46.99679, "lon": 4.45548 },
+    { "name": "Viaduc de la Digoine (Drée)", "PK": 253.454, "duree": 85, "lat": 46.9478, "lon": 4.48808 },
+    { "name": "Le Creusot – Montceau – Montchanin", "PK": 273.816, "duree": 284, "lat": 46.76534, "lon": 4.5001 },
+    { "name": "PRS de Vaux-en-Pré", "PK": 292.995, "duree": 279, "lat": 46.6119, "lon": 4.60418 },
+    { "name": "PRS de Cluny", "PK": 313.579, "duree": 270, "lat": 46.43449, "lon": 4.67387 },
+    { "name": "Viaduc de la Roche", "PK": 321.187, "duree": 108, "lat": 46.37125, "lon": 4.67518 },
+    { "name": "Macon – Loché TGV", "PK": 333.917, "duree": 165, "lat": 46.28338, "lon": 4.77797 },
+    { "name": "PRS de Cessein", "PK": 361.134, "duree": 392, "lat": 46.06674, "lon": 4.84928 },
+    { "name": "Passage sous l'A46", "PK": 379.572, "duree": 260, "lat": 45.90156, "lon": 4.87495 },
+    { "name": "Bif. V.1 de Montanay", "PK": 380.54, "duree": 13, "lat": 45.8936, "lon": 4.87707 },
+    { "name": "Gare de Sathonay-Rillieu", "PK": 389.314, "duree": 280, "lat": 45.85896, "lon": 4.90772 },
+    { "name": "Tunnel des Mercières", "PK": 12.636, "duree": 30, "lat": 45.81778, "lon": 5.01456 },
+    { "name": "Gare de Lyon-Saint-Clair", "PK": 8.415, "duree": 210, "lat": 45.81778, "lon": 5.07589 },
+    { "name": "Lyon-Part-Dieu", "PK": 5.01, "duree": 260, "lat": 45.78947, "lon": 5.07287 }
 ]
