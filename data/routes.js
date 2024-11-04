@@ -22,6 +22,18 @@ const trajets = [
         name: "Lyon - Paris sans arrêt",
         direction: "north-south",
         pointsFile: "LPDPAR0.json" // Utiliser .json si vous avez converti en JSON
+    },
+    {
+        id: "PARLPD1",
+        name: "Paris - Lyon avec arrêts intermédiaires",
+        direction: "south-north",
+        pointsFile: "PARLPD1.json" // Utiliser .json si vous avez converti en JSON
+    },
+    {
+        id: "LYNPAR1",
+        name: "Lyon - Paris avec arrêts intermédiaires",
+        direction: "north-south",
+        pointsFile: "LPDPAR1.json" // Utiliser .json si vous avez converti en JSON
     }
     // Ajoutez d'autres trajets ici si nécessaire
 ];
