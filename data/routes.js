@@ -25,13 +25,13 @@ const trajets = [
     },
     {
         id: "PARLPD1",
-        name: "Paris - Lyon avec arrêts intermédiaires",
+        name: "Paris - Lyon via Le Creusot",
         direction: "south-north",
         pointsFile: "PARLPD1.json" // Utiliser .json si vous avez converti en JSON
     },
     {
         id: "LYNPAR1",
-        name: "Lyon - Paris avec arrêts intermédiaires",
+        name: "Lyon - Paris via Le Creusot",
         direction: "north-south",
         pointsFile: "LPDPAR1.json" // Utiliser .json si vous avez converti en JSON
     }
