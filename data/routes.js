@@ -1,5 +1,3 @@
-// data/routes.js
-
 const trajets = [
     {
         id: "PARMRS",
@@ -20,7 +18,7 @@ const trajets = [
         pointsFile: "PARLPD0.json" // Utiliser .json si vous avez converti en JSON
     },
     {
-        id: "LPDPAR0",
+        id: "LYNPAR0",
         name: "Lyon - Paris sans arrêt",
         direction: "north-south",
         pointsFile: "LPDPAR0.json" // Utiliser .json si vous avez converti en JSON
