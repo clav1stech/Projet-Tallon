@@ -1,49 +1,59 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Railway Timeline</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 
 <body>
-    <h1>Railway Timeline</h1>
-    <label for="departure-time">    Route selection:       </label>
-    <select id="routeSelect" onchange="loadSelectedTrajet()">
-        <option value="">-- Select a route --</option>
-        <!-- Les options seront ajoutées dynamiquement via JavaScript -->
-    </select>
-    <br> <br>
-    <label for="departure-time">    Departure time (HH:MM):</label>
-    <input type="time" id="departure-time" required>
-    
-    <h4>Location :</h4>
-    <label><input type="radio" name="locationMethod" value="geo" checked> Use GPS</label>
-    <label><input type="radio" name="locationMethod" value="manual"> Manual input</label>
-
-    <div id="manualCoords" style="display:none;">
-        <label for="manualLat">Latitude :</label>
-        <input type="number" id="manualLat" step="0.00001" placeholder="Entrez la latitude"><br>
-        <label for="manualLon">Longitude :</label>
-        <input type="number" id="manualLon" step="0.00001" placeholder="Entrez la longitude"><br>
-    </div><br>
-
-    <button onclick="startTracking()">Start</button>
-
-    <div id="timeline">
-        <div class="station header">
-            <span>PK</span>
-            <span>Time</span>
-            <span>Waypoint</span>
-   <!--     <span>Retard (min)</span> -->
+    <div class="container">
+        <h1>Railway Timeline</h1>
+        <div class="route-selection">
+            <label for="routeSelect">Route selection:</label>
+            <select id="routeSelect" onchange="loadSelectedTrajet()">
+                <option value="">-- Select a route --</option>
+                <!-- Les options seront ajoutées dynamiquement via JavaScript -->
+            </select>
         </div>
+
+        <div class="departure-section">
+            <label for="departure-time">Departure time (HH:MM):</label>
+            <input type="time" id="departure-time" required>
+        </div>
+
+        <div class="location-section">
+            <h4>Location:</h4>
+            <label><input type="radio" name="locationMethod" value="geo" checked> <i class="fas fa-location-arrow"></i> Use GPS</label>
+            <label><input type="radio" name="locationMethod" value="manual"> <i class="fas fa-edit"></i> Manual input</label>
+
+            <div id="manualCoords" class="manual-coords" style="display:none;">
+                <label for="manualLat">Latitude :</label>
+                <input type="number" id="manualLat" step="0.00001" placeholder="Enter latitude">
+                <label for="manualLon">Longitude :</label>
+                <input type="number" id="manualLon" step="0.00001" placeholder="Enter longitude">
+            </div>
+        </div>
+
+        <button class="start-btn" onclick="startTracking()">Start</button>
+
+        <div id="timeline">
+            <div class="station header">
+                <span>PK</span>
+                <span>Time</span>
+                <span>Waypoint</span>
+            </div>
+        </div>
+        <p id="info"></p>
     </div>
-    <p id="info"></p>
 
     <!-- Inclusion des fichiers JavaScript -->
     <script src="data/routes.js"></script>
     <script src="js/functions.js"></script>
     <script src="js/main.js"></script>
 </body>
+
 </html>
