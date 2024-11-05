@@ -191,7 +191,8 @@ function displayTimeline() {
         const arrivalTimeStr = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         // Vérification si c'est une gare
-        const gares = ["Paris-Lyon", "Le Creusot – Montceau – Montchanin", "Valence TGV", "Avignon TGV", "Lyon-Saint-Exupéry TGV", "Marseille Saint-Charles", "Macon – Loché TGV", "Le Creusot – Montceau – Montchanin TGV", "Aix-en-Provence TGV"];
+        const gares = ["Paris-Lyon", "Le Creusot – Montceau – Montchanin", "Valence TGV", "Avignon TGV", "Lyon-Saint-Exupéry TGV", "Marseille Saint-Charles", "Macon – Loché TGV", "Le Creusot – Montceau – Montchanin TGV", "Aix-en-Provence TGV", "
+Lyon-Part-Dieu"];
         let pointName = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
 
         // Ajouter chaque point à la timeline avec le PK formaté
