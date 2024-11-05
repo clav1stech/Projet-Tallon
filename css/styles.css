@@ -1,47 +1,85 @@
 /* Styles globaux */
 body {
     font-family: Arial, sans-serif;
-    padding: 10px;
-    background-color: #f4f4f4;
-}
-h1, h2 {
+    background-color: #e9f0f5;
     color: #333;
-    text-align: left;
-	
+    margin: 0;
+    padding: 0;
 }
-/* Conteneur pour les champs de saisie et le bouton */
+
+/* Conteneur principal */
 .container {
-    max-width: 415px; /* Aligné avec la largeur maximale de la timeline */
-    margin: 0 auto; /* Centrer le conteneur */
+    max-width: 500px;
+    margin: 20px auto;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
 }
+
+/* Titres */
+h1 {
+    font-size: 1.8em;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Labels */
 label {
     font-weight: bold;
+    margin-top: 10px;
     display: block;
-    margin-bottom: 2px;
 }
-input[type="number"], input[type="time"], select {
-    width: 100%; /* Tous les champs prennent toute la largeur du conteneur */
-    padding: 1px;
-    margin-bottom: 1px; /* Ajoutez de l'espace entre les champs */
-    font-size: 0.8em;
-}
-button {
-    width: 80%; /* Le bouton est légèrement moins large que les champs */
-    max-width: 415px;
+
+/* Champs de saisie */
+input[type="number"],
+input[type="time"],
+select {
+    width: calc(100% - 20px);
     padding: 10px;
-    font-size: 1.2em;
-    background-color: green;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+/* Section de la méthode de localisation */
+.location-section {
+    margin-bottom: 20px;
+}
+
+/* Options de la méthode de localisation */
+label input[type="radio"] {
+    margin-right: 5px;
+}
+
+/* Coordonnées manuelles */
+.manual-coords label {
+    margin-top: 5px;
+}
+
+/* Bouton de démarrage */
+.start-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1em;
+    background-color: #28a745;
     color: white;
     border: none;
-    border-radius: 10px;
-    display: block;
-    margin: 10px auto; /* Centrer le bouton */
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.start-btn:hover {
+    background-color: #218838;
 }
 
 /* Style de la timeline */
 #timeline {
-    width: 100%; /* Ajuster pour la largeur maximale de 415px */
-    max-width: 415px;
     background-color: #333;
     padding: 10px;
     color: white;
@@ -49,78 +87,76 @@ button {
     margin-top: 20px;
     border-radius: 8px;
 }
+
 .station {
     display: flex;
     justify-content: space-between;
-    padding: 5px 0;
-    color: white;
+    padding: 10px 0;
+    border-bottom: 1px solid #444;
     align-items: center;
 }
+
 .station span {
-    flex-basis: 12%; /* PK */
-    font-size: 0.8em;  /* PK */
-    align-self: center;   
-    text-align: right; /* PK */
+    flex-basis: 12%;
+    font-size: 0.9em;
+    align-self: center;
+    text-align: right;
 }
+
 .station span:nth-child(2) {
-    flex-basis: 18%; /* Heure */
-    font-size: 0.9em;  /* Heure */
+    flex-basis: 20%;
+    font-size: 0.9em;
     text-align: center;
 }
+
 .station span:nth-child(3) {
-    flex-basis: 70%; /* Nom */
-    font-size: 0.9em;  /* Nom */
+    flex-basis: 68%;
+    font-size: 1em;
     text-align: left;
 }
+
+.header {
+    background-color: #444;
+    padding: 5px;
+    border-radius: 5px;
+}
+
 .header span {
     font-weight: bold;
-    border-bottom: 1px solid #fff;
-    padding-bottom: 0;
-    font-size: 0.9em; /* Taille de police uniforme pour les en-têtes */
-    text-align: left;
-    line-height: 1.2; /* Ajuster la hauteur de ligne pour correspondre */
-}
-
-.pk {
-    font-size: 0.7em;
-    text-align: right;
-    vertical-align: middle;
-    line-height: 1.5; /* Ajuster légèrement pour un meilleur alignement */
-}
-
-.current-station {
-    background-color: green;
-    color: white;
-}
-#info {
-    margin-top: 10px;
     font-size: 1em;
 }
 
-input[type="number"], input[type="time"], select {
-    width: 100%;
-    max-width: 415px;
-    padding: 1px;
-    margin: 1px 0;
-    font-size: 0.8em;
+/* Indiquer la gare en cours */
+.current-station {
+    background-color: #28a745;
+    color: white;
+    border-radius: 5px;
 }
 
+/* Informations supplémentaires */
+#info {
+    margin-top: 15px;
+    font-size: 1em;
+    color: #555;
+}
 
-/* @media screen and (max-width: 768px) {
-    h1, h2 {
+/* Responsivité */
+@media screen and (max-width: 768px) {
+    .container {
+        max-width: 90%;
+        padding: 15px;
+    }
+
+    h1 {
         font-size: 1.5em;
-    }
-
-    .station span {
-        font-size: 0.8em;
-    }
-
-    #timeline {
-        padding: 5px;
     }
 
     input[type="number"], input[type="time"], select, button {
         font-size: 1em;
         padding: 8px;
     }
-} */
+
+    .station span {
+        font-size: 0.8em;
+    }
+}
