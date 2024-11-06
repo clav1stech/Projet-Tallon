@@ -1,5 +1,5 @@
 [
-    { "name": "Paris-Lyon", "PK": 0.000, "duree": 0, "lat": 48.84431, "lon": 2.37564 },
+    { "name": "Paris-Lyon", "PK": 0.000, "duree": 0, "lat": 48.84033, "lon": 2.38332 },
     { "name": "Bif. de Créteil", "PK": 9.326, "duree": 320, "lat": 48.77490, "lon": 2.43626 },
     { "name": "Tunnel de Limeil-Brevannes", "PK": 4.117, "duree": 145, "lat": 48.74884, "lon": 2.47240 },
     { "name": "Tranchée couverte de Villecresne", "PK": 7.633, "duree": 120, "lat": 48.73355, "lon": 2.50744 },
