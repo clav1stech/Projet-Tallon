@@ -82,10 +82,6 @@ function populateTrajetDropdown() {
             option.textContent = trajet.name;
             trajetSelect.appendChild(option);
         });
-
-        // Optionnel : Charger le premier trajet par défaut si souhaité
-        // trajetSelect.selectedIndex = 1;
-        // loadSelectedTrajet();
     } else {
         console.error("Aucun trajet défini dans 'trajets'.");
     }
@@ -122,8 +118,6 @@ function loadSelectedTrajet() {
             pointsDePassage = data;
             direction = trajet.direction;
             console.log("Points de passage chargés : ", pointsDePassage);
-            // Optionnel : Afficher la timeline après le chargement des points
-            // displayTimeline();
         })
         .catch(error => {
             console.error("Erreur lors du chargement du fichier des points:", error);
@@ -145,7 +139,6 @@ function setupLocationMethodListener() {
 
 // Fonction pour calculer l'heure d'arrivée de manière cumulative
 function calculateArrivalTime(currentDate, duration) {
-    // Assurez-vous que 'duration' est en secondes
     const durationMilliseconds = duration * 1000; // Convertir en millisecondes
     const newDate = new Date(currentDate.getTime() + durationMilliseconds);
     return newDate;
@@ -235,20 +228,15 @@ function startTracking() {
     }
 
     if (selectedMethod === 'geo') {
-        // Si l'utilisateur choisit la géolocalisation, on met à jour toutes les 10 secondes
         if (navigator.geolocation) {
-            // Appeler une fois immédiatement
             navigator.geolocation.getCurrentPosition(showPosition, showError);
-
-            // Actualiser la position toutes les 10 secondes
             trackingInterval = setInterval(() => {
                 navigator.geolocation.getCurrentPosition(showPosition, showError);
-            }, 10000);  // 10 000 millisecondes = 10 secondes
+            }, 10000);  // Actualiser toutes les 10 secondes
         } else {
             document.getElementById("info").innerText = "La géolocalisation n'est pas supportée par ce navigateur.";
         }
     } else {
-        // Si l'utilisateur choisit la méthode manuelle, obtenir la localisation une seule fois
         getLocation();
     }
 }
@@ -258,14 +246,12 @@ function getLocation() {
     const selectedMethod = document.querySelector('input[name="locationMethod"]:checked').value;
 
     if (selectedMethod === 'geo') {
-        // Utiliser la géolocalisation de l'appareil
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(showPosition, showError);
         } else {
             document.getElementById("info").innerText = "La géolocalisation n'est pas supportée par ce navigateur.";
         }
     } else {
-        // Utiliser les coordonnées manuellement saisies
         const manualLat = parseFloat(document.getElementById('manualLat').value);
         const manualLon = parseFloat(document.getElementById('manualLon').value);
 
@@ -287,13 +273,30 @@ function getLocation() {
 function showPosition(position) {
     const userLat = position.coords.latitude;
     const userLon = position.coords.longitude;
+    const accuracy = position.coords.accuracy;
 
-    // Déterminer le dernier point franchi et le prochain point en fonction de la direction
+    // Vérifier la précision du signal GPS
+    if (accuracy > 1000) {  // Seuil de 1 000 mètres pour la précision acceptable
+        document.getElementById("info").innerText = `Signal GPS trop imprécis (précision de ${accuracy.toFixed(0)} mètres). Utilisation du centre de la zone approximative.`;
+        
+        // Utiliser le centre du cercle approximatif pour la position
+        const approximatePosition = {
+            lat: userLat,
+            lon: userLon
+        };
+        processPosition(approximatePosition.lat, approximatePosition.lon);
+    } else {
+        // Utiliser la position actuelle si elle est suffisamment précise
+        processPosition(userLat, userLon);
+    }
+}
+
+// Fonction pour traiter la position utilisateur et mettre à jour la timeline
+function processPosition(userLat, userLon) {
     let lastPassedPoint = null;
     let nextPoint = null;
 
     if (direction === 'north-south') {
-        // Pour Nord-Sud : latitudes décroissantes
         for (let i = 0; i < pointsDePassage.length; i++) {
             if (userLat <= pointsDePassage[i].lat) {
                 lastPassedPoint = pointsDePassage[i];
@@ -301,13 +304,11 @@ function showPosition(position) {
                 break;
             }
         }
-        // Si l'utilisateur a dépassé tous les points
         if (!lastPassedPoint && pointsDePassage.length > 0) {
             lastPassedPoint = pointsDePassage[pointsDePassage.length - 1];
             nextPoint = null;
         }
     } else if (direction === 'south-north') {
-        // Pour Sud-Nord : latitudes croissantes
         for (let i = 0; i < pointsDePassage.length; i++) {
             if (userLat >= pointsDePassage[i].lat) {
                 lastPassedPoint = pointsDePassage[i];
@@ -315,14 +316,12 @@ function showPosition(position) {
                 break;
             }
         }
-        // Si l'utilisateur a dépassé tous les points
         if (!lastPassedPoint && pointsDePassage.length > 0) {
             lastPassedPoint = pointsDePassage[0];
             nextPoint = null;
         }
     }
 
-    // Mettre à jour la classe 'current-station' dans la timeline
     Array.from(timelineElement.children).forEach(station => {
         station.classList.remove("current-station");
     });
@@ -335,13 +334,11 @@ function showPosition(position) {
         });
     }
 
-    // Calculer la distance restante (optionnel, peut être amélioré)
     let distance = 0;
     if (nextPoint) {
         distance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
     }
 
-    // Affichage de la position et du prochain point de passage
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
@@ -374,4 +371,3 @@ function showError(error) {
             break;
     }
 }
-
