@@ -221,18 +221,20 @@ function startTracking() {
 
     const selectedMethod = document.querySelector('input[name="locationMethod"]:checked').value;
 
-    // Nettoyer l'intervalle précédent s'il existe
+    // Nettoyer le suivi précédent s'il existe
     if (trackingInterval) {
-        clearInterval(trackingInterval);
+        navigator.geolocation.clearWatch(trackingInterval);
         trackingInterval = null;
     }
 
     if (selectedMethod === 'geo') {
         if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(showPosition, showError);
-            trackingInterval = setInterval(() => {
-                navigator.geolocation.getCurrentPosition(showPosition, showError);
-            }, 10000);  // Actualiser toutes les 10 secondes
+            // Utilisation de watchPosition pour un suivi en continu
+            trackingInterval = navigator.geolocation.watchPosition(
+                showPosition,
+                showError,
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            );
         } else {
             document.getElementById("info").innerText = "La géolocalisation n'est pas supportée par ce navigateur.";
         }
@@ -240,6 +242,7 @@ function startTracking() {
         getLocation();
     }
 }
+
 
 // Fonction pour obtenir la localisation (par géolocalisation ou manuellement)
 function getLocation() {
