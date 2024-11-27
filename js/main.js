@@ -304,7 +304,7 @@ function processPosition(userLat, userLon) {
         for (let i = 0; i < pointsDePassage.length; i++) {
             if (userLat <= pointsDePassage[i].lat) {
                 nextPoint = pointsDePassage[i];
-                lastPassedPoint = pointsDePassage[i - 1] || pointsDePassage[0];
+                lastPassedPoint = pointsDePassage[i - 1] || null;
                 break;
             }
         }
@@ -315,7 +315,7 @@ function processPosition(userLat, userLon) {
         for (let i = 0; i < pointsDePassage.length; i++) {
             if (userLat >= pointsDePassage[i].lat) {
                 nextPoint = pointsDePassage[i];
-                lastPassedPoint = pointsDePassage[i - 1] || pointsDePassage[0];
+                lastPassedPoint = pointsDePassage[i - 1] || null;
                 break;
             }
         }
@@ -347,12 +347,15 @@ function processPosition(userLat, userLon) {
         nextPointDistance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
     }
 
-    updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance);
+    const theoreticalTime = nextPoint ? calculateTheoreticalTime(departureTime, nextPoint.duree) : '';
+
+    updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
 
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-            <strong>Next waypoint :</strong> ${nextPoint.name} (in ${nextPointDistance.toFixed(2)} km)
+            <strong>Next waypoint :</strong> ${nextPoint.name} (in ${nextPointDistance.toFixed(2)} km)<br>
+            <strong>Theoretical time :</strong> ${theoreticalTime}
         `;
     } else {
         document.getElementById("info").innerHTML = `
@@ -380,16 +383,14 @@ function showError(error) {
     }
 }
 
-function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance) {
-    const currentTime = new Date().toLocaleTimeString();
-
-    document.getElementById('current-time').textContent = currentTime;
+function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime) {
     document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'No previous point';
     document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : '';
     document.getElementById('last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : '';
     document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'Route ended';
     document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : '';
     document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : '';
+    document.getElementById('current-time').textContent = theoreticalTime;
 
     if (nextPoint) {
         const nextPointTime = new Date(`1970-01-01T${nextPoint.time}:00`);
@@ -401,4 +402,12 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
     } else {
         document.getElementById('current-time').classList.remove('red');
     }
+}
+
+function calculateTheoreticalTime(departureTime, duration) {
+    const [hours, minutes] = departureTime.split(':').map(Number);
+    const departureDate = new Date();
+    departureDate.setHours(hours, minutes, 0, 0);
+    const theoreticalTime = new Date(departureDate.getTime() + duration * 1000);
+    return theoreticalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
