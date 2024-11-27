@@ -13,7 +13,87 @@ document.addEventListener('DOMContentLoaded', () => {
     populateTrajetDropdown();
     setupLocationMethodListener();
     restoreSettings(); // Restaurer les paramètres sauvegardés
+    startTracking();
 });  
+
+function startTracking() {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(position => {
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
+
+            // Mettre à jour les variables en fonction de la position actuelle
+            updatePoints(userLat, userLon);
+
+            // Mettre à jour le widget
+            updateDistancesAndTime();
+        }, error => {
+            console.error('Error getting position:', error);
+        }, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 5000
+        });
+    } else {
+        console.error('Geolocation is not supported by this browser.');
+    }
+}
+
+function updatePoints(userLat, userLon) {
+    // Logique pour mettre à jour lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime
+    // en fonction de la position actuelle (userLat, userLon)
+    // Cette logique dépend de votre application spécifique et des données disponibles
+    // Exemple :
+    lastPassedPoint = getLastPassedPoint(userLat, userLon);
+    nextPoint = getNextPoint(userLat, userLon);
+    lastPointDistance = calculateDistance(userLat, userLon, lastPassedPoint.lat, lastPassedPoint.lon);
+    nextPointDistance = calculateDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
+    theoreticalTime = calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint);
+}
+
+function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime) {
+    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'No previous point';
+    document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : '';
+    document.getElementById('last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : '';
+    document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'Route ended';
+    document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : '';
+    document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : '';
+
+    if (nextPoint) {
+        const currentTime = new Date();
+        const [theoreticalHours, theoreticalMinutes] = theoreticalTime.split(':').map(Number);
+        const theoreticalDate = new Date();
+        theoreticalDate.setHours(theoreticalHours, theoreticalMinutes, 0, 0);
+    
+        const diffMilliseconds = currentTime - theoreticalDate;
+    
+        if (diffMilliseconds > 0) {
+            const diffMinutes = Math.floor(diffMilliseconds / 60000);
+    
+            if (diffMinutes === 0) {
+                document.getElementById('current-time').textContent = 'On Time';
+                document.getElementById('current-time').classList.add('green');
+                document.getElementById('current-time').classList.remove('red');
+            } else {
+                document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
+                document.getElementById('current-time').classList.add('red');
+                document.getElementById('current-time').classList.remove('green');
+            }
+        } else {
+            document.getElementById('current-time').textContent = 'On Time';
+            document.getElementById('current-time').classList.add('green');
+            document.getElementById('current-time').classList.remove('red');
+        }
+    } else {
+        document.getElementById('current-time').textContent = '';
+        document.getElementById('current-time').classList.remove('red');
+        document.getElementById('current-time').classList.remove('green');
+    }
+}
+
+function updateDistancesAndTime() {
+    updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
+}
 
 // Fonction pour restaurer les réglages sauvegardés après actualisation de la page
 function restoreSettings() {
