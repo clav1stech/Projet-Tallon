@@ -47,4 +47,29 @@
             <div class="widget-section">
                 <div class="point" id="next-point">N/A</div>
                 <div class="time" id="next-point-time">N/A</div>
-                <div class="distanc
+                <div class="distance" id="next-point-distance">N/A</div>
+            </div>
+            <div class="widget-section">
+                <div class="time" id="current-time">N/A</div>
+            </div>
+        </div>
+
+        <button class="start-btn" onclick="startTracking()">Start</button>
+
+        <div id="timeline">
+            <div class="station header">
+                <span>PK</span>
+                <span>Time</span>
+                <span>Waypoint</span>
+            </div>
+        </div>
+        <p id="info"></p>
+    </div>
+
+    <!-- Inclusion des fichiers JavaScript -->
+    <script src="data/routes.js"></script>
+    <script src="js/functions.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
