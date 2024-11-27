@@ -396,7 +396,7 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
         const theoreticalDate = new Date();
         theoreticalDate.setHours(theoreticalHours, theoreticalMinutes, 0, 0);
 
-        if (currentTime > theoreticalDate) {
+        if (currentTime >= theoreticalDate) {
             const diffMinutes = Math.floor((currentTime - theoreticalDate) / 60000);
             document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
             document.getElementById('current-time').classList.add('red');
