@@ -295,32 +295,32 @@ function showPosition(position) {
 }
 
 // Fonction pour traiter la position utilisateur et mettre à jour la timeline
+
 function processPosition(userLat, userLon) {
     let lastPassedPoint = null;
     let nextPoint = null;
+
     if (direction === 'north-south') {
         for (let i = 0; i < pointsDePassage.length; i++) {
             if (userLat <= pointsDePassage[i].lat) {
-                lastPassedPoint = pointsDePassage[i];
-                nextPoint = pointsDePassage[i + 1] || null;
+                nextPoint = pointsDePassage[i];
+                lastPassedPoint = pointsDePassage[i - 1] || pointsDePassage[0];
                 break;
             }
         }
-        if (!lastPassedPoint && pointsDePassage.length > 0) {
-            lastPassedPoint = pointsDePassage[0];
-            nextPoint = null;
+        if (!nextPoint && pointsDePassage.length > 0) {
+            lastPassedPoint = pointsDePassage[pointsDePassage.length - 1];
         }
     } else if (direction === 'south-north') {
         for (let i = 0; i < pointsDePassage.length; i++) {
             if (userLat >= pointsDePassage[i].lat) {
-                lastPassedPoint = pointsDePassage[i];
-                nextPoint = pointsDePassage[i + 1] || null;
+                nextPoint = pointsDePassage[i];
+                lastPassedPoint = pointsDePassage[i - 1] || pointsDePassage[0];
                 break;
             }
         }
-        if (!lastPassedPoint && pointsDePassage.length > 0) {
-            lastPassedPoint = pointsDePassage[0];
-            nextPoint = null;
+        if (!nextPoint && pointsDePassage.length > 0) {
+            lastPassedPoint = pointsDePassage[pointsDePassage.length - 1];
         }
     }
 
@@ -355,6 +355,67 @@ function processPosition(userLat, userLon) {
         `;
     }
 }
+
+// function processPosition(userLat, userLon) {
+//     let lastPassedPoint = null;
+//     let nextPoint = null;
+//     if (direction === 'north-south') {
+//         for (let i = 0; i < pointsDePassage.length; i++) {
+//             if (userLat <= pointsDePassage[i].lat) {
+//                 lastPassedPoint = pointsDePassage[i];
+//                 nextPoint = pointsDePassage[i + 1] || null;
+//                 break;
+//             }
+//         }
+//         if (!lastPassedPoint && pointsDePassage.length > 0) {
+//             lastPassedPoint = pointsDePassage[0];
+//             nextPoint = null;
+//         }
+//     } else if (direction === 'south-north') {
+//         for (let i = 0; i < pointsDePassage.length; i++) {
+//             if (userLat >= pointsDePassage[i].lat) {
+//                 lastPassedPoint = pointsDePassage[i];
+//                 nextPoint = pointsDePassage[i + 1] || null;
+//                 break;
+//             }
+//         }
+//         if (!lastPassedPoint && pointsDePassage.length > 0) {
+//             lastPassedPoint = pointsDePassage[0];
+//             nextPoint = null;
+//         }
+//     }
+
+//     // Réinitialiser les classes des points de passage
+//     Array.from(timelineElement.children).forEach(station => {
+//         station.classList.remove("current-station");
+//     });
+
+//     // Mettre en vert le dernier point de passage dépassé
+//     if (lastPassedPoint) {
+//         Array.from(timelineElement.children).forEach(station => {
+//             if (station.textContent.includes(lastPassedPoint.name)) {
+//                 station.classList.add("current-station");
+//             }
+//         });
+//     }
+
+//     let distance = 0;
+//     if (nextPoint) {
+//         distance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
+//     }
+
+//     if (nextPoint) {
+//         document.getElementById("info").innerHTML = `
+//             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
+//             <strong>Next waypoint :</strong> ${nextPoint.name} (in ${distance.toFixed(2)} km)
+//         `;
+//     } else {
+//         document.getElementById("info").innerHTML = `
+//             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
+//             <strong>No more waypoints ahead.</strong>
+//         `;
+//     }
+// }
 
 // Fonction pour gérer les erreurs de géolocalisation
 function showError(error) {
