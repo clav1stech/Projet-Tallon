@@ -28,7 +28,6 @@ function startTracking() {
             // Mettre à jour le widget
             updateDistancesAndTime();
         }, showError, {
-            enableHighAccuracy: true,
             maximumAge: 0,
             timeout: 5000
         });
@@ -48,7 +47,6 @@ function startTracking() {
                 // Mettre à jour le widget
                 updateDistancesAndTime();
             }, showError, {
-                enableHighAccuracy: true,
                 maximumAge: 0,
                 timeout: 5000
             });
@@ -62,8 +60,8 @@ function updatePoints(userLat, userLon) {
     // Logique pour mettre à jour lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime
     lastPassedPoint = getLastPassedPoint(userLat, userLon);
     nextPoint = getNextPoint(userLat, userLon);
-    lastPointDistance = calculateDistance(userLat, userLon, lastPassedPoint.lat, lastPassedPoint.lon);
-    nextPointDistance = calculateDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
+    lastPointDistance = lastPassedPoint ? calculateDistance(userLat, userLon, lastPassedPoint.lat, lastPassedPoint.lon) : 0;
+    nextPointDistance = nextPoint ? calculateDistance(userLat, userLon, nextPoint.lat, nextPoint.lon) : 0;
     theoreticalTime = calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint);
 }
 
@@ -450,7 +448,7 @@ function processPosition(userLat, userLon) {
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Rayon de la Terre en km
     const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lat2 - lon1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
         0.5 - Math.cos(dLat)/2 + 
         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
