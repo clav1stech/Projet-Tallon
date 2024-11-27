@@ -410,8 +410,8 @@ function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
 
     let totalDuration = 0;
     for (let point of pointsDePassage) {
-        if (point === nextPoint) break;
         totalDuration += point.duree;
+        if (point === nextPoint) break;
     }
 
     const theoreticalTime = new Date(departureDate.getTime() + totalDuration * 1000);
