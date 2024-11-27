@@ -160,3 +160,24 @@ label input[type="radio"] {
         font-size: 0.8em;
     }
 }
+
+.tracking-widget {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin: 10px 0;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+}
+
+.widget-section {
+    margin-bottom: 10px;
+}
+
+.widget-section strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+#current-time.red {
+    color: red;
+}
