@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     populateTrajetDropdown();
     setupLocationMethodListener();
     restoreSettings(); // Restaurer les paramètres sauvegardés
-});
+});  
 
 // Fonction pour restaurer les réglages sauvegardés après actualisation de la page
 function restoreSettings() {
@@ -298,7 +298,6 @@ function showPosition(position) {
 function processPosition(userLat, userLon) {
     let lastPassedPoint = null;
     let nextPoint = null;
-
     if (direction === 'north-south') {
         for (let i = 0; i < pointsDePassage.length; i++) {
             if (userLat <= pointsDePassage[i].lat) {
@@ -308,7 +307,7 @@ function processPosition(userLat, userLon) {
             }
         }
         if (!lastPassedPoint && pointsDePassage.length > 0) {
-            lastPassedPoint = pointsDePassage[pointsDePassage.length - 1];
+            lastPassedPoint = pointsDePassage[0];
             nextPoint = null;
         }
     } else if (direction === 'south-north') {
@@ -325,10 +324,12 @@ function processPosition(userLat, userLon) {
         }
     }
 
+    // Réinitialiser les classes des points de passage
     Array.from(timelineElement.children).forEach(station => {
         station.classList.remove("current-station");
     });
 
+    // Mettre en vert le dernier point de passage dépassé
     if (lastPassedPoint) {
         Array.from(timelineElement.children).forEach(station => {
             if (station.textContent.includes(lastPassedPoint.name)) {
@@ -345,14 +346,12 @@ function processPosition(userLat, userLon) {
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-            <strong>Next waypoint :</strong> ${nextPoint.name} (PK: ${nextPoint.PK.toFixed(3)})<br>
-            <strong>Distance remaining :</strong> ${distance.toFixed(2)} km
+            <strong>Next waypoint :</strong> ${nextPoint.name} (in ${distance.toFixed(2)} km)
         `;
     } else {
         document.getElementById("info").innerHTML = `
             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-            <strong>Route ended.</strong><br>
-            <strong>Remaining distance :</strong> ${distance.toFixed(2)} km
+            <strong>No more waypoints ahead.</strong>
         `;
     }
 }
