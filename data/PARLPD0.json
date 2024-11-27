@@ -20,7 +20,7 @@
     { "name": "PRS de Vianges", "PK": 225.809, "duree": 290, "lat": 47.14900, "lon": 4.34201 },
     { "name": "PRS de Sully", "PK": 247.214, "duree": 240, "lat": 46.99679, "lon": 4.45548 },
     { "name": "Viaduc de la Digoine (Drée)", "PK": 253.454, "duree": 115, "lat": 46.94780, "lon": 4.48808 },
-    { "name": "Le Creusot – Montceau – Montchanin", "PK": 273.816, "duree": 290, "lat": 46.76534, "lon": 4.50010 },
+    { "name": "Le Creusot TGV", "PK": 273.816, "duree": 290, "lat": 46.76534, "lon": 4.50010 },
     { "name": "PRS de Vaux-en-Pré", "PK": 292.995, "duree": 285, "lat": 46.61190, "lon": 4.60418 },
     { "name": "PRS de Cluny", "PK": 313.579, "duree": 300, "lat": 46.43449, "lon": 4.67387 },
     { "name": "Viaduc de la Roche", "PK": 321.187, "duree": 110, "lat": 46.37125, "lon": 4.67518 },
