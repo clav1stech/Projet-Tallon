@@ -1,4 +1,3 @@
-@ -1,430 +1,443 @@
 // js/main.js
 
 // Variables globales
