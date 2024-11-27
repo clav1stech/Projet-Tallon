@@ -338,17 +338,21 @@ function processPosition(userLat, userLon) {
         });
     }
 
-    let distance = 0;
+    let lastPointDistance = 0;
+    let nextPointDistance = 0;
+    if (lastPassedPoint) {
+        lastPointDistance = haversineDistance(userLat, userLon, lastPassedPoint.lat, lastPassedPoint.lon);
+    }
     if (nextPoint) {
-        distance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
+        nextPointDistance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
     }
 
-    updateTrackingWidget(lastPassedPoint, nextPoint, distance);
+    updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance);
 
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-            <strong>Next waypoint :</strong> ${nextPoint.name} (in ${distance.toFixed(2)} km)
+            <strong>Next waypoint :</strong> ${nextPoint.name} (in ${nextPointDistance.toFixed(2)} km)
         `;
     } else {
         document.getElementById("info").innerHTML = `
@@ -376,15 +380,16 @@ function showError(error) {
     }
 }
 
-function updateTrackingWidget(lastPassedPoint, nextPoint, distance) {
+function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance) {
     const currentTime = new Date().toLocaleTimeString();
 
     document.getElementById('current-time').textContent = currentTime;
     document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'N/A';
     document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : 'N/A';
+    document.getElementById('last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : 'N/A';
     document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'N/A';
     document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : 'N/A';
-    document.getElementById('next-point-distance').textContent = nextPoint ? `${distance.toFixed(2)} km` : 'N/A';
+    document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : 'N/A';
 
     if (nextPoint) {
         const nextPointTime = new Date(`1970-01-01T${nextPoint.time}:00`);

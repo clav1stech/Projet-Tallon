@@ -176,6 +176,12 @@ label input[type="radio"] {
     text-align: center;
 }
 
+.widget-title {
+    font-size: 1em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
 .point {
     font-size: 1.2em;
     font-weight: bold;
