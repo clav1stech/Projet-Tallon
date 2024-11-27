@@ -440,3 +440,4 @@ function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
     const theoreticalTime = new Date(departureDate.getTime() + totalDuration * 1000);
     return theoreticalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
+
