@@ -1,3 +1,4 @@
+@ -1,430 +1,443 @@
 // js/main.js
 
 // Variables globales
@@ -6,108 +7,13 @@ let timelineElement = document.getElementById("timeline");
 let trackingInterval = null;  // Variable pour stocker l'intervalle
 let direction = 'north-south';
 let pointsDePassage = [];
-let lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime;
 
 // Initialisation au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
     populateTrajetDropdown();
     setupLocationMethodListener();
     restoreSettings(); // Restaurer les paramètres sauvegardés
-    startTracking();
 });  
-
-function startTracking() {
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(position => {
-            const userLat = position.coords.latitude;
-            const userLon = position.coords.longitude;
-
-            // Mettre à jour les variables en fonction de la position actuelle
-            updatePoints(userLat, userLon);
-
-            // Mettre à jour le widget
-            updateDistancesAndTime();
-        }, showError, {
-            maximumAge: 0,
-            timeout: 5000
-        });
-
-        // Mettre à jour les informations toutes les 5 secondes
-        if (trackingInterval) {
-            clearInterval(trackingInterval);
-        }
-        trackingInterval = setInterval(() => {
-            navigator.geolocation.getCurrentPosition(position => {
-                const userLat = position.coords.latitude;
-                const userLon = position.coords.longitude;
-
-                // Mettre à jour les variables en fonction de la position actuelle
-                updatePoints(userLat, userLon);
-
-                // Mettre à jour le widget
-                updateDistancesAndTime();
-            }, showError, {
-                maximumAge: 0,
-                timeout: 5000
-            });
-        }, 5000);
-    } else {
-        console.error('Geolocation is not supported by this browser.');
-    }
-}
-
-function updatePoints(userLat, userLon) {
-    // Logique pour mettre à jour lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime
-    lastPassedPoint = getLastPassedPoint(userLat, userLon);
-    nextPoint = getNextPoint(userLat, userLon);
-    lastPointDistance = lastPassedPoint ? calculateDistance(userLat, userLon, lastPassedPoint.lat, lastPassedPoint.lon) : 0;
-    nextPointDistance = nextPoint ? calculateDistance(userLat, userLon, nextPoint.lat, nextPoint.lon) : 0;
-    theoreticalTime = calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint);
-}
-
-function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime) {
-    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'No previous point';
-    document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : '';
-    document.getElementById('last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : '';
-    document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'Route ended';
-    document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : '';
-    document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : '';
-
-    if (nextPoint) {
-        const currentTime = new Date();
-        const [theoreticalHours, theoreticalMinutes] = theoreticalTime.split(':').map(Number);
-        const theoreticalDate = new Date();
-        theoreticalDate.setHours(theoreticalHours, theoreticalMinutes, 0, 0);
-    
-        const diffMilliseconds = currentTime - theoreticalDate;
-    
-        if (diffMilliseconds > 0) {
-            const diffMinutes = Math.floor(diffMilliseconds / 60000);
-    
-            if (diffMinutes === 0) {
-                document.getElementById('current-time').textContent = 'On Time';
-                document.getElementById('current-time').classList.add('green');
-                document.getElementById('current-time').classList.remove('red');
-            } else {
-                document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
-                document.getElementById('current-time').classList.add('red');
-                document.getElementById('current-time').classList.remove('green');
-            }
-        } else {
-            document.getElementById('current-time').textContent = 'On Time';
-            document.getElementById('current-time').classList.add('green');
-            document.getElementById('current-time').classList.remove('red');
-        }
-    } else {
-        document.getElementById('current-time').textContent = '';
-        document.getElementById('current-time').classList.remove('red');
-        document.getElementById('current-time').classList.remove('green');
-    }
-}
-
-function updateDistancesAndTime() {
-    updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
-}
 
 // Fonction pour restaurer les réglages sauvegardés après actualisation de la page
 function restoreSettings() {
@@ -436,63 +342,102 @@ function processPosition(userLat, userLon) {
         }
     }
 
-    // Mettre à jour les distances
-    lastPointDistance = lastPassedPoint ? calculateDistance(userLat, userLon, lastPassedPoint.lat, lastPassedPoint.lon) : 0;
-    nextPointDistance = nextPoint ? calculateDistance(userLat, userLon, nextPoint.lat, nextPoint.lon) : 0;
+    // Réinitialiser les classes des points de passage
+    Array.from(timelineElement.children).forEach(station => {
+        station.classList.remove("current-station");
+    });
 
-    // Mettre à jour le widget
-    updateDistancesAndTime();
-}
-
-// Fonction pour calculer la distance entre deux points (en km)
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Rayon de la Terre en km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-        0.5 - Math.cos(dLat)/2 + 
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        (1 - Math.cos(dLon))/2;
-
-    return R * 2 * Math.asin(Math.sqrt(a));
-}
-
-// Fonction pour obtenir le dernier point de passage
-function getLastPassedPoint(userLat, userLon) {
-    // Logique pour obtenir le dernier point de passage en fonction de la position actuelle
-    // Exemple :
-    for (let i = pointsDePassage.length - 1; i >= 0; i--) {
-        if (direction === 'north-south' && userLat > pointsDePassage[i].lat) {
-            return pointsDePassage[i];
-        } else if (direction === 'south-north' && userLat < pointsDePassage[i].lat) {
-            return pointsDePassage[i];
-        }
+    // Mettre en vert le dernier point de passage dépassé
+    if (lastPassedPoint) {
+        Array.from(timelineElement.children).forEach(station => {
+            if (station.textContent.includes(lastPassedPoint.name)) {
+                station.classList.add("current-station");
+            }
+        });
     }
-    return null;
-}
 
-// Fonction pour obtenir le prochain point de passage
-function getNextPoint(userLat, userLon) {
-    // Logique pour obtenir le prochain point de passage en fonction de la position actuelle
-    // Exemple :
-    for (let i = 0; i < pointsDePassage.length; i++) {
-        if (direction === 'north-south' && userLat <= pointsDePassage[i].lat) {
-            return pointsDePassage[i];
-        } else if (direction === 'south-north' && userLat >= pointsDePassage[i].lat) {
-            return pointsDePassage[i];
-        }
+    let lastPointDistance = 0;
+    let nextPointDistance = 0;
+    if (lastPassedPoint) {
+        lastPointDistance = haversineDistance(userLat, userLon, lastPassedPoint.lat, lastPassedPoint.lon);
     }
-    return null;
+    if (nextPoint) {
+        nextPointDistance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
+    }
+
+    const theoreticalTime = nextPoint ? calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) : '';
+
+    updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
+
+    if (nextPoint) {
+        document.getElementById("info").innerHTML = `
+            <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
+            <strong>Next waypoint :</strong> ${nextPoint.name} (in ${nextPointDistance.toFixed(2)} km)<br>
+            <strong>Theoretical time :</strong> ${theoreticalTime}
+        `;
+    } else {
+        document.getElementById("info").innerHTML = `
+            <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
+            <strong>No more waypoints ahead.</strong>
+        `;
+    }
 }
 
-// Fonction pour calculer l'heure théorique d'arrivée au prochain point
+function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime) {
+    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'No previous point';
+    document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : '';
+    document.getElementById('last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : '';
+    document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'Route ended';
+    document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : '';
+    document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : '';
+
+    if (nextPoint) {
+        const currentTime = new Date();
+        const [theoreticalHours, theoreticalMinutes] = theoreticalTime.split(':').map(Number);
+        const theoreticalDate = new Date();
+        theoreticalDate.setHours(theoreticalHours, theoreticalMinutes, 0, 0);
+    
+        // Calcul de la différence en millisecondes
+        const diffMilliseconds = currentTime - theoreticalDate;
+    
+        if (diffMilliseconds > 0) {
+            const diffMinutes = Math.floor(diffMilliseconds / 60000);
+    
+            if (diffMinutes === 0) {
+                // Si la différence est dans la même minute, considérer comme "On Time"
+                document.getElementById('current-time').textContent = 'On Time';
+                document.getElementById('current-time').classList.add('green');
+                document.getElementById('current-time').classList.remove('red');
+            } else {
+                // Sinon, afficher le retard
+                document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
+                document.getElementById('current-time').classList.add('red');
+                document.getElementById('current-time').classList.remove('green');
+            }
+        } else {
+            document.getElementById('current-time').textContent = 'On Time';
+            document.getElementById('current-time').classList.add('green');
+            document.getElementById('current-time').classList.remove('red');
+        }
+    } else {
+        document.getElementById('current-time').textContent = '';
+        document.getElementById('current-time').classList.remove('red');
+        document.getElementById('current-time').classList.remove('green');
+    }
+    
+}
+
 function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
-    // Logique pour calculer l'heure théorique d'arrivée au prochain point
-    // Exemple :
-    if (!nextPoint) return '';
-    const index = pointsDePassage.indexOf(nextPoint);
-    if (index === -1) return '';
-    const time = new Date(departureTime);
-    time.setMinutes(time.getMinutes() + (index * 10)); // Supposons que chaque point est à 10 minutes d'intervalle
-    return time.toTimeString().slice(0, 5);
+    const [hours, minutes] = departureTime.split(':').map(Number);
+    const departureDate = new Date();
+    departureDate.setHours(hours, minutes, 0, 0);
+
+    let totalDuration = 0;
+    for (let point of pointsDePassage) {
+        totalDuration += point.duree;
+        if (point === nextPoint) break;
+    }
+
+    const theoreticalTime = new Date(departureDate.getTime() + totalDuration * 1000);
+    return theoreticalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
