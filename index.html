@@ -41,38 +41,10 @@
         <!-- Nouveau widget de suivi en temps réel -->
         <div id="tracking-widget" class="tracking-widget">
             <div class="widget-section">
-                <strong>Last Passed Point:</strong>
-                <span id="last-passed-point">N/A</span>
-                <span id="last-passed-time">N/A</span>
+                <div class="point" id="last-passed-point">N/A</div>
+                <div class="time" id="last-passed-time">N/A</div>
             </div>
             <div class="widget-section">
-                <strong>Next Point:</strong>
-                <span id="next-point">N/A</span>
-                <span id="next-point-time">N/A</span>
-                <span id="next-point-distance">N/A</span>
-            </div>
-            <div class="widget-section">
-                <strong>Current Time:</strong>
-                <span id="current-time">N/A</span>
-            </div>
-        </div>
-
-        <button class="start-btn" onclick="startTracking()">Start</button>
-
-        <div id="timeline">
-            <div class="station header">
-                <span>PK</span>
-                <span>Time</span>
-                <span>Waypoint</span>
-            </div>
-        </div>
-        <p id="info"></p>
-    </div>
-
-    <!-- Inclusion des fichiers JavaScript -->
-    <script src="data/routes.js"></script>
-    <script src="js/functions.js"></script>
-    <script src="js/main.js"></script>
-</body>
-
-</html>
+                <div class="point" id="next-point">N/A</div>
+                <div class="time" id="next-point-time">N/A</div>
+                <div class="distanc

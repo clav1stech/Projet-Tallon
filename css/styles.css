@@ -162,6 +162,9 @@ label input[type="radio"] {
 }
 
 .tracking-widget {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
     border: 1px solid #ccc;
     padding: 10px;
     margin: 10px 0;
@@ -170,12 +173,16 @@ label input[type="radio"] {
 }
 
 .widget-section {
-    margin-bottom: 10px;
+    text-align: center;
 }
 
-.widget-section strong {
-    display: block;
-    margin-bottom: 5px;
+.point {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.time, .distance {
+    font-size: 1em;
 }
 
 #current-time.red {

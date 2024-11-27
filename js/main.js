@@ -386,8 +386,13 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, distance) {
     document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : 'N/A';
     document.getElementById('next-point-distance').textContent = nextPoint ? `${distance.toFixed(2)} km` : 'N/A';
 
-    if (nextPoint && new Date() > new Date(`1970-01-01T${nextPoint.time}:00`)) {
-        document.getElementById('current-time').classList.add('red');
+    if (nextPoint) {
+        const nextPointTime = new Date(`1970-01-01T${nextPoint.time}:00`);
+        if (new Date() > nextPointTime) {
+            document.getElementById('current-time').classList.add('red');
+        } else {
+            document.getElementById('current-time').classList.remove('red');
+        }
     } else {
         document.getElementById('current-time').classList.remove('red');
     }
