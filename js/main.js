@@ -389,17 +389,27 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
     document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'Route ended';
     document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : '';
     document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : '';
-    document.getElementById('current-time').textContent = theoreticalTime;
 
     if (nextPoint) {
-        const nextPointTime = new Date(`1970-01-01T${nextPoint.time}:00`);
-        if (new Date() > nextPointTime) {
+        const currentTime = new Date();
+        const [theoreticalHours, theoreticalMinutes] = theoreticalTime.split(':').map(Number);
+        const theoreticalDate = new Date();
+        theoreticalDate.setHours(theoreticalHours, theoreticalMinutes, 0, 0);
+
+        if (currentTime > theoreticalDate) {
+            const diffMinutes = Math.floor((currentTime - theoreticalDate) / 60000);
+            document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
             document.getElementById('current-time').classList.add('red');
+            document.getElementById('current-time').classList.remove('green');
         } else {
+            document.getElementById('current-time').textContent = 'On Time';
+            document.getElementById('current-time').classList.add('green');
             document.getElementById('current-time').classList.remove('red');
         }
     } else {
+        document.getElementById('current-time').textContent = '';
         document.getElementById('current-time').classList.remove('red');
+        document.getElementById('current-time').classList.remove('green');
     }
 }
 
