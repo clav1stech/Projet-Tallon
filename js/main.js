@@ -395,12 +395,24 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
         const [theoreticalHours, theoreticalMinutes] = theoreticalTime.split(':').map(Number);
         const theoreticalDate = new Date();
         theoreticalDate.setHours(theoreticalHours, theoreticalMinutes, 0, 0);
-
-        if (currentTime >= theoreticalDate) {
-            const diffMinutes = Math.floor((currentTime - theoreticalDate) / 60000);
-            document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
-            document.getElementById('current-time').classList.add('red');
-            document.getElementById('current-time').classList.remove('green');
+    
+        // Calcul de la différence en millisecondes
+        const diffMilliseconds = currentTime - theoreticalDate;
+    
+        if (diffMilliseconds > 0) {
+            const diffMinutes = Math.floor(diffMilliseconds / 60000);
+    
+            if (diffMinutes === 0) {
+                // Si la différence est dans la même minute, considérer comme "On Time"
+                document.getElementById('current-time').textContent = 'On Time';
+                document.getElementById('current-time').classList.add('green');
+                document.getElementById('current-time').classList.remove('red');
+            } else {
+                // Sinon, afficher le retard
+                document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
+                document.getElementById('current-time').classList.add('red');
+                document.getElementById('current-time').classList.remove('green');
+            }
         } else {
             document.getElementById('current-time').textContent = 'On Time';
             document.getElementById('current-time').classList.add('green');
@@ -411,6 +423,7 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
         document.getElementById('current-time').classList.remove('red');
         document.getElementById('current-time').classList.remove('green');
     }
+    
 }
 
 function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
