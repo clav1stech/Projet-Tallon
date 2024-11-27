@@ -440,3 +440,33 @@ function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
     const theoreticalTime = new Date(departureDate.getTime() + totalDuration * 1000);
     return theoreticalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
+
+function getCurrentPosition() {
+    // Remplacez ceci par votre méthode pour obtenir la position actuelle
+    return {
+        lat: /* latitude actuelle */,
+        lon: /* longitude actuelle */
+    };
+}
+
+function getCurrentTime() {
+    return new Date();
+}
+
+function updateTrackingInfo() {
+    const currentPosition = getCurrentPosition();
+    const currentTime = getCurrentTime();
+
+    // Mettez à jour les distances et les temps en fonction de la position et de l'heure actuelle
+    // Remplacez les valeurs ci-dessous par vos calculs réels
+    const lastPassedPoint = /* votre logique pour obtenir le dernier point passé */;
+    const nextPoint = /* votre logique pour obtenir le prochain point */;
+    const lastPointDistance = /* votre logique pour calculer la distance au dernier point */;
+    const nextPointDistance = /* votre logique pour calculer la distance au prochain point */;
+    const theoreticalTime = calculateTheoreticalTime(/* paramètres nécessaires */);
+
+    updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
+}
+
+// Actualiser toutes les 5 secondes
+setInterval(updateTrackingInfo, 5000);
