@@ -34,6 +34,23 @@ function startTracking() {
             maximumAge: 0,
             timeout: 5000
         });
+
+        // Mettre à jour les informations toutes les 5 secondes
+        if (trackingInterval) {
+            clearInterval(trackingInterval);
+        }
+        trackingInterval = setInterval(() => {
+            navigator.geolocation.getCurrentPosition(position => {
+                const userLat = position.coords.latitude;
+                const userLon = position.coords.longitude;
+
+                // Mettre à jour les variables en fonction de la position actuelle
+                updatePoints(userLat, userLon);
+
+                // Mettre à jour le widget
+                updateDistancesAndTime();
+            });
+        }, 5000);
     } else {
         console.error('Geolocation is not supported by this browser.');
     }
