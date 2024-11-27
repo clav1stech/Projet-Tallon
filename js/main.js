@@ -243,7 +243,6 @@ function startTracking() {
     }
 }
 
-
 // Fonction pour obtenir la localisation (par géolocalisation ou manuellement)
 function getLocation() {
     const selectedMethod = document.querySelector('input[name="locationMethod"]:checked').value;
@@ -269,6 +268,24 @@ function getLocation() {
         } else {
             document.getElementById("info").innerText = "Veuillez saisir des coordonnées valides.";
         }
+    }
+}
+
+// Fonction pour gérer les erreurs de géolocalisation
+function showError(error) {
+    switch (error.code) {
+        case error.PERMISSION_DENIED:
+            document.getElementById("info").innerText = "L'utilisateur a refusé la demande de géolocalisation.";
+            break;
+        case error.POSITION_UNAVAILABLE:
+            document.getElementById("info").innerText = "Les informations de localisation ne sont pas disponibles.";
+            break;
+        case error.TIMEOUT:
+            document.getElementById("info").innerText = "La requête de géolocalisation a expiré.";
+            break;
+        case error.UNKNOWN_ERROR:
+            document.getElementById("info").innerText = "Une erreur inconnue s'est produite.";
+            break;
     }
 }
 
@@ -347,7 +364,7 @@ function processPosition(userLat, userLon) {
         nextPointDistance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
     }
 
-    const theoreticalTime = nextPoint ? calculateTheoreticalTime(departureTime, nextPoint.duree) : '';
+    const theoreticalTime = nextPoint ? calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) : '';
 
     updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
 
@@ -362,24 +379,6 @@ function processPosition(userLat, userLon) {
             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
             <strong>No more waypoints ahead.</strong>
         `;
-    }
-}
-
-// Fonction pour gérer les erreurs de géolocalisation
-function showError(error) {
-    switch (error.code) {
-        case error.PERMISSION_DENIED:
-            document.getElementById("info").innerText = "L'utilisateur a refusé la demande de géolocalisation.";
-            break;
-        case error.POSITION_UNAVAILABLE:
-            document.getElementById("info").innerText = "Les informations de localisation ne sont pas disponibles.";
-            break;
-        case error.TIMEOUT:
-            document.getElementById("info").innerText = "La requête de géolocalisation a expiré.";
-            break;
-        case error.UNKNOWN_ERROR:
-            document.getElementById("info").innerText = "Une erreur inconnue s'est produite.";
-            break;
     }
 }
 
@@ -404,10 +403,17 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
     }
 }
 
-function calculateTheoreticalTime(departureTime, duration) {
+function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
     const [hours, minutes] = departureTime.split(':').map(Number);
     const departureDate = new Date();
     departureDate.setHours(hours, minutes, 0, 0);
-    const theoreticalTime = new Date(departureDate.getTime() + duration * 1000);
+
+    let totalDuration = 0;
+    for (let point of pointsDePassage) {
+        if (point === nextPoint) break;
+        totalDuration += point.duree;
+    }
+
+    const theoreticalTime = new Date(departureDate.getTime() + totalDuration * 1000);
     return theoreticalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
