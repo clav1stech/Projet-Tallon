@@ -343,6 +343,8 @@ function processPosition(userLat, userLon) {
         distance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
     }
 
+    updateTrackingWidget(lastPassedPoint, nextPoint, distance);
+
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
@@ -355,67 +357,6 @@ function processPosition(userLat, userLon) {
         `;
     }
 }
-
-// function processPosition(userLat, userLon) {
-//     let lastPassedPoint = null;
-//     let nextPoint = null;
-//     if (direction === 'north-south') {
-//         for (let i = 0; i < pointsDePassage.length; i++) {
-//             if (userLat <= pointsDePassage[i].lat) {
-//                 lastPassedPoint = pointsDePassage[i];
-//                 nextPoint = pointsDePassage[i + 1] || null;
-//                 break;
-//             }
-//         }
-//         if (!lastPassedPoint && pointsDePassage.length > 0) {
-//             lastPassedPoint = pointsDePassage[0];
-//             nextPoint = null;
-//         }
-//     } else if (direction === 'south-north') {
-//         for (let i = 0; i < pointsDePassage.length; i++) {
-//             if (userLat >= pointsDePassage[i].lat) {
-//                 lastPassedPoint = pointsDePassage[i];
-//                 nextPoint = pointsDePassage[i + 1] || null;
-//                 break;
-//             }
-//         }
-//         if (!lastPassedPoint && pointsDePassage.length > 0) {
-//             lastPassedPoint = pointsDePassage[0];
-//             nextPoint = null;
-//         }
-//     }
-
-//     // Réinitialiser les classes des points de passage
-//     Array.from(timelineElement.children).forEach(station => {
-//         station.classList.remove("current-station");
-//     });
-
-//     // Mettre en vert le dernier point de passage dépassé
-//     if (lastPassedPoint) {
-//         Array.from(timelineElement.children).forEach(station => {
-//             if (station.textContent.includes(lastPassedPoint.name)) {
-//                 station.classList.add("current-station");
-//             }
-//         });
-//     }
-
-//     let distance = 0;
-//     if (nextPoint) {
-//         distance = haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon);
-//     }
-
-//     if (nextPoint) {
-//         document.getElementById("info").innerHTML = `
-//             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-//             <strong>Next waypoint :</strong> ${nextPoint.name} (in ${distance.toFixed(2)} km)
-//         `;
-//     } else {
-//         document.getElementById("info").innerHTML = `
-//             <strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>
-//             <strong>No more waypoints ahead.</strong>
-//         `;
-//     }
-// }
 
 // Fonction pour gérer les erreurs de géolocalisation
 function showError(error) {
@@ -432,5 +373,22 @@ function showError(error) {
         case error.UNKNOWN_ERROR:
             document.getElementById("info").innerText = "Une erreur inconnue s'est produite.";
             break;
+    }
+}
+
+function updateTrackingWidget(lastPassedPoint, nextPoint, distance) {
+    const currentTime = new Date().toLocaleTimeString();
+
+    document.getElementById('current-time').textContent = currentTime;
+    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'N/A';
+    document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : 'N/A';
+    document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'N/A';
+    document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : 'N/A';
+    document.getElementById('next-point-distance').textContent = nextPoint ? `${distance.toFixed(2)} km` : 'N/A';
+
+    if (nextPoint && new Date() > new Date(`1970-01-01T${nextPoint.time}:00`)) {
+        document.getElementById('current-time').classList.add('red');
+    } else {
+        document.getElementById('current-time').classList.remove('red');
     }
 }
