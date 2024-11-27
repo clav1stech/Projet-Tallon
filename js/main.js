@@ -6,6 +6,7 @@ let timelineElement = document.getElementById("timeline");
 let trackingInterval = null;  // Variable pour stocker l'intervalle
 let direction = 'north-south';
 let pointsDePassage = [];
+let lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime;
 
 // Initialisation au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
@@ -396,19 +397,16 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
         const theoreticalDate = new Date();
         theoreticalDate.setHours(theoreticalHours, theoreticalMinutes, 0, 0);
     
-        // Calcul de la différence en millisecondes
         const diffMilliseconds = currentTime - theoreticalDate;
     
         if (diffMilliseconds > 0) {
             const diffMinutes = Math.floor(diffMilliseconds / 60000);
     
             if (diffMinutes === 0) {
-                // Si la différence est dans la même minute, considérer comme "On Time"
                 document.getElementById('current-time').textContent = 'On Time';
                 document.getElementById('current-time').classList.add('green');
                 document.getElementById('current-time').classList.remove('red');
             } else {
-                // Sinon, afficher le retard
                 document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
                 document.getElementById('current-time').classList.add('red');
                 document.getElementById('current-time').classList.remove('green');
@@ -423,8 +421,14 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
         document.getElementById('current-time').classList.remove('red');
         document.getElementById('current-time').classList.remove('green');
     }
-    
 }
+
+function updateDistancesAndTime() {
+    updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
+}
+
+setInterval(updateDistancesAndTime, 5000);
+updateDistancesAndTime();
 
 function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
     const [hours, minutes] = departureTime.split(':').map(Number);
