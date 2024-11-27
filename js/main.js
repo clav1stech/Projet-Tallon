@@ -384,12 +384,12 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
     const currentTime = new Date().toLocaleTimeString();
 
     document.getElementById('current-time').textContent = currentTime;
-    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'N/A';
-    document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : 'N/A';
-    document.getElementById('last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : 'N/A';
-    document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'N/A';
-    document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : 'N/A';
-    document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : 'N/A';
+    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'No previous point';
+    document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : '';
+    document.getElementById('last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : '';
+    document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'Route ended';
+    document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : '';
+    document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : '';
 
     if (nextPoint) {
         const nextPointTime = new Date(`1970-01-01T${nextPoint.time}:00`);
