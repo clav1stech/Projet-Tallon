@@ -218,7 +218,7 @@ function displayTimeline() {
         stationDiv.classList.add('station');
 
         const pkSpan = document.createElement('span');
-        pkSpan.textContent = point.pk; // Assurez-vous que point.pk a une valeur
+        pkSpan.textContent = point.PK.toFixed(3); // Use 'PK' instead of 'pk'
 
         const timeSpan = document.createElement('span');
         timeSpan.textContent = arrivalTimeStr;
@@ -228,7 +228,6 @@ function displayTimeline() {
 
         const delaySpan = document.createElement('span');
         delaySpan.textContent = delayStr; // Afficher le délai calculé
-
         stationDiv.appendChild(pkSpan);
         stationDiv.appendChild(timeSpan);
         stationDiv.appendChild(nameSpan);
