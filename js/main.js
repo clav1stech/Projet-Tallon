@@ -444,7 +444,8 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
                 document.getElementById('current-time').classList.add('green');
                 document.getElementById('current-time').classList.remove('red');
             } else {
-                currentDelay = `+ ${diffMinutes} min`;
+                // currentDelay = `+ ${diffMinutes} min`;
+                currentDelay = '+ 5 min';
                 document.getElementById('current-time').textContent = currentDelay;
                 document.getElementById('current-time').classList.add('red');
                 document.getElementById('current-time').classList.remove('green');
@@ -487,7 +488,12 @@ function updateTimelineDelays() {
         if (index === 0) return; // Ignorer l'en-tête
 
         const delaySpan = station.querySelector('.delay');
-        if (!delaySpan) return;
+        if (!delaySpan) {
+            console.log(`Aucun élément avec la classe 'delay' trouvé dans la station à l'index ${index}`);
+            return;
+        }
+
+        console.log(`Mise à jour du délai pour la station à l'index ${index} avec currentDelay = '${currentDelay}'`);
 
         if (station.classList.contains('current-station')) {
             nextPointFound = true;
