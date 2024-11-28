@@ -204,7 +204,6 @@ label input[type="radio"] {
 #timeline .station .delay {
     color: #ff0000 !important;
     font-weight: bold !important;
-    background-color: yellow !important; /* Pour tester */
     padding: 2px 5px;
     border-radius: 3px;
     margin-left: 10px;
