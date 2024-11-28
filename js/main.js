@@ -173,6 +173,12 @@ function displayTimeline() {
     currentDate.setSeconds(0);
     currentDate.setMilliseconds(0);
 
+    // Variables pour le calcul du délai
+    let nextPointFound = false;
+    let delayValue = '';
+    let currentTime = new Date();
+    currentTime.setSeconds(0, 0); // Arrondir à la minute près
+
     pointsDePassage.forEach((point, index) => {
         const dureeSeconds = Number(point.duree);
         if (isNaN(dureeSeconds)) {
@@ -180,19 +186,39 @@ function displayTimeline() {
             return;
         }
 
-        // Calculer l'heure prévue d'arrivée
+        // Calculer l'heure prévue d'arrivée pour ce point
         currentDate = calculateArrivalTime(currentDate, dureeSeconds);
         const arrivalTimeStr = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // Placeholder pour le délai (à calculer plus tard)
-        const delayStr = ''; // Vous pourrez définir le contenu du délai ultérieurement
+        // Calculer le délai
+        let delayStr = '';
+        let scheduledArrivalTime = new Date(currentDate);
+        scheduledArrivalTime.setSeconds(0, 0); // Arrondir à la minute près
+
+        if (scheduledArrivalTime < currentTime) {
+            // Point déjà passé, ne rien afficher
+            delayStr = '';
+        } else if (!nextPointFound) {
+            // Prochain point
+            nextPointFound = true;
+            if (scheduledArrivalTime < currentTime) {
+                const diffMinutes = Math.floor((currentTime - scheduledArrivalTime) / 60000);
+                delayValue = `+ ${diffMinutes} min`;
+            } else {
+                delayValue = '';
+            }
+            delayStr = delayValue;
+        } else {
+            // Points à venir, afficher le même délai que le prochain point
+            delayStr = delayValue;
+        }
 
         // Créer l'élément de station
         const stationDiv = document.createElement('div');
         stationDiv.classList.add('station');
 
         const pkSpan = document.createElement('span');
-        pkSpan.textContent = point.pk;
+        pkSpan.textContent = point.pk; // Assurez-vous que point.pk a une valeur
 
         const timeSpan = document.createElement('span');
         timeSpan.textContent = arrivalTimeStr;
@@ -447,32 +473,4 @@ function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
 
     const theoreticalTime = new Date(departureDate.getTime() + totalDuration * 1000);
     return theoreticalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-let nextPointFound = false;
-let delayValue = '';
-let currentTime = new Date();
-currentTime.setSeconds(0, 0); // Arrondir à la minute près
-
-// Calculer le délai
-let delayStr = '';
-let scheduledArrivalTime = new Date(currentDate);
-scheduledArrivalTime.setSeconds(0, 0); // Arrondir à la minute près
-
-if (scheduledArrivalTime < currentTime) {
-    // Point déjà passé, ne rien afficher
-    delayStr = '';
-} else if (!nextPointFound) {
-    // Prochain point
-    nextPointFound = true;
-    if (scheduledArrivalTime < currentTime) {
-        const diffMinutes = Math.floor((currentTime - scheduledArrivalTime) / 60000);
-        delayValue = `+ ${diffMinutes} min`;
-    } else {
-        delayValue = '';
-    }
-    delayStr = delayValue;
-} else {
-    // Points à venir, afficher le même délai que le prochain point
-    delayStr = delayValue;
 }
