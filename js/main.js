@@ -6,6 +6,7 @@ let timelineElement = document.getElementById("timeline");
 let trackingInterval = null;  // Variable pour stocker l'intervalle
 let direction = 'north-south';
 let pointsDePassage = [];
+let currentDelay = ''; // Déclarer en haut du script
 
 // Initialisation au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
@@ -227,7 +228,8 @@ function displayTimeline() {
         nameSpan.textContent = point.name;
 
         const delaySpan = document.createElement('span');
-        delaySpan.textContent = delayStr; // Afficher le délai calculé
+        delaySpan.classList.add('delay'); // Ajouter cette ligne
+        delaySpan.textContent = delayStr;
         stationDiv.appendChild(pkSpan);
         stationDiv.appendChild(timeSpan);
         stationDiv.appendChild(nameSpan);
@@ -400,6 +402,7 @@ function processPosition(userLat, userLon) {
     const theoreticalTime = nextPoint ? calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) : '';
 
     updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
+    updateTimelineDelays(); // Appeler la fonction pour mettre à jour les délais
 
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
@@ -436,22 +439,24 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
             const diffMinutes = Math.floor(diffMilliseconds / 60000);
     
             if (diffMinutes === 0) {
-                // Si la différence est dans la même minute, considérer comme "On Time"
+                currentDelay = '';
                 document.getElementById('current-time').textContent = 'On Time';
                 document.getElementById('current-time').classList.add('green');
                 document.getElementById('current-time').classList.remove('red');
             } else {
-                // Sinon, afficher le retard
-                document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
+                currentDelay = `+ ${diffMinutes} min`;
+                document.getElementById('current-time').textContent = currentDelay;
                 document.getElementById('current-time').classList.add('red');
                 document.getElementById('current-time').classList.remove('green');
             }
         } else {
+            currentDelay = '';
             document.getElementById('current-time').textContent = 'On Time';
             document.getElementById('current-time').classList.add('green');
             document.getElementById('current-time').classList.remove('red');
         }
     } else {
+        currentDelay = '';
         document.getElementById('current-time').textContent = '';
         document.getElementById('current-time').classList.remove('red');
         document.getElementById('current-time').classList.remove('green');
@@ -472,4 +477,25 @@ function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
 
     const theoreticalTime = new Date(departureDate.getTime() + totalDuration * 1000);
     return theoreticalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function updateTimelineDelays() {
+    const stations = document.querySelectorAll('.station');
+    let nextPointFound = false;
+
+    stations.forEach((station, index) => {
+        if (index === 0) return; // Ignorer l'en-tête
+
+        const delaySpan = station.querySelector('.delay');
+        if (!delaySpan) return;
+
+        if (station.classList.contains('current-station')) {
+            nextPointFound = true;
+            delaySpan.textContent = currentDelay;
+        } else if (nextPointFound) {
+            delaySpan.textContent = currentDelay;
+        } else {
+            delaySpan.textContent = '';
+        }
+    });
 }
