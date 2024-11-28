@@ -201,7 +201,7 @@ function displayTimeline() {
         nameSpan.textContent = point.name;
 
         const delaySpan = document.createElement('span');
-        delaySpan.textContent = delayStr; // Afficher le délai ici
+        delaySpan.textContent = delayStr; // Afficher le délai calculé
 
         stationDiv.appendChild(pkSpan);
         stationDiv.appendChild(timeSpan);
@@ -447,4 +447,32 @@ function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
 
     const theoreticalTime = new Date(departureDate.getTime() + totalDuration * 1000);
     return theoreticalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+let nextPointFound = false;
+let delayValue = '';
+let currentTime = new Date();
+currentTime.setSeconds(0, 0); // Arrondir à la minute près
+
+// Calculer le délai
+let delayStr = '';
+let scheduledArrivalTime = new Date(currentDate);
+scheduledArrivalTime.setSeconds(0, 0); // Arrondir à la minute près
+
+if (scheduledArrivalTime < currentTime) {
+    // Point déjà passé, ne rien afficher
+    delayStr = '';
+} else if (!nextPointFound) {
+    // Prochain point
+    nextPointFound = true;
+    if (scheduledArrivalTime < currentTime) {
+        const diffMinutes = Math.floor((currentTime - scheduledArrivalTime) / 60000);
+        delayValue = `+ ${diffMinutes} min`;
+    } else {
+        delayValue = '';
+    }
+    delayStr = delayValue;
+} else {
+    // Points à venir, afficher le même délai que le prochain point
+    delayStr = delayValue;
 }
