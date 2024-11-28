@@ -444,11 +444,12 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
                 document.getElementById('current-time').classList.add('green');
                 document.getElementById('current-time').classList.remove('red');
             } else {
-                // currentDelay = `+ ${diffMinutes} min`;
-                currentDelay = '+ 5 min';
+                currentDelay = `+ ${diffMinutes} min`;
+                // currentDelay = '+ 5 min';
                 document.getElementById('current-time').textContent = currentDelay;
                 document.getElementById('current-time').classList.add('red');
                 document.getElementById('current-time').classList.remove('green');
+                updateTimelineDelays();
             }
         } else {
             currentDelay = '';
@@ -462,7 +463,18 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
         document.getElementById('current-time').classList.remove('red');
         document.getElementById('current-time').classList.remove('green');
     }
-    
+
+    // **Ajout de la Classe 'current-station'**
+    const stations = document.querySelectorAll('.station');
+    stations.forEach((station) => {
+        const waypoint = station.querySelector('span:nth-child(3)').textContent.trim();
+        if (nextPoint && waypoint === nextPoint.name) {
+            station.classList.add('current-station');
+            console.log(`Classe 'current-station' ajoutée à la station: ${waypoint}`);
+        } else {
+            station.classList.remove('current-station');
+        }
+    });
 }
 
 function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {

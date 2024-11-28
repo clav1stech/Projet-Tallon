@@ -200,3 +200,21 @@ label input[type="radio"] {
 #current-time.red {
     color: red;
 }
+
+#timeline .station .delay {
+    color: #ff0000 !important;
+    font-weight: bold !important;
+    background-color: yellow !important; /* Pour tester */
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 10px;
+}
+
+.delay {
+    color: #ff0000; /* Rouge pour le retard */
+    font-weight: bold;
+    background-color: #ffff99; /* Jaune clair pour la visibilité */
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 10px;
+}
