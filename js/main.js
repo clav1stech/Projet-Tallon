@@ -203,7 +203,7 @@ function displayTimeline() {
     });
 }
 
-// Fonction pour démarrer le suivi
+// Start tracking
 function startTracking() {
     const departureInput = document.getElementById("departure-time").value;
     if (!departureInput) {
@@ -221,7 +221,7 @@ function startTracking() {
 
     const selectedMethod = document.querySelector('input[name="locationMethod"]:checked').value;
 
-    // Nettoyer le suivi précédent s'il existe
+    // Clean previous tracking
     if (trackingInterval) {
         navigator.geolocation.clearWatch(trackingInterval);
         trackingInterval = null;
@@ -229,7 +229,7 @@ function startTracking() {
 
     if (selectedMethod === 'geo') {
         if (navigator.geolocation) {
-            // Utilisation de watchPosition pour un suivi en continu
+            // Continous tracking
             trackingInterval = navigator.geolocation.watchPosition(
                 showPosition,
                 showError,
@@ -243,7 +243,7 @@ function startTracking() {
     }
 }
 
-// Fonction pour obtenir la localisation (par géolocalisation ou manuellement)
+// Get loc
 function getLocation() {
     const selectedMethod = document.querySelector('input[name="locationMethod"]:checked').value;
 
@@ -271,7 +271,7 @@ function getLocation() {
     }
 }
 
-// Fonction pour gérer les erreurs de géolocalisation
+// Handle geoloc errors
 function showError(error) {
     switch (error.code) {
         case error.PERMISSION_DENIED:
@@ -289,29 +289,28 @@ function showError(error) {
     }
 }
 
-// Fonction pour afficher la position et mettre à jour l'avancement
+// Update position and display
 function showPosition(position) {
     const userLat = position.coords.latitude;
     const userLon = position.coords.longitude;
     const accuracy = position.coords.accuracy;
 
-    // Vérifier la précision du signal GPS
-    if (accuracy > 1000) {  // Seuil de 1 000 mètres pour la précision acceptable
+    // Geoloc accuracy
+    if (accuracy > 1000) {  
         document.getElementById("info").innerText = `Signal GPS trop imprécis (précision de ${accuracy.toFixed(0)} mètres). Utilisation du centre de la zone approximative.`;
         
-        // Utiliser le centre du cercle approximatif pour la position
         const approximatePosition = {
             lat: userLat,
             lon: userLon
         };
         processPosition(approximatePosition.lat, approximatePosition.lon);
     } else {
-        // Utiliser la position actuelle si elle est suffisamment précise
+    
         processPosition(userLat, userLon);
     }
 }
 
-// Fonction pour traiter la position utilisateur et mettre à jour la timeline
+// Process geoloc and update timeline
 
 function processPosition(userLat, userLon) {
     let lastPassedPoint = null;
