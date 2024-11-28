@@ -97,7 +97,7 @@ label input[type="radio"] {
 }
 
 .station span {
-    flex-basis: 12%;
+    flex-basis: 11%;
     font-size: 0.9em;
     align-self: center;
     text-align: right;
@@ -110,9 +110,15 @@ label input[type="radio"] {
 }
 
 .station span:nth-child(3) {
-    flex-basis: 68%;
+    flex-basis: 57%;
     font-size: 1em;
     text-align: left;
+}
+
+.station span:nth-child(4) {
+    flex-basis: 12%;
+    font-size: 0.9em;
+    text-align: right;
 }
 
 .header {

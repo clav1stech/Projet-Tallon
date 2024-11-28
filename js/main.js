@@ -162,6 +162,7 @@ function displayTimeline() {
             <span>PK</span>
             <span>Time</span>
             <span>Waypoint</span>
+            <span>Delay</span>
         </div>
     `;
 
@@ -175,31 +176,39 @@ function displayTimeline() {
     pointsDePassage.forEach((point, index) => {
         const dureeSeconds = Number(point.duree);
         if (isNaN(dureeSeconds)) {
-            console.error(`Durée invalide pour le point ${point.name}: ${point.duree}`);
+            console.error(`La durée pour le point ${point.name} n'est pas un nombre valide.`);
             return;
         }
 
-        // Calculer l'heure d'arrivée de manière cumulative
-        const arrivalTime = calculateArrivalTime(currentDate, dureeSeconds);
-        const arrivalTimeStr = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // Calculer l'heure prévue d'arrivée
+        currentDate = calculateArrivalTime(currentDate, dureeSeconds);
+        const arrivalTimeStr = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // Vérification si c'est une gare
-        const gares = ["Paris-Lyon", "Le Creusot TGV", "Valence TGV", "Avignon TGV", "Lyon-Saint-Exupéry TGV", "Marseille Saint-Charles", "Macon – Loché TGV", "Le Creusot – Montceau – Montchanin TGV", "Aix-en-Provence TGV", "Lyon-Part-Dieu"];
-        let pointName = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
+        // Placeholder pour le délai (à calculer plus tard)
+        const delayStr = ''; // Vous pourrez définir le contenu du délai ultérieurement
 
-        // Ajouter chaque point à la timeline avec le PK formaté
-        const stationDiv = document.createElement("div");
-        stationDiv.classList.add("station");
-        stationDiv.innerHTML = `
-            <span class="pk">${point.PK.toFixed(3)}</span>  <!-- PK avec la classe pk -->
-            <span>${arrivalTimeStr}</span>      <!-- Heure en second -->
-            <span>${pointName}</span>           <!-- Nom en dernier -->
-        `;
+        // Créer l'élément de station
+        const stationDiv = document.createElement('div');
+        stationDiv.classList.add('station');
+
+        const pkSpan = document.createElement('span');
+        pkSpan.textContent = point.pk;
+
+        const timeSpan = document.createElement('span');
+        timeSpan.textContent = arrivalTimeStr;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = point.name;
+
+        const delaySpan = document.createElement('span');
+        delaySpan.textContent = delayStr; // Afficher le délai ici
+
+        stationDiv.appendChild(pkSpan);
+        stationDiv.appendChild(timeSpan);
+        stationDiv.appendChild(nameSpan);
+        stationDiv.appendChild(delaySpan);
 
         timelineElement.appendChild(stationDiv);
-
-        // Mettre à jour l'heure pour le prochain point
-        currentDate = arrivalTime;
     });
 }
 
