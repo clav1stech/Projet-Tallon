@@ -226,3 +226,11 @@ label input[type="radio"] {
     border-radius: 3px;
     margin-left: 5px;
 }
+
+.theoretical-time {
+    font-size: 0.9em;
+    color: #666;
+    font-style: italic;
+    padding: 1px;
+    text-align: start;
+}
