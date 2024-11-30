@@ -481,7 +481,7 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
     const stations = document.querySelectorAll('.station');
     stations.forEach((station) => {
         const waypoint = station.querySelector('span:nth-child(3)').textContent.trim();
-        if (nextPoint && waypoint === lastPassedPoint.name) {
+        if (lastPassedPoint && waypoint === lastPassedPoint.name) {
             station.classList.add('current-station');
             console.log(`Classe 'current-station' ajoutée à la station: ${waypoint}`);
         } else {
