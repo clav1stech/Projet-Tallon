@@ -225,7 +225,8 @@ function displayTimeline() {
         timeSpan.textContent = arrivalTimeStr;
 
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = point.name;
+        const gares = ["Paris-Lyon", "Le Creusot TGV", "Valence TGV", "Avignon TGV", "Lyon-Saint-Exupéry TGV", "Marseille Saint-Charles", "Macon – Loché TGV", "Le Creusot – Montceau – Montchanin TGV", "Aix-en-Provence TGV", "Lyon-Part-Dieu"];
+        nameSpan.innerHTML = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
 
         const delaySpan = document.createElement('span');
         delaySpan.classList.add('delay'); // Ajouter cette ligne
@@ -419,13 +420,25 @@ function processPosition(userLat, userLon) {
 }
 
 function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime) {
-    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'No previous point';
+    // Mise à jour des points existants
+    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'None';
     document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : '';
     document.getElementById('last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : '';
     document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'Route ended';
     document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : '';
     document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : '';
 
+    // Ajout des heures théoriques
+    if (lastPassedPoint) {
+        const lastTheoreticalTime = calculateTheoreticalTime(departureTime, pointsDePassage, lastPassedPoint);
+        document.getElementById('last-passed-theoretical').textContent = lastTheoreticalTime;
+    } else {
+        document.getElementById('last-passed-theoretical').textContent = '';
+    }
+    
+    document.getElementById('next-point-theoretical').textContent = theoreticalTime || '';
+
+    // Reste de votre code...
     if (nextPoint) {
         const currentTime = new Date();
         const [theoreticalHours, theoreticalMinutes] = theoreticalTime.split(':').map(Number);
@@ -468,7 +481,7 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
     const stations = document.querySelectorAll('.station');
     stations.forEach((station) => {
         const waypoint = station.querySelector('span:nth-child(3)').textContent.trim();
-        if (nextPoint && waypoint === nextPoint.name) {
+        if (lastPassedPoint && waypoint === lastPassedPoint.name) {
             station.classList.add('current-station');
             console.log(`Classe 'current-station' ajoutée à la station: ${waypoint}`);
         } else {
