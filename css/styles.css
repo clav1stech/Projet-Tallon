@@ -64,12 +64,12 @@ label input[type="radio"] {
 /* Bouton de démarrage */
 .start-btn {
     width: 100%;
-    padding: 12px;
+    padding: 9px;
     font-size: 1.1em;
     background-color: #28a745;
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 10px;
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
@@ -84,35 +84,41 @@ label input[type="radio"] {
     padding: 10px;
     color: white;
     font-family: Arial, sans-serif;
-    margin-top: 20px;
-    border-radius: 8px;
+    margin-top: 10px;
+    border-radius: 10px;
 }
 
 .station {
     display: flex;
     justify-content: space-between;
-    padding: 10px 0;
+    padding: 7px 0;
     border-bottom: 1px solid #444;
-    align-items: center;
+    align-items: left;
 }
 
 .station span {
-    flex-basis: 12%;
-    font-size: 0.9em;
+    flex-basis: 13%;
+    font-size: 0.7em;
     align-self: center;
     text-align: right;
 }
 
 .station span:nth-child(2) {
-    flex-basis: 20%;
-    font-size: 0.9em;
+    flex-basis: 15%;
+    font-size: 0.8em;
     text-align: center;
 }
 
 .station span:nth-child(3) {
-    flex-basis: 68%;
-    font-size: 1em;
+    flex-basis: 52%;
+    font-size: 0.9em;
     text-align: left;
+}
+
+.station span:nth-child(4) {
+    flex-basis: 20%;
+    font-size: 0.9em;
+    text-align: right;
 }
 
 .header {
@@ -144,7 +150,7 @@ label input[type="radio"] {
 @media screen and (max-width: 768px) {
     .container {
         max-width: 90%;
-        padding: 15px;
+        padding: 10px;
     }
 
     h1 {
@@ -157,7 +163,7 @@ label input[type="radio"] {
     }
 
     .station span {
-        font-size: 0.8em;
+        font-size: 0.7em;
     }
 }
 
@@ -173,7 +179,7 @@ label input[type="radio"] {
 }
 
 .widget-section {
-    text-align: center;
+   text-align: left;
 }
 
 .widget-title {
@@ -183,14 +189,48 @@ label input[type="radio"] {
 }
 
 .point {
-    font-size: 1.2em;
+    font-size: 1em;
     font-weight: bold;
+    padding-right: 10px;
+}
+
+.time {
+    text-align: start;
 }
 
 .time, .distance {
-    font-size: 1em;
+    font-size: 0.9em;
+    padding: 1px;
+    text-align: start;
+    align-items: start;
+    
 }
 
 #current-time.red {
     color: red;
+    font-weight: bold;
+}
+
+#timeline .station .delay {
+    color: #ff0000 !important;
+    font-weight: bold !important;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 5px;
+}
+
+.delay {
+    color: #ff0000; /* Rouge pour le retard */
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 5px;
+}
+
+.theoretical-time {
+    font-size: 0.9em;
+    color: #666;
+    font-style: italic;
+    padding: 1px;
+    text-align: start;
 }

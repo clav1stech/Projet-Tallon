@@ -6,6 +6,7 @@ let timelineElement = document.getElementById("timeline");
 let trackingInterval = null;  // Variable pour stocker l'intervalle
 let direction = 'north-south';
 let pointsDePassage = [];
+let currentDelay = ''; // Déclarer en haut du script
 
 // Initialisation au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
@@ -162,6 +163,7 @@ function displayTimeline() {
             <span>PK</span>
             <span>Time</span>
             <span>Waypoint</span>
+            <span>Delay</span>
         </div>
     `;
 
@@ -172,34 +174,69 @@ function displayTimeline() {
     currentDate.setSeconds(0);
     currentDate.setMilliseconds(0);
 
+    // Variables pour le calcul du délai
+    let nextPointFound = false;
+    let delayValue = '';
+    let currentTime = new Date();
+    currentTime.setSeconds(0, 0); // Arrondir à la minute près
+
     pointsDePassage.forEach((point, index) => {
         const dureeSeconds = Number(point.duree);
         if (isNaN(dureeSeconds)) {
-            console.error(`Durée invalide pour le point ${point.name}: ${point.duree}`);
+            console.error(`La durée pour le point ${point.name} n'est pas un nombre valide.`);
             return;
         }
 
-        // Calculer l'heure d'arrivée de manière cumulative
-        const arrivalTime = calculateArrivalTime(currentDate, dureeSeconds);
-        const arrivalTimeStr = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // Calculer l'heure prévue d'arrivée pour ce point
+        currentDate = calculateArrivalTime(currentDate, dureeSeconds);
+        const arrivalTimeStr = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // Vérification si c'est une gare
+        // Calculer le délai
+        let delayStr = '';
+        let scheduledArrivalTime = new Date(currentDate);
+        scheduledArrivalTime.setSeconds(0, 0); // Arrondir à la minute près
+
+        if (scheduledArrivalTime < currentTime) {
+            // Point déjà passé, ne rien afficher
+            delayStr = '';
+        } else if (!nextPointFound) {
+            // Prochain point
+            nextPointFound = true;
+            if (scheduledArrivalTime < currentTime) {
+                const diffMinutes = Math.floor((currentTime - scheduledArrivalTime) / 60000);
+                delayValue = `+ ${diffMinutes} min`;
+            } else {
+                delayValue = '';
+            }
+            delayStr = delayValue;
+        } else {
+            // Points à venir, afficher le même délai que le prochain point
+            delayStr = delayValue;
+        }
+
+        // Créer l'élément de station
+        const stationDiv = document.createElement('div');
+        stationDiv.classList.add('station');
+
+        const pkSpan = document.createElement('span');
+        pkSpan.textContent = point.PK.toFixed(3); // Use 'PK' instead of 'pk'
+
+        const timeSpan = document.createElement('span');
+        timeSpan.textContent = arrivalTimeStr;
+
+        const nameSpan = document.createElement('span');
         const gares = ["Paris-Lyon", "Le Creusot TGV", "Valence TGV", "Avignon TGV", "Lyon-Saint-Exupéry TGV", "Marseille Saint-Charles", "Macon – Loché TGV", "Le Creusot – Montceau – Montchanin TGV", "Aix-en-Provence TGV", "Lyon-Part-Dieu"];
-        let pointName = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
+        nameSpan.innerHTML = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
 
-        // Ajouter chaque point à la timeline avec le PK formaté
-        const stationDiv = document.createElement("div");
-        stationDiv.classList.add("station");
-        stationDiv.innerHTML = `
-            <span class="pk">${point.PK.toFixed(3)}</span>  <!-- PK avec la classe pk -->
-            <span>${arrivalTimeStr}</span>      <!-- Heure en second -->
-            <span>${pointName}</span>           <!-- Nom en dernier -->
-        `;
+        const delaySpan = document.createElement('span');
+        delaySpan.classList.add('delay'); // Ajouter cette ligne
+        delaySpan.textContent = delayStr;
+        stationDiv.appendChild(pkSpan);
+        stationDiv.appendChild(timeSpan);
+        stationDiv.appendChild(nameSpan);
+        stationDiv.appendChild(delaySpan);
 
         timelineElement.appendChild(stationDiv);
-
-        // Mettre à jour l'heure pour le prochain point
-        currentDate = arrivalTime;
     });
 }
 
@@ -366,6 +403,7 @@ function processPosition(userLat, userLon) {
     const theoreticalTime = nextPoint ? calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) : '';
 
     updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
+    updateTimelineDelays(); // Appeler la fonction pour mettre à jour les délais
 
     if (nextPoint) {
         document.getElementById("info").innerHTML = `
@@ -382,13 +420,25 @@ function processPosition(userLat, userLon) {
 }
 
 function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime) {
-    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'No previous point';
+    // Mise à jour des points existants
+    document.getElementById('last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'None';
     document.getElementById('last-passed-time').textContent = lastPassedPoint ? lastPassedPoint.time : '';
     document.getElementById('last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : '';
     document.getElementById('next-point').textContent = nextPoint ? nextPoint.name : 'Route ended';
     document.getElementById('next-point-time').textContent = nextPoint ? nextPoint.time : '';
     document.getElementById('next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : '';
 
+    // Ajout des heures théoriques
+    if (lastPassedPoint) {
+        const lastTheoreticalTime = calculateTheoreticalTime(departureTime, pointsDePassage, lastPassedPoint);
+        document.getElementById('last-passed-theoretical').textContent = lastTheoreticalTime;
+    } else {
+        document.getElementById('last-passed-theoretical').textContent = '';
+    }
+    
+    document.getElementById('next-point-theoretical').textContent = theoreticalTime || '';
+
+    // Reste de votre code...
     if (nextPoint) {
         const currentTime = new Date();
         const [theoreticalHours, theoreticalMinutes] = theoreticalTime.split(':').map(Number);
@@ -402,27 +452,42 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
             const diffMinutes = Math.floor(diffMilliseconds / 60000);
     
             if (diffMinutes === 0) {
-                // Si la différence est dans la même minute, considérer comme "On Time"
+                currentDelay = '';
                 document.getElementById('current-time').textContent = 'On Time';
                 document.getElementById('current-time').classList.add('green');
                 document.getElementById('current-time').classList.remove('red');
             } else {
-                // Sinon, afficher le retard
-                document.getElementById('current-time').textContent = `+ ${diffMinutes} min`;
+                currentDelay = `+ ${diffMinutes} min`;
+                // currentDelay = '+ 5 min';
+                document.getElementById('current-time').textContent = currentDelay;
                 document.getElementById('current-time').classList.add('red');
                 document.getElementById('current-time').classList.remove('green');
+                updateTimelineDelays();
             }
         } else {
+            currentDelay = '';
             document.getElementById('current-time').textContent = 'On Time';
             document.getElementById('current-time').classList.add('green');
             document.getElementById('current-time').classList.remove('red');
         }
     } else {
+        currentDelay = '';
         document.getElementById('current-time').textContent = '';
         document.getElementById('current-time').classList.remove('red');
         document.getElementById('current-time').classList.remove('green');
     }
-    
+
+    // **Ajout de la Classe 'current-station'**
+    const stations = document.querySelectorAll('.station');
+    stations.forEach((station) => {
+        const waypoint = station.querySelector('span:nth-child(3)').textContent.trim();
+        if (lastPassedPoint && waypoint === lastPassedPoint.name) {
+            station.classList.add('current-station');
+            console.log(`Classe 'current-station' ajoutée à la station: ${waypoint}`);
+        } else {
+            station.classList.remove('current-station');
+        }
+    });
 }
 
 function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
@@ -438,4 +503,30 @@ function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
 
     const theoreticalTime = new Date(departureDate.getTime() + totalDuration * 1000);
     return theoreticalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function updateTimelineDelays() {
+    const stations = document.querySelectorAll('.station');
+    let nextPointFound = false;
+
+    stations.forEach((station, index) => {
+        if (index === 0) return; // Ignorer l'en-tête
+
+        const delaySpan = station.querySelector('.delay');
+        if (!delaySpan) {
+            console.log(`Aucun élément avec la classe 'delay' trouvé dans la station à l'index ${index}`);
+            return;
+        }
+
+        console.log(`Mise à jour du délai pour la station à l'index ${index} avec currentDelay = '${currentDelay}'`);
+
+        if (station.classList.contains('current-station')) {
+            nextPointFound = true;
+            delaySpan.textContent = currentDelay;
+        } else if (nextPointFound) {
+            delaySpan.textContent = currentDelay;
+        } else {
+            delaySpan.textContent = '';
+        }
+    });
 }

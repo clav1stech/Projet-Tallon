@@ -34,6 +34,14 @@ const trajets = [
         name: "Lyon - Paris via Le Creusot",
         direction: "north-south",
         pointsFile: "LPDPAR1.json" // Utiliser .json si vous avez converti en JSON
+    },
+    {
+        id: "MLTPAR0",
+        name: "Macon TGV - Paris sans arrêt",
+        direction: "north-south",
+        pointsFile: "MLTPAR0.json" // Utiliser .json si vous avez converti en JSON
     }
+
+
     // Ajoutez d'autres trajets ici si nécessaire
 ];
