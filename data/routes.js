@@ -40,8 +40,13 @@ const trajets = [
         name: "Macon TGV - Paris sans arrêt",
         direction: "north-south",
         pointsFile: "MLTPAR0.json" // Utiliser .json si vous avez converti en JSON
+    },
+    {
+        id: "PARMLT0",
+        name: "Paris – Macon TGV",
+        direction: "south-north",
+        pointsFile: "PARMLT0.json" // Utiliser .json si vous avez converti en JSON
     }
-
 
     // Ajoutez d'autres trajets ici si nécessaire
 ];
