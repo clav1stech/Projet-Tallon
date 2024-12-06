@@ -7,12 +7,35 @@ let trackingInterval = null;  // Variable pour stocker l'intervalle
 let direction = 'north-south';
 let pointsDePassage = [];
 let currentDelay = ''; // Déclarer en haut du script
+let scrollTimeout;
 
 // Initialisation au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
     populateTrajetDropdown();
     setupLocationMethodListener();
     restoreSettings(); // Restaurer les paramètres sauvegardés
+
+    const timeline = document.getElementById('timeline');
+    
+    // Empêcher le scroll de la page quand on scroll dans la timeline
+    timeline.addEventListener('wheel', (e) => {
+        if (timeline.contains(e.target)) {
+            e.preventDefault();
+            timeline.scrollTop += e.deltaY;
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                const currentStation = document.querySelector('.current-station');
+                if (currentStation) {
+                    const headerHeight = timeline.querySelector('.header').offsetHeight;
+                    const stationHeight = currentStation.offsetHeight;
+                    timeline.scrollTo({
+                        top: currentStation.offsetTop - headerHeight - stationHeight,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 30000);
+        }
+    });
 });  
 
 // Fonction pour restaurer les réglages sauvegardés après actualisation de la page
@@ -417,6 +440,43 @@ function processPosition(userLat, userLon) {
             <strong>No more waypoints ahead.</strong>
         `;
     }
+
+    // Scroll automatique si pas d'interaction récente
+    function scrollToCurrentStation() {
+        const currentStation = document.querySelector('.current-station');
+        if (currentStation) {
+            const timeline = document.getElementById('timeline');
+            const headerHeight = timeline.querySelector('.header').offsetHeight;
+            const stationHeight = currentStation.offsetHeight;
+            
+            // Position pour que la station courante soit en 2ème position
+            const scrollPosition = currentStation.offsetTop - headerHeight - stationHeight;
+            
+            timeline.scrollTo({
+                top: scrollPosition,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    // Gestionnaire de scroll manuel
+    const timeline = document.getElementById('timeline');
+    timeline.addEventListener('scroll', () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(scrollToCurrentStation, 30000); // 30 secondes
+    });
+
+    // Gestionnaire de touch pour mobile
+    timeline.addEventListener('touchstart', () => {
+        clearTimeout(scrollTimeout);
+    });
+
+    timeline.addEventListener('touchend', () => {
+        scrollTimeout = setTimeout(scrollToCurrentStation, 30000);
+    });
+
+    // Scroll initial
+    scrollToCurrentStation();
 }
 
 function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime) {
