@@ -86,7 +86,7 @@ label input[type="radio"] {
     font-family: Arial, sans-serif;
     margin-top: 10px;
     border-radius: 10px;
-    height: 390px; /* Hauteur fixe pour ~7 stations (7 * 40px) */
+    height: 510px; /* Hauteur fixe pour ~7 stations (7 * 40px) */
     overflow-y: auto;
     position: relative;
     scroll-behavior: smooth;
