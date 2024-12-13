@@ -111,7 +111,7 @@ label input[type="radio"] {
     justify-content: space-between;
     padding: 7px 0;
     border-bottom: 1px solid #444;
-    align-items: left;
+    align-items: center;  /* Change 'left' to 'center' */
     height: 30px;
 }
 

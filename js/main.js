@@ -405,6 +405,8 @@ function processPosition(userLat, userLon) {
         Array.from(timelineElement.children).forEach(station => {
             if (station.textContent.includes(lastPassedPoint.name)) {
                 station.classList.add("current-station");
+                // Appeler scrollToCurrentStation immédiatement après avoir défini la current-station
+                scrollToCurrentStation();
             }
         });
     }
@@ -439,12 +441,11 @@ function processPosition(userLat, userLon) {
     // Scroll automatique si pas d'interaction récente
     function scrollToCurrentStation() {
         const currentStation = document.querySelector('.current-station');
+        const timeline = document.getElementById('timeline');
+        
         if (currentStation) {
-            const timeline = document.getElementById('timeline');
             const headerHeight = timeline.querySelector('.header').offsetHeight;
             const stationHeight = currentStation.offsetHeight;
-            
-            // Position pour que la station courante soit en 2ème position
             const scrollPosition = currentStation.offsetTop - headerHeight - stationHeight;
             
             timeline.scrollTo({
