@@ -105,39 +105,41 @@ label input[type="radio"] {
     border-radius: 4px;
 }
 
+/* Modifier les spans pour 3 colonnes */
 .station {
     display: flex;
     justify-content: space-between;
     padding: 7px 0;
     border-bottom: 1px solid #444;
     align-items: left;
-    height: 30px; /* Hauteur fixe pour chaque station */
-}
-
-.station span {
-    flex-basis: 13%;
-    font-size: 0.7em;
-    align-self: center;
-    text-align: right;
+    height: 30px;
 }
 
 .station span:nth-child(1) {
-    flex-basis: 15%;
+    flex-basis: 15%;  /* Time */
     font-size: 0.8em;
     text-align: center;
 }
 
 .station span:nth-child(2) {
-    flex-basis: 70%;
+    flex-basis: 70%;  /* Waypoint */
     font-size: 0.9em;
     text-align: left;
 }
 
 .station span:nth-child(3) {
-    flex-basis: 15%;
+    flex-basis: 15%;  /* Delay */
     font-size: 0.9em;
     text-align: right;
 }
+
+/* Supprimer ou commenter les styles inutiles */
+/* .station span {
+    flex-basis: 13%;
+    font-size: 0.7em;
+    align-self: center;
+    text-align: right;
+} */
 
 .header {
     background-color: #444;
