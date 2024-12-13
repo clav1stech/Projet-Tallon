@@ -568,18 +568,15 @@ function updateTimelineDelays() {
         if (index === 0) return; // Ignorer l'en-tête
 
         const delaySpan = station.querySelector('.delay');
-        if (!delaySpan) {
-            console.log(`Aucun élément avec la classe 'delay' trouvé dans la station à l'index ${index}`);
-            return;
-        }
+        if (!delaySpan) return;
 
-        console.log(`Mise à jour du délai pour la station à l'index ${index} avec currentDelay = '${currentDelay}'`);
-
-        if (station.classList.contains('current-station')) {
+        if (!nextPointFound && station.classList.contains('current-station')) {
+            // La prochaine station sera le next point
             nextPointFound = true;
+        } else if (nextPointFound && !station.classList.contains('current-station')) {
+            // C'est le next point
             delaySpan.textContent = currentDelay;
-        } else if (nextPointFound) {
-            delaySpan.textContent = currentDelay;
+            nextPointFound = false; // Pour ne pas affecter les points suivants
         } else {
             delaySpan.textContent = '';
         }

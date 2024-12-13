@@ -122,13 +122,13 @@ label input[type="radio"] {
 }
 
 .station span:nth-child(2) {
-    flex-basis: 70%;  /* Waypoint */
+    flex-basis: 65%;  /* Waypoint */
     font-size: 0.9em;
     text-align: left;
 }
 
 .station span:nth-child(3) {
-    flex-basis: 15%;  /* Delay */
+    flex-basis: 20%;  /* Delay */
     font-size: 0.9em;
     text-align: right;
 }
