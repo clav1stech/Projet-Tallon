@@ -183,10 +183,8 @@ function displayTimeline() {
     // Réinitialiser la timeline avec l'en-tête
     timelineElement.innerHTML = `
         <div class="station header">
-            <span>PK</span>
             <span>Time</span>
             <span>Waypoint</span>
-            <span>Delay</span>
         </div>
     `;
 
@@ -241,9 +239,6 @@ function displayTimeline() {
         const stationDiv = document.createElement('div');
         stationDiv.classList.add('station');
 
-        const pkSpan = document.createElement('span');
-        pkSpan.textContent = point.PK.toFixed(3); // Use 'PK' instead of 'pk'
-
         const timeSpan = document.createElement('span');
         timeSpan.textContent = arrivalTimeStr;
 
@@ -252,9 +247,9 @@ function displayTimeline() {
         nameSpan.innerHTML = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
 
         const delaySpan = document.createElement('span');
-        delaySpan.classList.add('delay'); // Ajouter cette ligne
-        delaySpan.textContent = delayStr;
-        stationDiv.appendChild(pkSpan);
+        delaySpan.classList.add('delay');
+        delaySpan.textContent = nextPointFound ? '' : delayStr;
+
         stationDiv.appendChild(timeSpan);
         stationDiv.appendChild(nameSpan);
         stationDiv.appendChild(delaySpan);
