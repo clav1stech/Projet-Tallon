@@ -564,6 +564,7 @@ function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
 function updateTimelineDelays() {
     const stations = document.querySelectorAll('.station');
     let nextPointFound = false;
+    let isNextPoint = false;
 
     stations.forEach((station, index) => {
         if (index === 0) return; // Ignorer l'en-tête
@@ -571,15 +572,14 @@ function updateTimelineDelays() {
         const delaySpan = station.querySelector('.delay');
         if (!delaySpan) return;
 
-        if (!nextPointFound && station.classList.contains('current-station')) {
-            // La prochaine station sera le next point
-            nextPointFound = true;
-        } else if (nextPointFound && !station.classList.contains('current-station')) {
-            // C'est le next point
-            delaySpan.textContent = currentDelay;
-            nextPointFound = false; // Pour ne pas affecter les points suivants
+        if (station.classList.contains('current-station')) {
+            isNextPoint = true; // Le prochain point sera le next point
+            delaySpan.textContent = ''; // Effacer le délai sur le point courant
+        } else if (isNextPoint) {
+            delaySpan.textContent = currentDelay; // Afficher le délai sur le prochain point
+            isNextPoint = false; // Ne plus traiter les points suivants
         } else {
-            delaySpan.textContent = '';
+            delaySpan.textContent = ''; // Effacer le délai sur tous les autres points
         }
     });
 }
