@@ -7,12 +7,35 @@ let trackingInterval = null;  // Variable pour stocker l'intervalle
 let direction = 'north-south';
 let pointsDePassage = [];
 let currentDelay = ''; // Déclarer en haut du script
+let scrollTimeout;
 
 // Initialisation au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
     populateTrajetDropdown();
     setupLocationMethodListener();
     restoreSettings(); // Restaurer les paramètres sauvegardés
+
+    const timeline = document.getElementById('timeline');
+    
+    // Empêcher le scroll de la page quand on scroll dans la timeline
+    timeline.addEventListener('wheel', (e) => {
+        if (timeline.contains(e.target)) {
+            e.preventDefault();
+            timeline.scrollTop += e.deltaY;
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                const currentStation = document.querySelector('.current-station');
+                if (currentStation) {
+                    const headerHeight = timeline.querySelector('.header').offsetHeight;
+                    const stationHeight = currentStation.offsetHeight;
+                    timeline.scrollTo({
+                        top: currentStation.offsetTop - headerHeight - stationHeight,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 30000);
+        }
+    });
 });  
 
 // Fonction pour restaurer les réglages sauvegardés après actualisation de la page
@@ -160,10 +183,8 @@ function displayTimeline() {
     // Réinitialiser la timeline avec l'en-tête
     timelineElement.innerHTML = `
         <div class="station header">
-            <span>PK</span>
             <span>Time</span>
             <span>Waypoint</span>
-            <span>Delay</span>
         </div>
     `;
 
@@ -218,9 +239,6 @@ function displayTimeline() {
         const stationDiv = document.createElement('div');
         stationDiv.classList.add('station');
 
-        const pkSpan = document.createElement('span');
-        pkSpan.textContent = point.PK.toFixed(3); // Use 'PK' instead of 'pk'
-
         const timeSpan = document.createElement('span');
         timeSpan.textContent = arrivalTimeStr;
 
@@ -229,9 +247,9 @@ function displayTimeline() {
         nameSpan.innerHTML = gares.includes(point.name) ? `<strong>${point.name}</strong>` : point.name;
 
         const delaySpan = document.createElement('span');
-        delaySpan.classList.add('delay'); // Ajouter cette ligne
-        delaySpan.textContent = delayStr;
-        stationDiv.appendChild(pkSpan);
+        delaySpan.classList.add('delay');
+        delaySpan.textContent = nextPointFound ? '' : delayStr;
+
         stationDiv.appendChild(timeSpan);
         stationDiv.appendChild(nameSpan);
         stationDiv.appendChild(delaySpan);
@@ -387,6 +405,8 @@ function processPosition(userLat, userLon) {
         Array.from(timelineElement.children).forEach(station => {
             if (station.textContent.includes(lastPassedPoint.name)) {
                 station.classList.add("current-station");
+                // Appeler scrollToCurrentStation immédiatement après avoir défini la current-station
+                scrollToCurrentStation();
             }
         });
     }
@@ -417,6 +437,42 @@ function processPosition(userLat, userLon) {
             <strong>No more waypoints ahead.</strong>
         `;
     }
+
+    // Scroll automatique si pas d'interaction récente
+    function scrollToCurrentStation() {
+        const currentStation = document.querySelector('.current-station');
+        const timeline = document.getElementById('timeline');
+        
+        if (currentStation) {
+            const headerHeight = timeline.querySelector('.header').offsetHeight;
+            const stationHeight = currentStation.offsetHeight;
+            const scrollPosition = currentStation.offsetTop - headerHeight - stationHeight;
+            
+            timeline.scrollTo({
+                top: scrollPosition,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    // Gestionnaire de scroll manuel
+    const timeline = document.getElementById('timeline');
+    timeline.addEventListener('scroll', () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(scrollToCurrentStation, 30000); // 30 secondes
+    });
+
+    // Gestionnaire de touch pour mobile
+    timeline.addEventListener('touchstart', () => {
+        clearTimeout(scrollTimeout);
+    });
+
+    timeline.addEventListener('touchend', () => {
+        scrollTimeout = setTimeout(scrollToCurrentStation, 30000);
+    });
+
+    // Scroll initial
+    scrollToCurrentStation();
 }
 
 function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime) {
@@ -508,25 +564,22 @@ function calculateTheoreticalTime(departureTime, pointsDePassage, nextPoint) {
 function updateTimelineDelays() {
     const stations = document.querySelectorAll('.station');
     let nextPointFound = false;
+    let isNextPoint = false;
 
     stations.forEach((station, index) => {
         if (index === 0) return; // Ignorer l'en-tête
 
         const delaySpan = station.querySelector('.delay');
-        if (!delaySpan) {
-            console.log(`Aucun élément avec la classe 'delay' trouvé dans la station à l'index ${index}`);
-            return;
-        }
-
-        console.log(`Mise à jour du délai pour la station à l'index ${index} avec currentDelay = '${currentDelay}'`);
+        if (!delaySpan) return;
 
         if (station.classList.contains('current-station')) {
-            nextPointFound = true;
-            delaySpan.textContent = currentDelay;
-        } else if (nextPointFound) {
-            delaySpan.textContent = currentDelay;
+            isNextPoint = true; // Le prochain point sera le next point
+            delaySpan.textContent = ''; // Effacer le délai sur le point courant
+        } else if (isNextPoint) {
+            delaySpan.textContent = currentDelay; // Afficher le délai sur le prochain point
+            isNextPoint = false; // Ne plus traiter les points suivants
         } else {
-            delaySpan.textContent = '';
+            delaySpan.textContent = ''; // Effacer le délai sur tous les autres points
         }
     });
 }

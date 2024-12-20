@@ -86,45 +86,68 @@ label input[type="radio"] {
     font-family: Arial, sans-serif;
     margin-top: 10px;
     border-radius: 10px;
+    height: 600px; /* Hauteur fixe pour ~7 stations (7 * 40px) */
+    overflow-y: auto;
+    position: relative;
+    scroll-behavior: smooth;
 }
 
+#timeline::-webkit-scrollbar {
+    width: 8px;
+}
+
+#timeline::-webkit-scrollbar-track {
+    background: #444;
+}
+
+#timeline::-webkit-scrollbar-thumb {
+    background: #666;
+    border-radius: 4px;
+}
+
+/* Modifier les spans pour 3 colonnes */
 .station {
     display: flex;
     justify-content: space-between;
     padding: 7px 0;
     border-bottom: 1px solid #444;
-    align-items: left;
+    align-items: center;  /* Change 'left' to 'center' */
+    height: 30px;
 }
 
-.station span {
-    flex-basis: 13%;
-    font-size: 0.7em;
-    align-self: center;
-    text-align: right;
-}
-
-.station span:nth-child(2) {
-    flex-basis: 15%;
+.station span:nth-child(1) {
+    flex-basis: 15%;  /* Time */
     font-size: 0.8em;
     text-align: center;
 }
 
-.station span:nth-child(3) {
-    flex-basis: 52%;
+.station span:nth-child(2) {
+    flex-basis: 65%;  /* Waypoint */
     font-size: 0.9em;
     text-align: left;
 }
 
-.station span:nth-child(4) {
-    flex-basis: 20%;
+.station span:nth-child(3) {
+    flex-basis: 20%;  /* Delay */
     font-size: 0.9em;
     text-align: right;
 }
+
+/* Supprimer ou commenter les styles inutiles */
+/* .station span {
+    flex-basis: 13%;
+    font-size: 0.7em;
+    align-self: center;
+    text-align: right;
+} */
 
 .header {
     background-color: #444;
     padding: 5px;
     border-radius: 5px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .header span {
