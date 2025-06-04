@@ -55,8 +55,11 @@ function restoreSettings() {
     }
     if (savedLocationMethod) {
         document.querySelector(`input[name="locationMethod"][value="${savedLocationMethod}"]`).checked = true;
+        const manualDiv = document.getElementById('manualCoords');
         if (savedLocationMethod === 'manual') {
-            document.getElementById('manualCoords').style.display = 'block';
+            manualDiv.classList.add('visible');
+        } else {
+            manualDiv.classList.remove('visible');
         }
     }
     if (savedManualLat) {
@@ -150,12 +153,13 @@ function loadSelectedTrajet() {
 
 // Fonction pour configurer l'affichage des champs manuels en fonction de la méthode de localisation
 function setupLocationMethodListener() {
+    const manualDiv = document.getElementById('manualCoords');
     document.querySelectorAll('input[name="locationMethod"]').forEach((radio) => {
         radio.addEventListener('change', function () {
             if (this.value === 'manual') {
-                document.getElementById('manualCoords').style.display = 'block';
+                manualDiv.classList.add('visible');
             } else {
-                document.getElementById('manualCoords').style.display = 'none';
+                manualDiv.classList.remove('visible');
             }
         });
     });
