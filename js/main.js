@@ -93,7 +93,10 @@ function saveSettings() {
 document.getElementById('routeSelect').addEventListener('change', saveSettings);
 document.getElementById('departure-time').addEventListener('change', saveSettings);
 document.querySelectorAll('input[name="locationMethod"]').forEach(radio => {
-    radio.addEventListener('change', saveSettings);
+    radio.addEventListener('change', function() {
+        document.getElementById('manualCoords').style.display =
+            this.value === 'manual' ? 'flex' : 'none';
+    });
 });
 document.getElementById('manualLat').addEventListener('input', saveSettings);
 document.getElementById('manualLon').addEventListener('input', saveSettings);
