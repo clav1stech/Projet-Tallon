@@ -15,6 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setupLocationMethodListener();
     restoreSettings(); // Restaurer les paramètres sauvegardés
 
+    const form = document.getElementById('tracking-form');
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        startTracking();
+    });
+
     const timeline = document.getElementById('timeline');
     
     // Empêcher le scroll de la page quand on scroll dans la timeline
