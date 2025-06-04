@@ -180,13 +180,24 @@ function displayTimeline() {
         return;
     }
 
-    // Réinitialiser la timeline avec l'en-tête
-    timelineElement.innerHTML = `
-        <div class="station header">
-            <span>Time</span>
-            <span>Waypoint</span>
-        </div>
-    `;
+    // Réinitialiser la timeline proprement
+    timelineElement.innerHTML = '';
+
+    // Créer le header en DOM
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'station header';
+    const timeSpan = document.createElement('span');
+    timeSpan.textContent = 'Time';
+    const waypointSpan = document.createElement('span');
+    waypointSpan.textContent = 'Waypoint';
+    // Pour garder la structure à 3 colonnes
+    const emptySpan = document.createElement('span');
+    emptySpan.textContent = '';
+    headerDiv.appendChild(timeSpan);
+    headerDiv.appendChild(waypointSpan);
+    headerDiv.appendChild(emptySpan);
+
+    timelineElement.appendChild(headerDiv);
 
     let [hours, minutes] = departureTime.split(':').map(Number);
     let currentDate = new Date();
@@ -403,13 +414,32 @@ function processPosition(userLat, userLon) {
     // Mettre en vert le dernier point de passage dépassé
     if (lastPassedPoint) {
         Array.from(timelineElement.children).forEach(station => {
-            if (station.textContent.includes(lastPassedPoint.name)) {
+            // Utilise le bon index pour matcher la station à lastPassedPoint
+            if (
+                !station.classList.contains('header') &&
+                station.querySelector('span:nth-child(2)') &&
+                station.querySelector('span:nth-child(2)').textContent.trim() === lastPassedPoint.name
+            ) {
                 station.classList.add("current-station");
-                // Appeler scrollToCurrentStation immédiatement après avoir défini la current-station
-                scrollToCurrentStation();
+            } else {
+                station.classList.remove("current-station");
             }
         });
     }
+
+    // Après avoir défini la current-station :
+    let foundCurrent = false;
+    Array.from(timelineElement.children).forEach(station => {
+        if (station.classList.contains("header")) return;
+        if (station.classList.contains("current-station")) {
+            foundCurrent = true;
+            station.classList.remove("passed");
+        } else if (!foundCurrent) {
+            station.classList.add("passed");
+        } else {
+            station.classList.remove("passed");
+        }
+    });
 
     let lastPointDistance = 0;
     let nextPointDistance = 0;
@@ -533,15 +563,52 @@ function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nex
         document.getElementById('current-time').classList.remove('green');
     }
 
-    // **Ajout de la Classe 'current-station'**
+    // Estimation d'arrivée au dernier point
+    if (pointsDePassage && pointsDePassage.length > 0 && departureTime) {
+        const [hours, minutes] = departureTime.split(':').map(Number);
+        const departureDate = new Date();
+        departureDate.setHours(hours, minutes, 0, 0);
+
+        let totalDuration = 0;
+        pointsDePassage.forEach(point => totalDuration += point.duree);
+        const arrivalDate = new Date(departureDate.getTime() + totalDuration * 1000);
+        const arrivalStr = arrivalDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        document.getElementById('current-time').textContent += ` • ETA: ${arrivalStr}`;
+    }
+
+    // **Application de la classe 'current-station'**
     const stations = document.querySelectorAll('.station');
     stations.forEach((station) => {
-        const waypoint = station.querySelector('span:nth-child(3)').textContent.trim();
-        if (lastPassedPoint && waypoint === lastPassedPoint.name) {
+        if (station.classList.contains('header')) return;
+        
+        const stationNameElement = station.querySelector('span:nth-child(2)');
+        if (!stationNameElement) return;
+        
+        const stationName = stationNameElement.textContent.trim();
+        
+        // Retirer toutes les classes d'état
+        station.classList.remove('current-station', 'passed');
+        
+        if (lastPassedPoint && stationName === lastPassedPoint.name) {
             station.classList.add('current-station');
-            console.log(`Classe 'current-station' ajoutée à la station: ${waypoint}`);
-        } else {
-            station.classList.remove('current-station');
+            
+            // Scroll automatique vers la station courante
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                station.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 100);
+        } else if (lastPassedPoint) {
+            // Vérifier si cette station est déjà passée
+            const lastPassedIndex = pointsDePassage.findIndex(p => p.name === lastPassedPoint.name);
+            const stationIndex = pointsDePassage.findIndex(p => p.name === stationName);
+            
+            if (stationIndex !== -1 && stationIndex < lastPassedIndex) {
+                station.classList.add('passed');
+            }
         }
     });
 }
@@ -581,5 +648,5 @@ function updateTimelineDelays() {
         } else {
             delaySpan.textContent = ''; // Effacer le délai sur tous les autres points
         }
-    });
+    }); 
 }

@@ -1,3 +1,17 @@
+/* Définition des variables de couleur */
+:root {
+    --primary: #2563eb;
+    --secondary: #fbbf24;
+    --background: #f3f6fb;
+    --surface: rgba(255,255,255,0.7);
+    --widget-glass: rgba(37,99,235,0.08);
+    --border: #e0e7ef;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+}
+
 /* Styles globaux */
 body {
     font-family: Arial, sans-serif;
@@ -64,74 +78,184 @@ label input[type="radio"] {
 /* Bouton de démarrage */
 .start-btn {
     width: 100%;
-    padding: 9px;
-    font-size: 1.1em;
-    background-color: #28a745;
-    color: white;
+    padding: 13px;
+    font-size: 1.15em;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+    color: #fff;
     border: none;
-    border-radius: 10px;
+    border-radius: 14px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    font-weight: 700;
+    box-shadow: 0 2px 8px 0 rgba(37,99,235,0.10);
+    transition: background 0.2s, box-shadow 0.2s;
+    margin-top: 10px;
 }
 
 .start-btn:hover {
-    background-color: #218838;
+    background: linear-gradient(90deg, var(--secondary) 0%, var(--primary) 100%);
+    box-shadow: 0 4px 16px 0 rgba(37,99,235,0.18);
 }
 
-/* Style de la timeline */
+/* Style de la timeline - ENLEVER LA SCROLLBAR */
 #timeline {
-    background-color: #333;
-    padding: 10px;
-    color: white;
-    font-family: Arial, sans-serif;
-    margin-top: 10px;
-    border-radius: 10px;
-    height: 600px; /* Hauteur fixe pour ~7 stations (7 * 40px) */
-    overflow-y: auto;
+    padding-top: 0;
+    background: var(--surface);
+    border-radius: 18px;
+    overflow-y: hidden; /* Enlève complètement la scrollbar */
+    box-sizing: border-box;
+    padding-right: 0px; /* Remet à 0 */
+    box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
+    color: var(--text-main);
+    border: 1.5px solid var(--border);
+    height: 520px;
     position: relative;
     scroll-behavior: smooth;
+    backdrop-filter: blur(6px);
+    margin-top: -16px;
 }
 
-#timeline::-webkit-scrollbar {
+/* SUPPRIME TOUTES LES RÈGLES DE SCROLLBAR */
+/* #timeline::-webkit-scrollbar {
     width: 8px;
 }
 
 #timeline::-webkit-scrollbar-track {
-    background: #444;
+    background: transparent;
+    margin-top: 56px;
+    border-radius: 8px;
 }
 
 #timeline::-webkit-scrollbar-thumb {
-    background: #666;
-    border-radius: 4px;
-}
+    background: var(--primary);
+    border-radius: 8px;
+    border: 2px solid var(--surface);
+} */
 
-/* Modifier les spans pour 3 colonnes */
 .station {
     display: flex;
     justify-content: space-between;
-    padding: 7px 0;
-    border-bottom: 1px solid #444;
-    align-items: center;  /* Change 'left' to 'center' */
-    height: 30px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 8px;
+    transition: background 0.2s;
+    background: transparent;
 }
 
-.station span:nth-child(1) {
-    flex-basis: 15%;  /* Time */
-    font-size: 0.8em;
-    text-align: center;
+.station.header {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+    border-radius: 18px 18px 0 0; /* Assure que les coins correspondent exactement */
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 16px 0;
+    letter-spacing: 0.04em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-shadow: 0 2px 8px 0 rgba(37,99,235,0.10);
+    margin-bottom: 0;
+    margin-right: 0; /* Remet à 0 */
+    box-sizing: border-box; /* Change à border-box */
 }
 
-.station span:nth-child(2) {
-    flex-basis: 65%;  /* Waypoint */
-    font-size: 0.9em;
-    text-align: left;
+.station.current-station {
+    background: linear-gradient(90deg, rgba(37,99,235,0.15) 0%, rgba(200,200,200,0.20) 100%);
+    color: var(--text-main);
+    font-weight: 700;
+    border-radius: 0;
+    margin: 0;
+    margin-right: 0px;
+    margin-left: 0;
+    box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.15);
+    animation: pulse-highlight 2s infinite;
+    border: none;
+    padding: 0px 0;
+    width: calc(100% + 0px);
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.station span:nth-child(3) {
-    flex-basis: 20%;  /* Delay */
-    font-size: 0.9em;
-    text-align: right;
+/* Alignement spécifique pour current-station - GARDE SEULEMENT CELLE-CI */
+.station.current-station span:nth-child(1) { 
+    flex-basis: 18%; 
+    text-align: center; 
+    padding: 0 6px;
+    padding-left: 6px;
 }
+.station.current-station span:nth-child(2) { 
+    flex-basis: 60%; 
+    text-align: left; 
+    padding: 0 6px;
+}
+.station.current-station span:nth-child(3) { 
+    flex-basis: 22%; 
+    text-align: right; 
+    padding: 0 6px;
+    padding-right: 18px;
+}
+
+@keyframes pulse-highlight {
+    0%   { 
+        background: linear-gradient(90deg, rgba(37,99,235,0.12) 0%, rgba(200,200,200,0.18) 100%);
+        box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
+    }
+    50%  { 
+        background: linear-gradient(90deg, rgba(37,99,235,0.20) 0%, rgba(180,180,180,0.28) 100%);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+    }
+    100% { 
+        background: linear-gradient(90deg, rgba(37,99,235,0.12) 0%, rgba(200,200,200,0.18) 100%);
+        box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
+    }
+}
+
+/* Station courante - GARDE SEULEMENT CETTE RÈGLE */
+.station.current-station {
+    background: linear-gradient(90deg, rgba(37,99,235,0.15) 0%, rgba(200,200,200,0.20) 100%);
+    color: var(--text-main);
+    font-weight: 700;
+    border-radius: 0;
+    margin: 0;
+    margin-right: -0px;
+    margin-left: 0;
+    box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.15);
+    animation: pulse-highlight 2s infinite;
+    border: none;
+    padding: 12px 0;
+    width: calc(100% + 0px);
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* S'assurer que les spans dans current-station gardent leur padding */
+.station.current-station span {
+    padding: 0 6px;
+}
+
+.station.passed {
+    color: var(--text-muted);
+    font-style: italic;
+    background: none;
+    font-weight: 400;
+    opacity: 0.7;
+}
+
+.station span {
+    font-size: 1em;
+    padding: 0 6px;
+}
+
+.station span:nth-child(1) { flex-basis: 18%; text-align: center; }
+.station span:nth-child(2) { flex-basis: 60%; text-align: left; }
+.station span:nth-child(3) { flex-basis: 22%; text-align: right; }
 
 /* Supprimer ou commenter les styles inutiles */
 /* .station span {
@@ -140,20 +264,6 @@ label input[type="radio"] {
     align-self: center;
     text-align: right;
 } */
-
-.header {
-    background-color: #444;
-    padding: 5px;
-    border-radius: 5px;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-.header span {
-    font-weight: bold;
-    font-size: 1em;
-}
 
 /* Indiquer la gare en cours */
 .current-station {
@@ -186,47 +296,79 @@ label input[type="radio"] {
     }
 
     .station span {
-        font-size: 0.7em;
+        font-size: 1em; /* Augmente de 0.7em à 1em */
     }
 }
 
+@media screen and (max-width: 600px) {
+    .tracking-widget {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 6px;
+    }
+    #timeline {
+        padding: 8px 2px;
+        height: 350px;
+    }
+    .station span {
+        font-size: 1.1em; /* Augmente de 0.9em à 1.1em */
+    }
+}
+
+/* Modernise le widget */
 .tracking-widget {
     display: flex;
-    justify-content: space-around;
-    align-items: center;
-    border: 1px solid #ccc;
-    padding: 10px;
-    margin: 10px 0;
-    background-color: #f9f9f9;
-    border-radius: 5px;
+    flex-direction: column;
+    gap: 18px;
+    border: none;
+    background: var(--widget-glass);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.10);
+    backdrop-filter: blur(8px);
+    border-radius: 18px;
+    padding: 12px 18px;
+    margin: 18px 0;
+    transition: box-shadow 0.3s;
+    width: 92%;
+    max-width: 92%;
+}
+
+.tracking-widget:hover {
+    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.18);
 }
 
 .widget-section {
-   text-align: left;
+    width: 100%;
+    margin: 0;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
 }
 
 .widget-title {
-    font-size: 1em;
-    font-weight: bold;
-    margin-bottom: 5px;
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 3px;
+    letter-spacing: 0.03em;
 }
 
 .point {
-    font-size: 1em;
-    font-weight: bold;
-    padding-right: 10px;
+    font-size: 1.05em;
+    font-weight: 600;
+    color: var(--text-main);
 }
 
-.time {
-    text-align: start;
+.time, .distance, .theoretical-time {
+    font-size: 0.97em;
+    color: var(--text-muted);
 }
 
-.time, .distance {
-    font-size: 0.9em;
-    padding: 1px;
-    text-align: start;
-    align-items: start;
-    
+#current-time {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--primary);
 }
 
 #current-time.red {
@@ -237,23 +379,74 @@ label input[type="radio"] {
 #timeline .station .delay {
     color: #ff0000 !important;
     font-weight: bold !important;
-    padding: 2px 5px;
+    padding: 2px 8px;
     border-radius: 3px;
     margin-left: 5px;
 }
 
 .delay {
-    color: #ff0000; /* Rouge pour le retard */
-    font-weight: bold;
-    padding: 2px 5px;
-    border-radius: 3px;
-    margin-left: 5px;
+    color: var(--danger);
+    font-weight: 700;
+    background: rgba(239,68,68,0.08);
+    border-radius: 7px;
+    padding: 2px 8px;
+    margin-left: 8px;
 }
 
-.theoretical-time {
-    font-size: 0.9em;
-    color: #666;
-    font-style: italic;
-    padding: 1px;
-    text-align: start;
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
+    70% { box-shadow: 0 0 0 10px rgba(37,99,235,0.08); }
+    100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
+}
+
+.widget-next-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 10px;
+}
+.widget-next-row .point {
+    flex: 1 1 auto;
+    font-weight: 600;
+    color: var(--text-main);
+    text-align: left;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.widget-next-infos {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    justify-content: flex-end;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.widget-last-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 10px;
+}
+.widget-last-row .point {
+    flex: 1 1 auto;
+    font-weight: 600;
+    color: var(--text-main);
+    text-align: left;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.widget-last-infos {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    justify-content: flex-end;
+    align-items: center;
+    flex-shrink: 0;
 }
