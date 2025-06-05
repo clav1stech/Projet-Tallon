@@ -1,7 +1,8 @@
-/* Définition des variables de couleur */
+/* Optimized stylesheet for the tracking app */
+
 :root {
-    --primary: rgb(135,44,59); /* Nouveau rouge bordeaux */
-    --secondary: rgb(53,53,52); /* Gris foncé */
+    --primary: rgb(135,44,59);
+    --secondary: rgb(53,53,52);
     --background: #f3f6fb;
     --surface: rgba(255,255,255,0.7);
     --widget-glass: rgba(37,99,235,0.08);
@@ -12,337 +13,108 @@
     --text-muted: #64748b;
 }
 
-/* Styles globaux */
+/* Global styles */
 body {
     font-family: Arial, sans-serif;
-    background-color: #e9f0f5;
-    color: #333;
+    background-color: var(--background);
     margin: 0;
-    padding: 0;
+    color: var(--text-main);
 }
 
-/* Conteneur principal */
 .container {
     max-width: 500px;
     margin: 20px auto;
-    background: #ffffff;
+    background: #fff;
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
 }
 
-/* Titres */
-h1 {
-    font-size: 1.8em;
-    color: #333;
-    margin-bottom: 20px;
-    text-align: center;
+/* Form layout */
+.form-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 12px;
 }
 
-/* Labels */
-label {
-    font-weight: bold;
-    margin-top: 10px;
-    display: block;
+.form-row > label {
+    font-weight: 600;
+    color: var(--primary);
 }
 
-/* Champs de saisie */
-input[type="number"],
-input[type="time"],
-select {
-    width: calc(100% - 20px);
-    padding: 10px;
-    margin-top: 5px;
-    margin-bottom: 15px;
-    font-size: 1em;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
+.form-row > select,
+.form-row > input[type="time"] {
+    flex: 1 1 0;
+    border-radius: 7px;
+    border: 1.5px solid var(--primary);
+    padding: 8px 10px;
+    background: #fff;
 }
 
-/* Section de la méthode de localisation */
-.location-section {
-    margin-bottom: 20px;
-}
-
-/* Options de la méthode de localisation */
-label input[type="radio"] {
-    margin-right: 5px;
-}
-
-/* Coordonnées manuelles */
-.manual-coords label {
-    margin-top: 5px;
-}
-
-/* Bouton de démarrage */
+/* Start button */
 .start-btn {
     width: 100%;
-    padding: 13px;
-    font-size: 1.20em;
+    padding: 12px;
+    font-size: 1.2em;
     background: var(--primary);
     color: #fff;
     border: none;
     border-radius: 14px;
     cursor: pointer;
-    font-weight: 700;
-    box-shadow: 0 2px 8px 0 rgba(37,99,235,0.10);
-    transition: background 0.2s, box-shadow 0.2s;
-    margin-top: 10px;
+    transition: background 0.2s;
 }
 
 .start-btn:hover {
     background: var(--secondary);
-    box-shadow: 0 4px 16px 0 rgba(37,99,235,0.18);
 }
 
-/* Style de la timeline - ENLEVER LA SCROLLBAR */
+/* Timeline */
 #timeline {
-    padding-top: 0;
     background: var(--surface);
     border-radius: 18px;
-    overflow-y: hidden; /* Enlève complètement la scrollbar */
-    box-sizing: border-box;
-    padding-right: 0px; /* Remet à 0 */
-    box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
-    color: var(--text-main);
     border: 1.5px solid var(--border);
     height: 520px;
-    position: relative;
+    overflow-y: auto;
     scroll-behavior: smooth;
-    backdrop-filter: blur(6px);
-    margin-top: -16px;
 }
-
-/* SUPPRIME TOUTES LES RÈGLES DE SCROLLBAR */
-/* #timeline::-webkit-scrollbar {
-    width: 8px;
-}
-
-#timeline::-webkit-scrollbar-track {
-    background: transparent;
-    margin-top: 56px;
-    border-radius: 8px;
-}
-
-#timeline::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 8px;
-    border: 2px solid var(--surface);
-} */
 
 .station {
     display: flex;
     justify-content: space-between;
-    align-items: center;
     padding: 12px 0;
     border-bottom: 1px solid var(--border);
-    border-radius: 8px;
-    transition: background 0.2s;
-    background: transparent;
-}
-
-.station.header {
-    background: var(--primary);
-    color: #fff;
-    font-weight: 700;
-    border-radius: 18px 18px 0 0; /* Assure que les coins correspondent exactement */
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    padding: 16px 0;
-    letter-spacing: 0.04em;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    box-shadow: 0 2px 8px 0 rgba(37,99,235,0.10);
-    margin-bottom: 0;
-    margin-right: 0; /* Remet à 0 */
-    box-sizing: border-box; /* Change à border-box */
 }
 
 .station.current-station {
     background: linear-gradient(90deg, rgba(37,99,235,0.15) 0%, rgba(200,200,200,0.20) 100%);
-    color: var(--text-main);
     font-weight: 700;
-    border-radius: 0;
-    margin: 0;
-    margin-right: 0px;
-    margin-left: 0;
-    box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.15);
     animation: pulse-highlight 2s infinite;
-    border: none;
-    padding: 0px 0;
-    width: calc(100% + 0px);
-    box-sizing: border-box;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* Alignement spécifique pour current-station - GARDE SEULEMENT CELLE-CI */
-.station.current-station span:nth-child(1) { 
-    flex-basis: 18%; 
-    text-align: center; 
-    padding: 0 6px;
-    padding-left: 6px;
-}
-.station.current-station span:nth-child(2) { 
-    flex-basis: 60%; 
-    text-align: left; 
-    padding: 0 6px;
-}
-.station.current-station span:nth-child(3) { 
-    flex-basis: 22%; 
-    text-align: right; 
-    padding: 0 6px;
-    padding-right: 18px;
 }
 
 @keyframes pulse-highlight {
-    0%   { 
-        background: linear-gradient(90deg, rgba(37,99,235,0.12) 0%, rgba(200,200,200,0.18) 100%);
-        box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
-    }
-    50%  { 
-        background: linear-gradient(90deg, rgba(37,99,235,0.20) 0%, rgba(180,180,180,0.28) 100%);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
-    }
-    100% { 
-        background: linear-gradient(90deg, rgba(37,99,235,0.12) 0%, rgba(200,200,200,0.18) 100%);
-        box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
-    }
+    0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
+    70% { box-shadow: 0 0 0 8px rgba(37,99,235,0.08); }
+    100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
 }
 
-/* Station courante - GARDE SEULEMENT CETTE RÈGLE */
-.station.current-station {
-    background: linear-gradient(90deg, rgba(37,99,235,0.15) 0%, rgba(200,200,200,0.20) 100%);
-    color: var(--text-main);
-    font-weight: 700;
-    border-radius: 0;
-    margin: 0;
-    margin-right: -0px;
-    margin-left: 0;
-    box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.15);
-    animation: pulse-highlight 2s infinite;
-    border: none;
-    padding: 12px 0;
-    width: calc(100% + 0px);
-    box-sizing: border-box;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* S'assurer que les spans dans current-station gardent leur padding */
-.station.current-station span {
-    padding: 0 6px;
-}
-
-.station.passed {
-    color: var(--text-muted);
-    font-style: italic;
-    background: none;
-    font-weight: 400;
-    opacity: 0.7;
-}
-
-.station span {
-    font-size: 0.7em;
-    padding: 0 6px;
-}
-
-.station span:nth-child(1) { flex-basis: 18%; text-align: center; }
-.station span:nth-child(2) { flex-basis: 60%; text-align: left; }
-.station span:nth-child(3) { flex-basis: 22%; text-align: right; }
-
-/* Supprimer ou commenter les styles inutiles */
-/* .station span {
-    flex-basis: 13%;
-    font-size: 0.7em;
-    align-self: center;
-    text-align: right;
-} */
-
-/* Indiquer la gare en cours */
-.current-station {
-    background-color: #28a745;
-    color: white;
-    border-radius: 5px;
-}
-
-/* Informations supplémentaires */
-#info {
-    margin-top: 15px;
-    font-size: 1em;
-    color: #555;
-}
-
-/* Responsivité */
-@media screen and (max-width: 768px) {
-    .container {
-        max-width: 90%;
-        padding: 10px;
-    }
-
-    h1 {
-        font-size: 1.5em;
-    }
-
-    input[type="number"], input[type="time"], select, button {
-        font-size: 1em;
-        padding: 8px;
-    }
-
-    .station span {
-        font-size: 0.7em; /* Augmente de 0.7em à 1em */
-    }
-}
-
-@media screen and (max-width: 600px) {
-    .tracking-widget {
-        flex-direction: column;
-        gap: 12px;
-        padding: 12px 6px;
-    }
-    #timeline {
-        padding: 8px 2px;
-        height: 350px;
-    }
-    .station span {
-        font-size: 1.1em; /* Augmente de 0.9em à 1.1em */
-    }
-}
-
-/* Modernise le widget */
+/* Widget */
 .tracking-widget {
     display: flex;
     flex-direction: column;
     gap: 18px;
-    border: none;
     background: var(--widget-glass);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.10);
-    backdrop-filter: blur(8px);
     border-radius: 18px;
     padding: 12px 18px;
     margin: 18px 0;
-    transition: box-shadow 0.3s;
-    width: 92%;
-    max-width: 92%;
-}
-
-.tracking-widget:hover {
-    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.18);
+    box-shadow: 0 8px 32px rgba(31,38,135,0.1);
 }
 
 .widget-section {
     width: 100%;
-    margin: 0;
-    text-align: left;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
     gap: 6px;
 }
 
@@ -350,257 +122,11 @@ label input[type="radio"] {
     font-size: 1.1em;
     font-weight: 700;
     color: var(--primary);
-    margin-bottom: 3px;
-    letter-spacing: 0.03em;
 }
 
-.point {
-    font-size: 1.05em;
-    font-weight: 600;
-    color: var(--text-main);
-}
-
-.time, .distance, .theoretical-time {
-    font-size: 0.97em;
-    color: var(--text-muted);
-}
-
-#current-time {
-    font-size: 1.2em;
-    font-weight: 700;
-    color: var(--primary);
-}
-
-#current-time.red {
-    color: red;
-    font-weight: bold;
-}
-
-#timeline .station .delay {
-    color: #ff0000 !important;
-    font-weight: bold !important;
-    padding: 2px 15px;
-    border-radius: 5px;
-    margin-left: 5px;
-}
-
-.delay {
-    color: var(--danger);
-    font-weight: 700;
-    background: rgba(239,68,68,0.08);
-    border-radius: 7px;
-    padding: 2px 8px;
-    margin-left: 8px;
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
-    70% { box-shadow: 0 0 0 10px rgba(37,99,235,0.08); }
-    100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
-}
-
-.widget-next-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    gap: 10px;
-}
-.widget-next-row .point {
-    flex: 1 1 auto;
-    font-weight: 600;
-    color: var(--text-main);
-    text-align: left;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.widget-next-infos {
-    display: flex;
-    flex-direction: row;
-    gap: 12px;
-    justify-content: flex-end;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-.widget-last-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    gap: 10px;
-}
-.widget-last-row .point {
-    flex: 1 1 auto;
-    font-weight: 600;
-    color: var(--text-main);
-    text-align: left;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.widget-last-infos {
-    display: flex;
-    flex-direction: row;
-    gap: 12px;
-    justify-content: flex-end;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-.route-selection,
-.departure-section,
-.location-section {
-    background: var(--widget-glass);
-    border-radius: 14px;
-    box-shadow: 0 2px 8px 0 rgba(135,44,59,0.08);
-    padding: 16px 18px;
-    margin-bottom: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.route-selection label,
-.departure-section label,
-.location-section h4 {
-    color: var(--primary);
-    font-weight: 700;
-    font-size: 1.08em;
-    margin-bottom: 6px;
-    letter-spacing: 0.02em;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.route-selection select,
-.departure-section input[type="time"] {
-    border-radius: 7px;
-    border: 1.5px solid var(--primary);
-    padding: 10px;
-    font-size: 1em;
-    background: #fff;
-    color: var(--text-main);
-    transition: border 0.2s;
-}
-
-.route-selection select:focus,
-.departure-section input[type="time"]:focus {
-    outline: none;
-    border-color: var(--secondary);
-}
-
-.location-section label {
-    font-weight: 500;
-    color: var(--text-main);
-    font-size: 1em;
-    margin-bottom: 0;
-}
-
-.location-section input[type="radio"] {
-    accent-color: var(--primary);
-}
-
-.manual-coords input[type="number"] {
-    border-radius: 7px;
-    border: 1.5px solid var(--primary);
-    padding: 8px;
-    font-size: 1em;
-    background: #fff;
-    color: var(--text-main);
-    margin-bottom: 8px;
-}
-
-a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
-    color: var(--primary) !important;
-}
-
-.form-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-    background: var(--widget-glass, #fff);
-    border-radius: 12px;
-    box-shadow: 0 2px 8px 0 rgba(135,44,59,0.08);
-    padding: 10px 18px;
-    margin-bottom: 12px;
-}
-
-.form-row > label {
-    display: flex !important;
-    align-items: center;
-    margin-bottom: 0;
-    margin-top: 0;
-    font-weight: 600;
-    color: var(--primary, rgb(135,44,59));
-    gap: 6px;
-}
-
-.form-row > select,
-.form-row > input[type="time"] {
-    flex: 1 1 0;
-    max-width: 220px;
-    min-width: 120px;
-    text-align: right;
-    border-radius: 7px;
-    border: 1.5px solid var(--primary, rgb(135,44,59));
-    padding: 8px 10px;
-    font-size: 1em;
-    background: #fff;
-    color: var(--text-main, #222);
-    margin-bottom: 0;
-}
-
-.location-radio-group {
-    display: flex;
-    gap: 18px;
-    justify-content: flex-end;
-    flex: 1 1 0;
-}
-
-.location-radio-group label {
-    font-weight: 500;
-    color: var(--text-main, #222);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 0;
-}
-
-.latlon-group {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    flex: 1 1 0;
-}
-.latlon-group input[type="number"] {
-    border-radius: 7px;
-    border: 1.5px solid var(--primary, rgb(135,44,59));
-    padding: 8px 10px;
-    font-size: 1em;
-    background: #fff;
-    color: var(--text-main, #222);
-    width: 120px;
-    margin-bottom: 0;
-}
-
-/* Responsive */
-@media (max-width: 700px) {
-    .form-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-        padding: 10px 8px;
-    }
-    .form-row > label {
-        text-align: left;
-    }
-    .location-radio-group, .latlon-group {
-        justify-content: flex-start;
-    }
+/* Responsive tweaks for iPhone Pro Max */
+@media (max-width: 430px) {
+    .container { max-width: 95%; padding: 10px; }
+    .form-row { flex-direction: column; gap: 8px; }
+    #timeline { height: 350px; }
 }
