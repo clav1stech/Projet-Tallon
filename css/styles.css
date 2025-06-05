@@ -93,30 +93,6 @@ body {
     animation: pulse-highlight 2s infinite;
 }
 
-/* Timeline header */
-.station.header {
-    background: var(--primary);
-    color: #fff;
-    font-weight: 700;
-    border-radius: 18px 18px 0 0;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    padding: 16px 0;
-}
-
-.station span {
-    font-size: 0.85em;
-    padding: 0 6px;
-}
-.station span:nth-child(1) { flex-basis: 18%; text-align: center; }
-.station span:nth-child(2) { flex-basis: 60%; text-align: left; }
-.station span:nth-child(3) { flex-basis: 22%; text-align: right; }
-
-.station.passed {
-    color: var(--text-muted);
-    font-style: italic;
-}
 
 @keyframes pulse-highlight {
     0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
@@ -147,27 +123,6 @@ body {
     font-size: 1.1em;
     font-weight: 700;
     color: var(--primary);
-}
-
-/* Delay indicators */
-#current-time {
-    font-size: 1.2em;
-    font-weight: 700;
-    color: var(--primary);
-}
-
-#current-time.red {
-    color: red;
-    font-weight: bold;
-}
-
-.delay {
-    color: var(--danger);
-    font-weight: 700;
-    background: rgba(239,68,68,0.08);
-    border-radius: 7px;
-    padding: 2px 8px;
-    margin-left: 8px;
 }
 
 /* Responsive tweaks for iPhone Pro Max */
