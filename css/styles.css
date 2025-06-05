@@ -93,6 +93,7 @@ body {
     animation: pulse-highlight 2s infinite;
 }
 
+
 @keyframes pulse-highlight {
     0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
     70% { box-shadow: 0 0 0 8px rgba(37,99,235,0.08); }
