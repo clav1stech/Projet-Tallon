@@ -107,7 +107,7 @@ label input[type="radio"] {
     box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
     color: var(--text-main);
     border: 1.5px solid var(--border);
-    height: 520px;
+    height: 600px;
     position: relative;
     scroll-behavior: smooth;
     backdrop-filter: blur(6px);
@@ -168,37 +168,21 @@ label input[type="radio"] {
     font-weight: 700;
     border-radius: 0;
     margin: 0;
-    margin-right: 0px;
-    margin-left: 0;
     box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.15);
     animation: pulse-highlight 2s infinite;
     border: none;
-    padding: 0px 0;
-    width: calc(100% + 0px);
+    padding: 12px 0;
+    width: 100%;
     box-sizing: border-box;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-/* Alignement spécifique pour current-station - GARDE SEULEMENT CELLE-CI */
-.station.current-station span:nth-child(1) { 
-    flex-basis: 18%; 
-    text-align: center; 
-    padding: 0 6px;
-    padding-left: 6px;
-}
-.station.current-station span:nth-child(2) { 
-    flex-basis: 60%; 
-    text-align: left; 
-    padding: 0 6px;
-}
-.station.current-station span:nth-child(3) { 
-    flex-basis: 22%; 
-    text-align: right; 
-    padding: 0 6px;
-    padding-right: 18px;
-}
+.station.current-station span:nth-child(1) { flex-basis: 18%; text-align: center; padding-left: 6px; }
+.station.current-station span:nth-child(2) { flex-basis: 60%; text-align: left; }
+.station.current-station span:nth-child(3) { flex-basis: 22%; text-align: right; padding-right: 18px; }
+.station.current-station span { padding: 0 6px; }
 
 @keyframes pulse-highlight {
     0%   { 
@@ -257,21 +241,6 @@ label input[type="radio"] {
 .station span:nth-child(2) { flex-basis: 60%; text-align: left; }
 .station span:nth-child(3) { flex-basis: 22%; text-align: right; }
 
-/* Supprimer ou commenter les styles inutiles */
-/* .station span {
-    flex-basis: 13%;
-    font-size: 0.7em;
-    align-self: center;
-    text-align: right;
-} */
-
-/* Indiquer la gare en cours */
-.current-station {
-    background-color: #28a745;
-    color: white;
-    border-radius: 5px;
-}
-
 /* Informations supplémentaires */
 #info {
     margin-top: 15px;
@@ -280,25 +249,6 @@ label input[type="radio"] {
 }
 
 /* Responsivité */
-@media screen and (max-width: 768px) {
-    .container {
-        max-width: 90%;
-        padding: 10px;
-    }
-
-    h1 {
-        font-size: 1.5em;
-    }
-
-    input[type="number"], input[type="time"], select, button {
-        font-size: 1em;
-        padding: 8px;
-    }
-
-    .station span {
-        font-size: 0.7em; /* Augmente de 0.7em à 1em */
-    }
-}
 
 @media screen and (max-width: 600px) {
     .tracking-widget {
@@ -306,12 +256,24 @@ label input[type="radio"] {
         gap: 12px;
         padding: 12px 6px;
     }
-    #timeline {
-        padding: 8px 2px;
-        height: 350px;
-    }
+
     .station span {
-        font-size: 1.1em; /* Augmente de 0.9em à 1.1em */
+        font-size: 1.1em;
+    }
+}
+
+@media screen and (max-width: 700px) {
+    .form-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        padding: 10px 8px;
+    }
+    .form-row > label {
+        text-align: left;
+    }
+    .location-radio-group, .latlon-group {
+        justify-content: flex-start;
     }
 }
 
@@ -385,7 +347,7 @@ label input[type="radio"] {
 }
 
 .delay {
-    color: var(--danger);
+    color: var(--dager);
     font-weight: 700;
     background: rgba(239,68,68,0.08);
     border-radius: 7px;
@@ -399,14 +361,14 @@ label input[type="radio"] {
     100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
 }
 
-.widget-next-row {
+.widget-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
     gap: 10px;
 }
-.widget-next-row .point {
+.widget-row .point {
     flex: 1 1 auto;
     font-weight: 600;
     color: var(--text-main);
@@ -415,34 +377,9 @@ label input[type="radio"] {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-.widget-next-infos {
-    display: flex;
-    flex-direction: row;
-    gap: 12px;
-    justify-content: flex-end;
-    align-items: center;
-    flex-shrink: 0;
 }
 
-.widget-last-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    gap: 10px;
-}
-.widget-last-row .point {
-    flex: 1 1 auto;
-    font-weight: 600;
-    color: var(--text-main);
-    text-align: left;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.widget-last-infos {
+.widget-infos {
     display: flex;
     flex-direction: row;
     gap: 12px;
@@ -587,20 +524,4 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     color: var(--text-main, #222);
     width: 120px;
     margin-bottom: 0;
-}
-
-/* Responsive */
-@media (max-width: 700px) {
-    .form-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-        padding: 10px 8px;
-    }
-    .form-row > label {
-        text-align: left;
-    }
-    .location-radio-group, .latlon-group {
-        justify-content: flex-start;
-    }
 }
