@@ -101,7 +101,7 @@ label input[type="radio"] {
     padding-top: 0;
     background: var(--surface);
     border-radius: 18px;
-    overflow-y: hidden; /* Enlève complètement la scrollbar */
+    overflow-y: auto; /* Permet le scroll manuel */
     box-sizing: border-box;
     padding-right: 0px; /* Remet à 0 */
     box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
@@ -150,7 +150,7 @@ label input[type="radio"] {
     position: sticky;
     top: 0;
     z-index: 10;
-    padding: 16px 0;
+    padding: 12px 0; /* MODIFIÉ DE 16px à 12px */
     letter-spacing: 0.04em;
     display: flex;
     justify-content: space-between;
@@ -160,6 +160,11 @@ label input[type="radio"] {
     margin-bottom: 0;
     margin-right: 0; /* Remet à 0 */
     box-sizing: border-box; /* Change à border-box */
+}
+
+.station.header span {
+    font-size: 0.7em; /* Ou la taille que vous souhaitez, pour correspondre aux autres stations */
+    /* Vous pourriez aussi avoir besoin d'ajuster line-height si la police a un rendu vertical différent */
 }
 
 .station.current-station {
@@ -233,7 +238,7 @@ label input[type="radio"] {
 }
 
 .station span {
-    font-size: 0.7em;
+    font-size: 0.8em;
     padding: 0 6px;
 }
 
@@ -258,7 +263,7 @@ label input[type="radio"] {
     }
 
     .station span {
-        font-size: 1.1em;
+        font-size: 0.8em;
     }
 }
 

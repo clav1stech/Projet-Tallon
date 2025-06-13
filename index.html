@@ -14,7 +14,7 @@
         <h1>Railway Timeline</h1>
         <div class="form-row">
             <label for="routeSelect"><i class="fas fa-route"></i> Route selection:</label>
-            <select id="routeSelect" onchange="loadSelectedTrajet()">
+            <select id="routeSelect" >
                 <option value="">-- Select a route --</option>
                 <!-- Les options seront ajoutées dynamiquement via JavaScript -->
             </select>
@@ -37,7 +37,8 @@
                 <input type="number" id="manualLon" step="0.00001" placeholder="Longitude">
             </div>
         </div>
-        <button class="start-btn" onclick="startTracking()">Start</button>
+        <button id="start-btn" class="start-btn">Start</button>
+
         <!-- widget -->
         <div id="tracking-widget" class="tracking-widget">
             <div class="widget-section">
@@ -80,8 +81,8 @@
 
     <!-- Inclusion des fichiers JavaScript -->
     <script src="data/routes.js"></script>
-    <script src="js/functions.js"></script>
-    <script src="js/main.js"></script>
+    <script type="module" src="js/app.js"></script>
+
 </body>
 
 </html>
