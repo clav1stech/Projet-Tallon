@@ -1,6 +1,6 @@
 import STATE, { restoreSettings, saveSettings } from './state.js';
 import { $, $$ } from './utils.js';
-import { populateTrajetDropdown, setupLocationMethodListener, displayTimeline, updateInfo, updateTrackingWidget, scrollToCurrentStation, calculateTheoreticalTime } from './ui.js';
+import { populateTrajetDropdown, setupLocationMethodListener, displayTimeline, updateInfo, updateTrackingWidget, calculateTheoreticalTime } from './ui.js';
 import { geoErrorMessage, haversineDistance } from './geo.js';
 
 let trackingInterval = null; // Ajouter cette variable en haut du fichier
@@ -175,11 +175,11 @@ function showPosition(position) {
     const currentIdx = Math.max(0, lastPassedIdx || 0);
     displayTimeline(currentIdx);
 
-    // Scroll uniquement si la station courante a changé
+/*     // Scroll uniquement si la station courante a changé
     if (STATE.lastScrolledStationIdx !== currentIdx) {
         scrollToCurrentStation();
         STATE.lastScrolledStationIdx = currentIdx;
-    }
+    } */
 
     // MAJ du widget complet
     updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
