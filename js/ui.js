@@ -29,6 +29,20 @@ export function displayTimeline(currentIdx = null) {
     const timeline = $('#timeline');
     if (!STATE.departureTime || !STATE.pointsDePassage.length) return;
 
+    // Si la timeline existe déjà avec le bon nombre de stations, on ne fait qu'une mise à jour des classes
+    const stations = timeline.querySelectorAll('.station:not(.header)');
+    if (stations.length === STATE.pointsDePassage.length) {
+        stations.forEach((station, idx) => {
+            if (currentIdx !== null && idx === currentIdx) {
+                station.classList.add('current-station');
+            } else {
+                station.classList.remove('current-station');
+            }
+        });
+        return;
+    }
+
+    // Sinon, on reconstruit tout (premier affichage ou changement de trajet)
     timeline.innerHTML = '';
     const headerDiv = document.createElement('div');
     headerDiv.className = 'station header';
@@ -73,14 +87,19 @@ export function calculateTheoreticalTime(departureTime, pointsDePassage, pointCi
 }
 
 export function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime) {
-    $('#last-passed-point').textContent = lastPassedPoint ? lastPassedPoint.name : 'None';
-    $('#last-passed-time').textContent = lastPassedPoint && lastPassedPoint.time ? lastPassedPoint.time : '';
-    $('#last-point-distance').textContent = lastPassedPoint ? `${lastPointDistance.toFixed(2)} km` : '';
-    $('#next-point').textContent = nextPoint ? nextPoint.name : 'Route ended';
-    $('#next-point-time').textContent = nextPoint && nextPoint.time ? nextPoint.time : '';
-    $('#next-point-distance').textContent = nextPoint ? `${nextPointDistance.toFixed(2)} km` : '';
-    $('#last-passed-theoretical').textContent = lastPassedPoint ? calculateTheoreticalTime(STATE.departureTime, STATE.pointsDePassage, lastPassedPoint) : '';
-    $('#next-point-theoretical').textContent = theoreticalTime || '';
+    // Last
+    $('#last-passed-point').innerHTML = lastPassedPoint
+      ? `<strong>${lastPassedPoint.name}</strong> <span class="distance">in ${lastPointDistance.toFixed(2)} km</span>`
+      : 'None';
+    $('#last-point-distance').innerHTML = ''; // Vide, plus utilisé
+    $('#last-passed-theoretical').textContent = ''; // Vide, plus utilisé
+
+    // Next
+    $('#next-point').innerHTML = nextPoint
+      ? `<strong>${nextPoint.name}</strong> <span class="distance">in ${nextPointDistance.toFixed(2)} km</span>`
+      : 'Route ended';
+    $('#next-point-distance').innerHTML = ''; // Vide, plus utilisé
+    $('#next-point-theoretical').textContent = ''; // Vide, plus utilisé
 
     // Calcul du délai (même logique que l'ancien main.js)
     if (nextPoint && theoreticalTime) {
@@ -117,7 +136,6 @@ export function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistan
         $('#current-time').classList.remove('red', 'green');
     }
 
-    // Utiliser la même logique que l'ancien main.js pour les délais dans la timeline
     updateTimelineDelays();
 
     // ETA au dernier point (estimation d'arrivée)
