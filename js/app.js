@@ -83,39 +83,33 @@ function startTracking() {
     }
     displayTimeline();
 
-    // Arrêter l'ancien interval s'il existe
-    if (trackingInterval) {
-        clearInterval(trackingInterval);
+    // Démarre le tracking une seule fois
+    if (!trackingInterval) {
+        trackingInterval = setInterval(processCurrentPosition, 1000);
+        processCurrentPosition(); // Exécution immédiate
     }
+}
 
-    // Fonction pour obtenir et traiter la position
-    const processCurrentPosition = () => {
-        if (STATE.locationMethod === 'geo') {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(showPosition, showError, { 
-                    enableHighAccuracy: true, 
-                    maximumAge: 0, 
-                    timeout: 10000 
-                });
-            } else {
-                updateInfo("La géolocalisation n'est pas supportée par ce navigateur.");
-            }
+function processCurrentPosition() {
+    if (STATE.locationMethod === 'geo') {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showPosition, showError, { 
+                enableHighAccuracy: true, 
+                maximumAge: 0, 
+                timeout: 10000 
+            });
         } else {
-            const manualLat = parseFloat(STATE.manualLat);
-            const manualLon = parseFloat(STATE.manualLon);
-            if (!isNaN(manualLat) && !isNaN(manualLon)) {
-                showPosition({ coords: { latitude: manualLat, longitude: manualLon, accuracy: 0 } });
-            } else {
-                updateInfo("Veuillez saisir des coordonnées valides.");
-            }
+            updateInfo("La géolocalisation n'est pas supportée par ce navigateur.");
         }
-    };
-
-    // Première exécution immédiate
-    processCurrentPosition();
-
-    // Puis répéter toutes les 60 secondes (60000 ms)
-    trackingInterval = setInterval(processCurrentPosition, 1000);
+    } else {
+        const manualLat = parseFloat(STATE.manualLat);
+        const manualLon = parseFloat(STATE.manualLon);
+        if (!isNaN(manualLat) && !isNaN(manualLon)) {
+            showPosition({ coords: { latitude: manualLat, longitude: manualLon, accuracy: 0 } });
+        } else {
+            updateInfo("Veuillez saisir des coordonnées valides.");
+        }
+    }
 }
 
 function showError(error) {
