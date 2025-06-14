@@ -175,11 +175,9 @@ function showPosition(position) {
     const currentIdx = Math.max(0, lastPassedIdx || 0);
     displayTimeline(currentIdx);
 
-/*     // Scroll uniquement si la station courante a changé
-    if (STATE.lastScrolledStationIdx !== currentIdx) {
-        scrollToCurrentStation();
-        STATE.lastScrolledStationIdx = currentIdx;
-    } */
+    // Désactivation de l'autoscroll
+    // scrollToCurrentStation();
+    // STATE.lastScrolledStationIdx = currentIdx;
 
     // MAJ du widget complet
     updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
