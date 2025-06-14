@@ -115,7 +115,7 @@ function startTracking() {
     processCurrentPosition();
 
     // Puis répéter toutes les 60 secondes (60000 ms)
-    trackingInterval = setInterval(processCurrentPosition, 60000);
+    trackingInterval = setInterval(processCurrentPosition, 1000);
 }
 
 function showError(error) {
