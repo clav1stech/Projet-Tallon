@@ -9,6 +9,7 @@ const STATE = {
     locationMethod: 'geo',
     manualLat: null,
     manualLon: null,
+    lastScrolledStationIdx: null,
 };
 
 export default STATE;

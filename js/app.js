@@ -174,11 +174,15 @@ function showPosition(position) {
     // Utiliser Math.max(0, lastPassedIdx) pour éviter les indices négatifs
     const currentIdx = Math.max(0, lastPassedIdx || 0);
     displayTimeline(currentIdx);
-    
+
+    // Scroll uniquement si la station courante a changé
+    if (STATE.lastScrolledStationIdx !== currentIdx) {
+        scrollToCurrentStation();
+        STATE.lastScrolledStationIdx = currentIdx;
+    }
+
     // MAJ du widget complet
     updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistance, nextPointDistance, theoreticalTime);
-
-    scrollToCurrentStation(); // Ceci positionnera la timeline après chaque update
 
     updateInfo(
         `<strong>Current position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}<br>` +
