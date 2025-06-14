@@ -157,7 +157,7 @@ function updateTimelineDelays() {
     });
 }
 
-export function scrollToCurrentStation() {
+/* export function scrollToCurrentStation() {
     const timeline = $('#timeline');
     const stations = timeline.querySelectorAll('.station:not(.header)');
     const current = timeline.querySelector('.current-station');
@@ -170,4 +170,4 @@ export function scrollToCurrentStation() {
 
     // Scroll pour que la station cible soit en haut du conteneur
     timeline.scrollTop = target.offsetTop - timeline.firstElementChild.offsetTop;
-}
+} */
