@@ -145,7 +145,18 @@ export function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistan
         departureDate.setHours(hours, minutes, 0, 0);
         let totalDuration = 0;
         STATE.pointsDePassage.forEach(point => totalDuration += Number(point.duree));
-        const arrivalDate = new Date(departureDate.getTime() + totalDuration * 1000);
+        let arrivalDate = new Date(departureDate.getTime() + totalDuration * 1000);
+
+        // Ajout du retard éventuel à l'ETA
+        let delayMinutes = 0;
+        if (STATE.currentDelay && STATE.currentDelay.startsWith('+')) {
+            // Ex: "+ 5 min"
+            const match = STATE.currentDelay.match(/\+ ?(\d+)/);
+            if (match) delayMinutes = parseInt(match[1], 10);
+        }
+        if (delayMinutes > 0) {
+            arrivalDate = new Date(arrivalDate.getTime() + delayMinutes * 60000);
+        }
         const arrivalStr = formatTime(arrivalDate);
         $('#current-time').textContent += ` • ETA: ${arrivalStr}`;
     }

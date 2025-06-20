@@ -24,10 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
         STATE.selectedRoute = e.target.value;
         saveSettings();
         loadSelectedTrajet();
+        displayTimeline(); // Ajout : met à jour la timeline lors du changement de route
     });
     $('#departure-time').addEventListener('change', (e) => {
         STATE.departureTime = e.target.value;
         saveSettings();
+        displayTimeline(); // Ajout : met à jour la timeline lors du changement d'heure
     });
     $$('input[name="locationMethod"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
