@@ -29,14 +29,26 @@ export function displayTimeline(currentIdx = null) {
     const timeline = $('#timeline');
     if (!STATE.departureTime || !STATE.pointsDePassage.length) return;
 
+    // Liste des gares à mettre en gras
+    const gares = [
+        "Paris-Lyon", "Le Creusot TGV", "Valence TGV", "Avignon TGV",
+        "Lyon-Saint-Exupéry TGV", "Marseille Saint-Charles", "Macon – Loché TGV",
+        "Le Creusot – Montceau – Montchanin TGV", "Aix-en-Provence TGV", "Lyon-Part-Dieu"
+    ];
+
     // Si la timeline existe déjà avec le bon nombre de stations, on ne fait qu'une mise à jour des classes
     const stations = timeline.querySelectorAll('.station:not(.header)');
     if (stations.length === STATE.pointsDePassage.length) {
         stations.forEach((station, idx) => {
             if (currentIdx !== null && idx === currentIdx) {
                 station.classList.add('current-station');
+                station.classList.remove('passed');
+            } else if (currentIdx !== null && idx < currentIdx) {
+                station.classList.remove('current-station');
+                station.classList.add('passed');
             } else {
                 station.classList.remove('current-station');
+                station.classList.remove('passed');
             }
         });
         return;
@@ -55,12 +67,20 @@ export function displayTimeline(currentIdx = null) {
         const arrivalTimeStr = formatTime(currentDate);
         const stationDiv = document.createElement('div');
         stationDiv.className = 'station';
+
+        // Mettre en gras si gare
+        const isGare = gares.includes(point.name);
         stationDiv.innerHTML = `<span>${arrivalTimeStr}</span>
-                                <span>${point.name}</span>
-                                <span class="delay"></span>`;
+            <span>${isGare ? `<strong>${point.name}</strong>` : point.name}</span>
+            <span class="delay"></span>`;
+
+        // Ajout des classes selon l'état
         if (currentIdx !== null && idx === currentIdx) {
             stationDiv.classList.add('current-station');
+        } else if (currentIdx !== null && idx < currentIdx) {
+            stationDiv.classList.add('passed');
         }
+
         timeline.appendChild(stationDiv);
     });
 }
