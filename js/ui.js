@@ -36,25 +36,7 @@ export function displayTimeline(currentIdx = null) {
         "Le Creusot – Montceau – Montchanin TGV", "Aix-en-Provence TGV", "Lyon-Part-Dieu"
     ];
 
-    // Si la timeline existe déjà avec le bon nombre de stations, on ne fait qu'une mise à jour des classes
-    const stations = timeline.querySelectorAll('.station:not(.header)');
-    if (stations.length === STATE.pointsDePassage.length) {
-        stations.forEach((station, idx) => {
-            if (currentIdx !== null && idx === currentIdx) {
-                station.classList.add('current-station');
-                station.classList.remove('passed');
-            } else if (currentIdx !== null && idx < currentIdx) {
-                station.classList.remove('current-station');
-                station.classList.add('passed');
-            } else {
-                station.classList.remove('current-station');
-                station.classList.remove('passed');
-            }
-        });
-        return;
-    }
-
-    // Sinon, on reconstruit tout (premier affichage ou changement de trajet)
+    // Toujours reconstruire la timeline pour s'assurer que les horaires sont recalculés
     timeline.innerHTML = '';
     const headerDiv = document.createElement('div');
     headerDiv.className = 'station header';

@@ -174,7 +174,7 @@ label input[type="radio"] {
     border-radius: 0;
     margin: 0;
     box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.15);
-    animation: pulse-highlight 2s infinite;
+    animation: pulse-highlight 3s ease-in-out infinite; /* Augmenté la durée à 3s et ajouté ease-in-out pour une courbe plus fluide */
     border: none;
     padding: 12px 0;
     width: 100%;
@@ -190,13 +190,21 @@ label input[type="radio"] {
 .station.current-station span { padding: 0 6px; }
 
 @keyframes pulse-highlight {
-    0%   { 
+    0% { 
         background: linear-gradient(90deg, rgba(37,99,235,0.12) 0%, rgba(200,200,200,0.18) 100%);
         box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.10);
     }
-    50%  { 
+    25% { /* Ajouté un point intermédiaire pour une transition plus douce */
+        background: linear-gradient(90deg, rgba(37,99,235,0.16) 0%, rgba(190,190,190,0.22) 100%);
+        box-shadow: 0 6px 28px 0 rgba(31, 38, 135, 0.12);
+    }
+    50% { 
         background: linear-gradient(90deg, rgba(37,99,235,0.20) 0%, rgba(180,180,180,0.28) 100%);
         box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+    }
+    75% { /* Ajouté un autre point intermédiaire pour éviter la réinitialisation abrupte */
+        background: linear-gradient(90deg, rgba(37,99,235,0.16) 0%, rgba(190,190,190,0.22) 100%);
+        box-shadow: 0 6px 28px 0 rgba(31, 38, 135, 0.12);
     }
     100% { 
         background: linear-gradient(90deg, rgba(37,99,235,0.12) 0%, rgba(200,200,200,0.18) 100%);
