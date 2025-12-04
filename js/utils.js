@@ -4,13 +4,17 @@ export const $$ = (sel) => document.querySelectorAll(sel);
 
 // Conversion d'heure sous forme "HH:MM" vers Date aujourd'hui
 export function timeStringToDate(timeStr) {
-    const [h, m] = timeStr.split(':').map(Number);
-    const d = new Date();
-    d.setHours(h, m, 0, 0);
-    return d;
+    if (!timeStr || typeof timeStr !== 'string') return new Date();
+    const [hStr, mStr] = timeStr.split(':');
+    const now = new Date();
+    now.setHours(Number(hStr) || 0, Number(mStr) || 0, 0, 0);
+    return now;
 }
 
 // Retourne l'heure formatée (HH:MM)
 export function formatTime(date) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (!(date instanceof Date)) return '';
+    const h = String(date.getHours()).padStart(2, '0');
+    const m = String(date.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
 }

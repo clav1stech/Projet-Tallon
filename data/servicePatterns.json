@@ -1,0 +1,94 @@
+{
+  "servicePatterns": [
+    {
+      "id": "PAR_LYO_WITH_CREUSOT",
+      "label": "Paris → Lyon (avec Creusot)",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "PARIS_LYON",
+      "endPointId": "LYON_ST_EX",
+      "stops": ["PARIS_LYON", "CREUSOT_TGV", "LYON_ST_EX"],
+      "deltaSeconds": 0
+    },
+    {
+      "id": "PAR_LYO_NO_CREUSOT",
+      "label": "Paris → Lyon (sans Creusot)",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "PARIS_LYON",
+      "endPointId": "LYON_ST_EX",
+      "stops": ["PARIS_LYON", "LYON_ST_EX"],
+      "deltaSeconds": 0
+    },
+    {
+      "id": "LYO_PAR_WITH_CREUSOT",
+      "label": "Lyon → Paris (avec Creusot)",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "LYON_ST_EX",
+      "endPointId": "PARIS_LYON",
+      "stops": ["LYON_ST_EX", "CREUSOT_TGV", "PARIS_LYON"],
+      "deltaSeconds": 0
+    },
+    {
+      "id": "LYO_PAR_NO_CREUSOT",
+      "label": "Lyon → Paris (sans Creusot)",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "LYON_ST_EX",
+      "endPointId": "PARIS_LYON",
+      "stops": ["LYON_ST_EX", "PARIS_LYON"],
+      "deltaSeconds": 0
+    },
+    {
+      "id": "PAR_MACON",
+      "label": "Paris → Mâcon",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "PARIS_LYON",
+      "endPointId": "MACON_LOCHE",
+      "stops": ["PARIS_LYON", "MACON_LOCHE"],
+      "deltaSeconds": 0
+    },
+    {
+      "id": "MACON_PAR",
+      "label": "Mâcon → Paris",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "MACON_LOCHE",
+      "endPointId": "PARIS_LYON",
+      "stops": ["MACON_LOCHE", "PARIS_LYON"],
+      "deltaSeconds": 0
+    },
+    {
+      "id": "PAR_MRS_DIRECT",
+      "label": "Paris → Marseille (direct)",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "PARIS_LYON",
+      "endPointId": "MARSEILLE_ST_CHARLES",
+      "stops": ["PARIS_LYON", "MARSEILLE_ST_CHARLES"],
+      "deltaSeconds": 0
+    },
+    {
+      "id": "PAR_MRS_WITH_STOPS",
+      "label": "Paris → Marseille (avec arrêts)",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "PARIS_LYON",
+      "endPointId": "MARSEILLE_ST_CHARLES",
+      "stops": ["PARIS_LYON", "CREUSOT_TGV", "MACON_LOCHE", "LYON_ST_EX", "VALENCE_TGV", "AVIGNON_TGV", "AIX_TGV", "MARSEILLE_ST_CHARLES"],
+      "deltaSeconds": 0
+    },
+    {
+      "id": "MRS_PAR_DIRECT",
+      "label": "Marseille → Paris (direct)",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "MARSEILLE_ST_CHARLES",
+      "endPointId": "PARIS_LYON",
+      "stops": ["MARSEILLE_ST_CHARLES", "PARIS_LYON"],
+      "deltaSeconds": 0
+    },
+    {
+      "id": "MRS_PAR_WITH_STOPS",
+      "label": "Marseille → Paris (avec arrêts)",
+      "masterRouteId": "PAR_MRS_SUD",
+      "startPointId": "MARSEILLE_ST_CHARLES",
+      "endPointId": "PARIS_LYON",
+      "stops": ["MARSEILLE_ST_CHARLES", "AIX_TGV", "AVIGNON_TGV", "VALENCE_TGV", "LYON_ST_EX", "MACON_LOCHE", "CREUSOT_TGV", "PARIS_LYON"],
+      "deltaSeconds": 0
+    }
+  ]
+}
