@@ -291,6 +291,7 @@ function showPosition(position) {
 
     const userLat = position.coords.latitude;
     const userLon = position.coords.longitude;
+    const accuracyMeters = Number(position.coords.accuracy);
 
     // ✅ Passer lastSegmentIndex pour respecter le sens de circulation
     const {
@@ -301,7 +302,8 @@ function showPosition(position) {
         STATE.currentRoute, 
         userLat, 
         userLon, 
-        STATE.lastSegmentIndex
+        STATE.lastSegmentIndex,
+        Number.isFinite(accuracyMeters) ? accuracyMeters : null
     );
 
     if (segmentIndex === null || segmentIndex < 0) {
@@ -367,6 +369,9 @@ function showPosition(position) {
     );
 
     let infoHtml = `<strong>Position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}.`;
+    if (Number.isFinite(accuracyMeters) && accuracyMeters > 0) {
+        infoHtml += ` (±${Math.round(accuracyMeters)} m)`;
+    }
     if (nextPoint) {
         infoHtml += ` Prochain: ${nextPoint.name} (${distanceToNextPointKm.toFixed(2)} km).`;
     }

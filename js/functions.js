@@ -1,6 +1,10 @@
 // js/functions.js
 import { computeSegmentProgress, haversineDistance } from './geo.js';
 
+const MIN_ROUTE_TOLERANCE_KM = 0.2;
+const BASE_MAX_OFFSET_KM = 0.4;
+const LAT_PROGRESS_DEG_THRESHOLD = 0.003; // ≈330m, suffisant pour suivre via latitude
+
 /**
  * Construit une route effective à partir d'un service pattern et de la master route.
  */
@@ -175,6 +179,45 @@ function projectOnSegment(pLat, pLon, aLat, aLon, bLat, bLon) {
     return dotProduct / abLengthSq;
 }
 
+function computeLatitudeRatio(pStart, pEnd, lat) {
+    if (!pStart || !pEnd) return null;
+    if (typeof lat !== 'number') return null;
+    const deltaLat = (pEnd.lat ?? 0) - (pStart.lat ?? 0);
+    if (Math.abs(deltaLat) < LAT_PROGRESS_DEG_THRESHOLD) {
+        return null;
+    }
+    return (lat - (pStart.lat ?? 0)) / deltaLat;
+}
+
+function buildSegmentCandidate(pStart, pEnd, lat, lon, preferredRatio = null) {
+    if (!pStart || !pEnd) return null;
+    if (typeof pStart.lat !== 'number' || typeof pStart.lon !== 'number') return null;
+    if (typeof pEnd.lat !== 'number' || typeof pEnd.lon !== 'number') return null;
+
+    const segmentLengthKm = getSegmentLength(pStart, pEnd);
+    if (!segmentLengthKm || segmentLengthKm <= 0) {
+        return null;
+    }
+
+    let ratio = Number.isFinite(preferredRatio) ? preferredRatio : null;
+    if (ratio === null) {
+        ratio = projectOnSegment(lat, lon, pStart.lat, pStart.lon, pEnd.lat, pEnd.lon);
+    }
+
+    const clampedRatio = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
+    const projLat = pStart.lat + (pEnd.lat - pStart.lat) * clampedRatio;
+    const projLon = pStart.lon + (pEnd.lon - pStart.lon) * clampedRatio;
+    const offsetKm = haversineDistance(lat, lon, projLat, projLon);
+
+    return {
+        ratio: clampedRatio,
+        distanceFromSegmentStart: clampedRatio * segmentLengthKm,
+        distanceToNextPointKm: Math.max(0, segmentLengthKm - clampedRatio * segmentLengthKm),
+        segmentLengthKm,
+        offsetKm
+    };
+}
+
 /**
  * Détermine sur quel segment se trouve une position (lat, lon)
  * EN RESPECTANT LE SENS DE CIRCULATION
@@ -188,62 +231,55 @@ function projectOnSegment(pLat, pLon, aLat, aLon, bLat, bLon) {
  * @param {number|null} lastSegmentIndex - Dernier segment validé
  * @returns {{ segmentIndex, distanceFromSegmentStart, distanceToNextPointKm }}
  */
-export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex = null) {
+export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex = null, accuracyMeters = null) {
     if (!route || route.length < 2) {
         return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
     }
 
-    // Segment actuel (ou 0 si pas encore initialisé)
-    let currentSeg = (lastSegmentIndex !== null && lastSegmentIndex >= 0) 
-        ? lastSegmentIndex 
-        : 0;
+    const toleranceKm = Math.max(
+        MIN_ROUTE_TOLERANCE_KM,
+        Number.isFinite(accuracyMeters) && accuracyMeters > 0 ? accuracyMeters / 1000 : 0
+    );
+    const maxAcceptableOffset = Math.max(toleranceKm, BASE_MAX_OFFSET_KM);
 
-    // Boucle : tant qu'on a dépassé le point suivant, on avance
-    while (currentSeg < route.length - 1) {
-        const pStart = route[currentSeg];
-        const pEnd = route[currentSeg + 1];
+    const startIdx = Math.max(0, (lastSegmentIndex ?? 0) - 2);
+    const endIdx = Math.min(route.length - 2, (lastSegmentIndex ?? 0) + 3);
 
-        if (typeof pStart.lat !== 'number' || typeof pEnd.lat !== 'number') {
-            break;
+    let bestCandidate = null;
+
+    for (let idx = startIdx; idx <= endIdx; idx++) {
+        const pStart = route[idx];
+        const pEnd = route[idx + 1];
+        if (!pStart || !pEnd) continue;
+
+        const latRatio = computeLatitudeRatio(pStart, pEnd, lat);
+        const candidate = buildSegmentCandidate(pStart, pEnd, lat, lon, latRatio);
+        if (!candidate) continue;
+
+        const withTolerance = candidate.offsetKm <= toleranceKm;
+        if (
+            withTolerance &&
+            (!bestCandidate ||
+                bestCandidate.offsetKm > toleranceKm ||
+                candidate.offsetKm < bestCandidate.offsetKm)
+        ) {
+            bestCandidate = { segmentIndex: idx, ...candidate };
+            continue;
         }
 
-        // Calculer le ratio de projection sur ce segment
-        const ratio = projectOnSegment(
-            lat, lon,
-            pStart.lat, pStart.lon,
-            pEnd.lat, pEnd.lon
-        );
-
-        // Si ratio <= 1, on est encore sur ce segment (pas dépassé le Next)
-        if (ratio <= 1.0) {
-            // On reste sur ce segment
-            const segmentLength = getSegmentLength(pStart, pEnd);
-            const clampedRatio = Math.max(0, Math.min(1, ratio));
-            const distanceFromSegmentStart = clampedRatio * segmentLength;
-            const distanceToNextPointKm = Math.max(0, segmentLength - distanceFromSegmentStart);
-
-            return {
-                segmentIndex: currentSeg,
-                distanceFromSegmentStart,
-                distanceToNextPointKm
-            };
+        if (!bestCandidate || (bestCandidate.offsetKm > toleranceKm && candidate.offsetKm < bestCandidate.offsetKm)) {
+            bestCandidate = { segmentIndex: idx, ...candidate };
         }
-
-        // ratio > 1 → on a dépassé le point Next → on avance au segment suivant
-        console.log(`[Avancement] Dépassement du point ${pEnd.name} (ratio=${ratio.toFixed(2)})`);
-        currentSeg++;
     }
 
-    // On est arrivé au dernier segment
-    const lastSeg = route.length - 2;
-    const pStart = route[lastSeg];
-    const pEnd = route[lastSeg + 1];
-    const segmentLength = getSegmentLength(pStart, pEnd);
+    if (!bestCandidate || bestCandidate.offsetKm > maxAcceptableOffset) {
+        return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
+    }
 
     return {
-        segmentIndex: lastSeg,
-        distanceFromSegmentStart: segmentLength,
-        distanceToNextPointKm: 0
+        segmentIndex: bestCandidate.segmentIndex,
+        distanceFromSegmentStart: bestCandidate.distanceFromSegmentStart,
+        distanceToNextPointKm: bestCandidate.distanceToNextPointKm
     };
 }
 
