@@ -3,6 +3,8 @@ import { computeSegmentProgress, haversineDistance } from './geo.js';
 
 const MIN_ROUTE_TOLERANCE_KM = 0.2;
 const BASE_MAX_OFFSET_KM = 0.4;
+const CURVE_ALLOWANCE_RATIO = 0.05;
+const POINT_MATCH_TOLERANCE_KM = 0.6;
 const LAT_PROGRESS_DEG_THRESHOLD = 0.003; // ≈330m, suffisant pour suivre via latitude
 
 /**
@@ -240,39 +242,85 @@ export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex
         MIN_ROUTE_TOLERANCE_KM,
         Number.isFinite(accuracyMeters) && accuracyMeters > 0 ? accuracyMeters / 1000 : 0
     );
-    const maxAcceptableOffset = Math.max(toleranceKm, BASE_MAX_OFFSET_KM);
+    const baseMaxOffset = Math.max(toleranceKm, BASE_MAX_OFFSET_KM);
 
-    const startIdx = Math.max(0, (lastSegmentIndex ?? 0) - 2);
-    const endIdx = Math.min(route.length - 2, (lastSegmentIndex ?? 0) + 3);
+    const hasLastIndex = Number.isFinite(lastSegmentIndex) && lastSegmentIndex >= 0;
+    const startIdx = hasLastIndex ? Math.max(0, lastSegmentIndex - 2) : 0;
+    const endIdx = hasLastIndex ? Math.min(route.length - 2, lastSegmentIndex + 3) : route.length - 2;
 
-    let bestCandidate = null;
+    const findBestCandidate = (fromIdx, toIdx) => {
+        let bestCandidate = null;
 
-    for (let idx = startIdx; idx <= endIdx; idx++) {
-        const pStart = route[idx];
-        const pEnd = route[idx + 1];
-        if (!pStart || !pEnd) continue;
+        for (let idx = fromIdx; idx <= toIdx; idx++) {
+            const pStart = route[idx];
+            const pEnd = route[idx + 1];
+            if (!pStart || !pEnd) continue;
 
-        const latRatio = computeLatitudeRatio(pStart, pEnd, lat);
-        const candidate = buildSegmentCandidate(pStart, pEnd, lat, lon, latRatio);
-        if (!candidate) continue;
+            const latRatio = computeLatitudeRatio(pStart, pEnd, lat);
+            const candidate = buildSegmentCandidate(pStart, pEnd, lat, lon, latRatio);
+            if (!candidate) continue;
 
-        const withTolerance = candidate.offsetKm <= toleranceKm;
-        if (
-            withTolerance &&
-            (!bestCandidate ||
-                bestCandidate.offsetKm > toleranceKm ||
-                candidate.offsetKm < bestCandidate.offsetKm)
-        ) {
-            bestCandidate = { segmentIndex: idx, ...candidate };
-            continue;
+            const withTolerance = candidate.offsetKm <= toleranceKm;
+            if (
+                withTolerance &&
+                (!bestCandidate ||
+                    bestCandidate.offsetKm > toleranceKm ||
+                    candidate.offsetKm < bestCandidate.offsetKm)
+            ) {
+                bestCandidate = { segmentIndex: idx, ...candidate };
+                continue;
+            }
+
+            if (!bestCandidate || (bestCandidate.offsetKm > toleranceKm && candidate.offsetKm < bestCandidate.offsetKm)) {
+                bestCandidate = { segmentIndex: idx, ...candidate };
+            }
         }
 
-        if (!bestCandidate || (bestCandidate.offsetKm > toleranceKm && candidate.offsetKm < bestCandidate.offsetKm)) {
-            bestCandidate = { segmentIndex: idx, ...candidate };
-        }
+        return bestCandidate;
+    };
+
+    let bestCandidate = findBestCandidate(startIdx, endIdx);
+    if (!bestCandidate && hasLastIndex) {
+        bestCandidate = findBestCandidate(0, route.length - 2);
     }
 
-    if (!bestCandidate || bestCandidate.offsetKm > maxAcceptableOffset) {
+    const isWithinAllowedOffset = (candidate) => {
+        const curveAllowanceKm = candidate.segmentLengthKm * CURVE_ALLOWANCE_RATIO;
+        const maxAcceptableOffset = Math.max(baseMaxOffset, curveAllowanceKm);
+        return candidate.offsetKm <= maxAcceptableOffset;
+    };
+
+    if (!bestCandidate || !isWithinAllowedOffset(bestCandidate)) {
+        let nearestPointIdx = null;
+        let nearestPointDistKm = Infinity;
+        const pointToleranceKm = Math.max(
+            POINT_MATCH_TOLERANCE_KM,
+            Number.isFinite(accuracyMeters) && accuracyMeters > 0 ? accuracyMeters / 1000 : 0
+        );
+
+        for (let i = 0; i < route.length; i++) {
+            const p = route[i];
+            if (!p || typeof p.lat !== 'number' || typeof p.lon !== 'number') continue;
+            const d = haversineDistance(lat, lon, p.lat, p.lon);
+            if (d < nearestPointDistKm) {
+                nearestPointDistKm = d;
+                nearestPointIdx = i;
+            }
+        }
+
+        if (nearestPointIdx === null || nearestPointDistKm > pointToleranceKm) {
+            return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
+        }
+
+        const segmentIndex = Math.max(0, Math.min(route.length - 2, nearestPointIdx));
+        return {
+            segmentIndex,
+            distanceFromSegmentStart: 0,
+            distanceToNextPointKm: 0
+        };
+    }
+
+    if (!bestCandidate) {
         return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
     }
 
