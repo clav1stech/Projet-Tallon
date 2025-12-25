@@ -307,7 +307,12 @@ function showPosition(position) {
     );
 
     if (segmentIndex === null || segmentIndex < 0) {
-        updateInfo("Position actuelle hors de la route prévue.");
+        let infoHtml = `<strong>Position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}.`;
+        if (Number.isFinite(accuracyMeters) && accuracyMeters > 0) {
+            infoHtml += ` (±${Math.round(accuracyMeters)} m)`;
+        }
+        infoHtml += " Position actuelle hors de la route prévue.";
+        updateInfo(infoHtml);
         return;
     }
 
