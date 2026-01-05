@@ -254,19 +254,26 @@ export function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistan
 
     if (!currentTimeEl) return;
 
-    if (typeof STATE.currentDelay === 'number' && nextPoint && STATE.currentDelay > 30_000) {
-        const minutes = Math.floor(STATE.currentDelay / 60000);
-        const label = minutes > 0 ? `Delay : ${minutes} min estimated` : '';
-        currentTimeEl.textContent = label;
-        if (label) {
-            currentTimeEl.classList.add('red');
-            currentTimeEl.classList.remove('green');
-        } else {
-            currentTimeEl.classList.remove('red', 'green');
-        }
-    } else {
+    const setStatus = (value, tone) => {
+        currentTimeEl.innerHTML = `
+            <span class="status-label">Statut</span>
+            <span class="status-value">${value}</span>
+        `;
+        currentTimeEl.classList.toggle('red', tone === 'red');
+        currentTimeEl.classList.toggle('green', tone === 'green');
+    };
+
+    if (!nextPoint || typeof STATE.currentDelay !== 'number') {
         currentTimeEl.textContent = '';
         currentTimeEl.classList.remove('red', 'green');
+        return;
+    }
+
+    if (STATE.currentDelay > 30_000) {
+        const minutes = Math.max(1, Math.ceil(STATE.currentDelay / 60000));
+        setStatus(`Delay ${minutes} min`, 'red');
+    } else {
+        setStatus('On Time', 'green');
     }
 }
 

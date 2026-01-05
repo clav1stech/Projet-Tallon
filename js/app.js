@@ -144,6 +144,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (startBtn) {
         startBtn.addEventListener('click', startTracking);
     }
+
+    const controlsPanel = document.querySelector('.controls-panel');
+    if (controlsPanel) {
+        let touchStartY = null;
+        const minSwipe = 40;
+
+        controlsPanel.addEventListener('touchstart', (event) => {
+            if (!document.body.classList.contains('tracking-active')) {
+                return;
+            }
+            touchStartY = event.touches[0].clientY;
+        }, { passive: true });
+
+        controlsPanel.addEventListener('touchend', (event) => {
+            if (touchStartY === null) {
+                return;
+            }
+            const endY = event.changedTouches[0].clientY;
+            const deltaY = endY - touchStartY;
+
+            if (Math.abs(deltaY) >= minSwipe) {
+                if (deltaY > 0) {
+                    document.body.classList.add('show-settings');
+                } else {
+                    document.body.classList.remove('show-settings');
+                }
+            }
+
+            touchStartY = null;
+        });
+    }
 });
 
 function getMainRouteConfig() {
@@ -249,6 +280,8 @@ function startTracking() {
     STATE.departureTimestamp = computeDepartureTimestamp(STATE.departureTime);
 
     displayTimeline();
+    document.body.classList.add('tracking-active');
+    document.body.classList.remove('show-settings');
 
     // Démarre le tracking une seule fois
     if (!trackingInterval) {
