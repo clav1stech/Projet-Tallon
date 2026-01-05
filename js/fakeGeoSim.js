@@ -2,7 +2,7 @@
 
 // --- TOGGLE UNIQUE ---
 // Passez à false pour désactiver totalement la simulation (GPS réel utilisé).
-const ENABLE_FAKE_GPS = true;
+const ENABLE_FAKE_GPS = false;
 
 // ----------------------
 
