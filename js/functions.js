@@ -1,11 +1,10 @@
 // js/functions.js
 import { computeSegmentProgress, haversineDistance } from './geo.js';
 
-const MIN_ROUTE_TOLERANCE_KM = 0.2;
-const BASE_MAX_OFFSET_KM = 0.4;
-const CURVE_ALLOWANCE_RATIO = 0.05;
-const POINT_MATCH_TOLERANCE_KM = 0.6;
-const LAT_PROGRESS_DEG_THRESHOLD = 0.003; // ≈330m, suffisant pour suivre via latitude
+const MIN_ROUTE_TOLERANCE_KM = 0.25;
+const BASE_MAX_OFFSET_KM = 0.6;
+const CURVE_ALLOWANCE_RATIO = 0.08;
+const POINT_MATCH_TOLERANCE_KM = 0.9;
 
 /**
  * Construit une route effective à partir d'un service pattern et de la master route.
@@ -181,16 +180,6 @@ function projectOnSegment(pLat, pLon, aLat, aLon, bLat, bLon) {
     return dotProduct / abLengthSq;
 }
 
-function computeLatitudeRatio(pStart, pEnd, lat) {
-    if (!pStart || !pEnd) return null;
-    if (typeof lat !== 'number') return null;
-    const deltaLat = (pEnd.lat ?? 0) - (pStart.lat ?? 0);
-    if (Math.abs(deltaLat) < LAT_PROGRESS_DEG_THRESHOLD) {
-        return null;
-    }
-    return (lat - (pStart.lat ?? 0)) / deltaLat;
-}
-
 function buildSegmentCandidate(pStart, pEnd, lat, lon, preferredRatio = null) {
     if (!pStart || !pEnd) return null;
     if (typeof pStart.lat !== 'number' || typeof pStart.lon !== 'number') return null;
@@ -220,6 +209,59 @@ function buildSegmentCandidate(pStart, pEnd, lat, lon, preferredRatio = null) {
     };
 }
 
+function isSouthboundRoute(route, direction) {
+    const dir = (direction || '').toString().toUpperCase();
+    if (dir.includes('SUD') || dir.includes('SOUTH')) return true;
+    if (dir.includes('NORD') || dir.includes('NORTH')) return false;
+
+    const first = route?.[0];
+    const last = route?.[route.length - 1];
+    if (!first || !last) return null;
+    if (typeof first.lat !== 'number' || typeof last.lat !== 'number') return null;
+    return last.lat < first.lat;
+}
+
+function fallbackSegmentByLatitude(route, lat, lon, lastSegmentIndex, direction) {
+    if (!route || route.length < 2) return null;
+    if (typeof lat !== 'number') return null;
+
+    const southbound = isSouthboundRoute(route, direction);
+    if (southbound === null) return null;
+
+    const hasLastIndex = Number.isFinite(lastSegmentIndex) && lastSegmentIndex >= 0;
+    const startIdx = hasLastIndex ? Math.min(lastSegmentIndex, route.length - 1) : 0;
+
+    const findNextIdx = (fromIdx) => {
+        for (let i = fromIdx; i < route.length; i++) {
+            const p = route[i];
+            if (!p || typeof p.lat !== 'number') continue;
+            if (southbound ? lat <= p.lat : lat >= p.lat) return i;
+        }
+        return null;
+    };
+
+    let nextIdx = findNextIdx(startIdx);
+    if (nextIdx === null && startIdx > 0) {
+        nextIdx = findNextIdx(0);
+    }
+    if (nextIdx === null) return null;
+
+    let segmentIndex = Math.max(0, Math.min(route.length - 2, nextIdx - 1));
+    if (hasLastIndex) {
+        segmentIndex = Math.max(segmentIndex, Math.min(route.length - 2, lastSegmentIndex));
+    }
+
+    const progress = computeSegmentProgress(route, segmentIndex, lat, lon);
+    const distanceFromSegmentStart = progress?.distanceFromStart || 0;
+    const segmentLength = progress?.segmentLength || 0;
+
+    return {
+        segmentIndex,
+        distanceFromSegmentStart,
+        distanceToNextPointKm: Math.max(0, segmentLength - distanceFromSegmentStart)
+    };
+}
+
 /**
  * Détermine sur quel segment se trouve une position (lat, lon)
  * EN RESPECTANT LE SENS DE CIRCULATION
@@ -231,9 +273,11 @@ function buildSegmentCandidate(pStart, pEnd, lat, lon, preferredRatio = null) {
  * @param {number} lat - Latitude actuelle
  * @param {number} lon - Longitude actuelle
  * @param {number|null} lastSegmentIndex - Dernier segment validé
+ * @param {number|null} accuracyMeters - Précision GPS en mètres
+ * @param {string|null} direction - Sens de circulation (ex: SUD/NORD)
  * @returns {{ segmentIndex, distanceFromSegmentStart, distanceToNextPointKm }}
  */
-export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex = null, accuracyMeters = null) {
+export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex = null, accuracyMeters = null, direction = null) {
     if (!route || route.length < 2) {
         return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
     }
@@ -256,8 +300,7 @@ export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex
             const pEnd = route[idx + 1];
             if (!pStart || !pEnd) continue;
 
-            const latRatio = computeLatitudeRatio(pStart, pEnd, lat);
-            const candidate = buildSegmentCandidate(pStart, pEnd, lat, lon, latRatio);
+            const candidate = buildSegmentCandidate(pStart, pEnd, lat, lon);
             if (!candidate) continue;
 
             const withTolerance = candidate.offsetKm <= toleranceKm;
@@ -309,6 +352,8 @@ export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex
         }
 
         if (nearestPointIdx === null || nearestPointDistKm > pointToleranceKm) {
+            const fallback = fallbackSegmentByLatitude(route, lat, lon, lastSegmentIndex, direction);
+            if (fallback) return fallback;
             return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
         }
 
@@ -321,6 +366,8 @@ export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex
     }
 
     if (!bestCandidate) {
+        const fallback = fallbackSegmentByLatitude(route, lat, lon, lastSegmentIndex, direction);
+        if (fallback) return fallback;
         return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
     }
 

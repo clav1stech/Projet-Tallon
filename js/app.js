@@ -336,7 +336,8 @@ function showPosition(position) {
         userLat, 
         userLon, 
         STATE.lastSegmentIndex,
-        Number.isFinite(accuracyMeters) ? accuracyMeters : null
+        Number.isFinite(accuracyMeters) ? accuracyMeters : null,
+        STATE.direction
     );
 
     if (segmentIndex === null || segmentIndex < 0) {
