@@ -449,7 +449,8 @@ function showPosition(position) {
         distanceToNextPointKm
     );
 
-    updateLandscapeHUD(displayIdx, currentSpeed, currentDelayMs, userLat, userLon);
+    const speedReliable = STATE.locationMethod === 'geo' && STATE.lastPositions.length >= 2;
+    updateLandscapeHUD(displayIdx, currentSpeed, currentDelayMs, userLat, userLon, speedReliable);
 
     let infoHtml = `<strong>Position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}.`;
     if (Number.isFinite(accuracyMeters) && accuracyMeters > 0) {

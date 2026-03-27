@@ -205,17 +205,22 @@ export function displayTimeline(currentIdx = null) {
         const nameHtml = isStop ? `<strong>${point.name}</strong>` : point.name;
 
         // Retard affiché
+        const isNextPoint = currentIdx != null && idx === currentIdx + 1;
         let delayText = '';
         if (STATE.passedPoints && Object.prototype.hasOwnProperty.call(STATE.passedPoints, point.id)) {
             delayText = formatDelayMs(STATE.passedPoints[point.id]);
-        } else if (currentIdx != null && idx === currentIdx + 1 && typeof STATE.currentDelay === 'number') {
+        } else if (isNextPoint && typeof STATE.currentDelay === 'number') {
             delayText = formatDelayMs(STATE.currentDelay);
         }
 
+        const timeSpan = isNextPoint && delayText
+            ? `<span>${arrivalTimeStr} <span class="delay-inline">${delayText}</span></span>`
+            : `<span>${arrivalTimeStr}</span>`;
+
         stationDiv.innerHTML = `
-            <span>${arrivalTimeStr}</span>
+            ${timeSpan}
             <span>${nameHtml}</span>
-            <span class="delay">${delayText}</span>
+            <span class="delay">${isNextPoint ? '' : delayText}</span>
         `;
 
         // Styling de la station courante / passée
@@ -297,7 +302,7 @@ function formatHudDelay(delayMs) {
     return `${sign}${absMin}min`;
 }
 
-export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, userLon) {
+export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, userLon, speedReliable = true) {
     if (!window.matchMedia('(orientation: landscape)').matches) return;
 
     // --- Dashboard ---
@@ -306,14 +311,19 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
     const delayEl = document.getElementById('hud-delay');
 
     if (speedEl) {
-        const displaySpeed = Math.round(speed);
-        const arcSpeed = Math.min(displaySpeed, 320);
-        const speedDeg = Math.round((arcSpeed / 320) * 240);
-        speedEl.style.setProperty('--speed-deg', `${speedDeg}deg`);
-        speedEl.innerHTML = `
-            <span class="hud-speed-value">${displaySpeed}</span>
-            <span class="hud-speed-unit">km/h</span>
-        `;
+        if (!speedReliable) {
+            speedEl.style.setProperty('--speed-deg', '0deg');
+            speedEl.innerHTML = `<span class="hud-speed-value">No GPS</span>`;
+        } else {
+            const displaySpeed = Math.round(speed);
+            const arcSpeed = Math.min(displaySpeed, 320);
+            const speedDeg = Math.round((arcSpeed / 320) * 240);
+            speedEl.style.setProperty('--speed-deg', `${speedDeg}deg`);
+            speedEl.innerHTML = `
+                <span class="hud-speed-value">${displaySpeed}</span>
+                <span class="hud-speed-unit">km/h</span>
+            `;
+        }
     }
 
     const graphCanvas = document.getElementById('hud-speed-graph');
@@ -397,7 +407,10 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
             totalSec += Number(STATE.currentRoute[i].durationEffective ?? STATE.currentRoute[i].baseDurationToNext ?? 0);
         }
         const theoArrivalMs = STATE.departureTimestamp + totalSec * 1000;
-        const etaMs = theoArrivalMs + (typeof currentDelay === 'number' ? currentDelay : 0);
+        const beforeDeparture = Date.now() < STATE.departureTimestamp;
+        const etaMs = beforeDeparture
+            ? theoArrivalMs
+            : theoArrivalMs + (typeof currentDelay === 'number' ? currentDelay : 0);
         const etaDate = new Date(etaMs);
         const hh = String(etaDate.getHours()).padStart(2, '0');
         const mm = String(etaDate.getMinutes()).padStart(2, '0');
@@ -632,12 +645,15 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
 
 function formatDelayMs(delayMs) {
     if (typeof delayMs !== 'number') return '';
-    
+
     // On n'affiche pas les retards négatifs (avance) ni les retards inférieurs à 1 minute
     if (delayMs < 60000) return '';
 
-    // On affiche uniquement les minutes entières
-    const minutes = Math.floor(delayMs / 60000);
-
-    return `+${minutes} min`;
+    const totalMinutes = Math.floor(delayMs / 60000);
+    if (totalMinutes >= 60) {
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        return m > 0 ? `+${h}h${m}min` : `+${h}h`;
+    }
+    return `+${totalMinutes}min`;
 }

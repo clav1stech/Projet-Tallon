@@ -721,6 +721,13 @@ label input[type="radio"] {
     margin-left: 5px;
 }
 
+#timeline .station .delay-inline {
+    color: #ff0000;
+    font-weight: bold;
+    font-size: 0.85em;
+    margin-left: 4px;
+}
+
 .delay {
     color: var(--danger);              /* ✅ correction ici */
     font-weight: 700;
