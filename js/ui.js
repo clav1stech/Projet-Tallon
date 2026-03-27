@@ -151,7 +151,7 @@ export function setupLocationMethodListener() {
 
     locationRadios.forEach(radio => {
         radio.addEventListener('change', e => {
-            const value = e.target.value === 'manual' ? 'manual' : 'geo';
+            const value = e.target.value;
             STATE.locationMethod = value;
             saveSettings();
             applyLocationMethod(value);

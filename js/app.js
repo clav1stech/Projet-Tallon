@@ -290,8 +290,31 @@ function startTracking() {
     }
 }
 
+async function fetchSncfPosition() {
+    try {
+        const response = await fetch('https://wifi.sncf/router/api/train/gps', { signal: AbortSignal.timeout(3000) });
+        if (!response.ok) throw new Error('API injoignable');
+        const data = await response.json();
+        if (data.success) {
+            showPosition({ coords: { latitude: data.latitude, longitude: data.longitude, accuracy: 15, speed: data.speed }, timestamp: data.timestamp ? data.timestamp * 1000 : Date.now() });
+            return;
+        }
+        throw new Error('Données invalides');
+    } catch (e) {
+        STATE.locationMethod = 'geo';
+        const geoRadio = document.querySelector('input[name="locationMethod"][value="geo"]');
+        if (geoRadio) geoRadio.checked = true;
+        updateInfo("WiFi SNCF bloqué (CORS), bascule automatique et définitive sur GPS natif.");
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showPosition, showError, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+        }
+    }
+}
+
 function processCurrentPosition() {
-    if (STATE.locationMethod === 'geo') {
+    if (STATE.locationMethod === 'sncf') {
+        fetchSncfPosition();
+    } else if (STATE.locationMethod === 'geo') {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(showPosition, showError, {
                 enableHighAccuracy: true,
