@@ -282,6 +282,7 @@ export function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistan
 
 let _hudLastActiveIdx = null;
 let _hudLastRouteKey = null;
+let _hudScrollAnimId = null;
 
 function formatHudDelay(delayMs) {
     if (typeof delayMs !== 'number') return '';
@@ -305,21 +306,98 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
     const delayEl = document.getElementById('hud-delay');
 
     if (speedEl) {
-        const clampedSpeed = Math.min(Math.round(speed), 320);
-        const speedDeg = Math.round((clampedSpeed / 320) * 360);
+        const displaySpeed = Math.round(speed);
+        const arcSpeed = Math.min(displaySpeed, 320);
+        const speedDeg = Math.round((arcSpeed / 320) * 240);
         speedEl.style.setProperty('--speed-deg', `${speedDeg}deg`);
         speedEl.innerHTML = `
-            <span class="hud-speed-value">${clampedSpeed}</span>
+            <span class="hud-speed-value">${displaySpeed}</span>
             <span class="hud-speed-unit">km/h</span>
         `;
     }
 
-    if (etaEl && STATE.currentRoute.length && STATE.departureTimestamp) {
-        let remainingSec = 0;
-        for (let i = currentIdx; i < STATE.currentRoute.length - 1; i++) {
-            remainingSec += Number(STATE.currentRoute[i].durationEffective ?? STATE.currentRoute[i].baseDurationToNext ?? 0);
+    const graphCanvas = document.getElementById('hud-speed-graph');
+    if (graphCanvas) {
+        const ctx = graphCanvas.getContext('2d');
+        const w = graphCanvas.width;
+        const h = graphCanvas.height;
+        const history = STATE.speedHistory || [];
+        const maxSpeed = Math.max(...(history.slice(Math.max(0, history.length - 1200))), 1);
+
+        ctx.clearRect(0, 0, w, h);
+
+        if (history.length >= 2) {
+            const total = 1200;
+            const startIdx = Math.max(0, history.length - total);
+            const points = history.slice(startIdx);
+            const n = points.length;
+
+            const xScale = w / (n - 1);
+
+            const grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.20)');
+            grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            ctx.beginPath();
+            for (let i = 0; i < n; i++) {
+                const x = i * xScale;
+                const y = h - (Math.min(points[i], maxSpeed) / maxSpeed) * h;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            // Fermeture du path pour le remplissage
+            ctx.lineTo((n - 1) * xScale, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Ligne
+            ctx.beginPath();
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            for (let i = 0; i < n; i++) {
+                const x = i * xScale;
+                const y = h - (Math.min(points[i], maxSpeed) / maxSpeed) * h;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Marqueurs des points passés
+            const nowTs = Date.now();
+            for (const marker of (STATE.passedPointMarkers || [])) {
+                const secsAgo = Math.round((nowTs - marker.ts) / 1000);
+                const markerIdx = (history.length - 1 - secsAgo) - startIdx;
+                if (markerIdx < 0 || markerIdx >= n) continue;
+                const x = markerIdx * xScale;
+                const y = h - (Math.min(points[markerIdx], maxSpeed) / maxSpeed) * h;
+
+                // Trait vertical
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+                ctx.lineWidth = 1;
+                ctx.moveTo(x, y);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+
+                // Point blanc
+                ctx.beginPath();
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+                ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
-        const etaMs = Date.now() + remainingSec * 1000;
+    }
+
+    if (etaEl && STATE.currentRoute.length && STATE.departureTimestamp) {
+        let totalSec = 0;
+        for (let i = 0; i < STATE.currentRoute.length - 1; i++) {
+            totalSec += Number(STATE.currentRoute[i].durationEffective ?? STATE.currentRoute[i].baseDurationToNext ?? 0);
+        }
+        const theoArrivalMs = STATE.departureTimestamp + totalSec * 1000;
+        const etaMs = theoArrivalMs + (typeof currentDelay === 'number' ? currentDelay : 0);
         const etaDate = new Date(etaMs);
         const hh = String(etaDate.getHours()).padStart(2, '0');
         const mm = String(etaDate.getMinutes()).padStart(2, '0');
@@ -335,7 +413,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
         if (currentDelay > 60_000) {
             label = `+ ${delayMinutes} min LATE`;
             delayEl.className = 'late';
-        } else if (currentDelay < -60_000) {
+        } else if (currentDelay < -180_000) {
             label = `- ${delayMinutes} min EARLY`;
             delayEl.className = 'early';
         } else {
@@ -353,9 +431,92 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
     const carouselHeight = carousel ? carousel.clientHeight : window.innerHeight;
 
     const routeKey = STATE.selectedPatternId || String(STATE.currentRoute.length);
-    const needsRebuild = currentIdx !== _hudLastActiveIdx || routeKey !== _hudLastRouteKey;
+    const routeChanged = routeKey !== _hudLastRouteKey;
+    const idxChanged = currentIdx !== _hudLastActiveIdx;
 
-    if (needsRebuild) {
+    if (!routeChanged && idxChanged) {
+        _hudLastActiveIdx = currentIdx;
+
+        // Mesure la position finale via un clone hors-écran (sans transitions)
+        // pour connaître la destination exacte avant de lancer l'animation de scroll
+        const clone = trackPoints.cloneNode(true);
+        // Préserver le paddingTop/Bottom (définis inline par JS) — cssText les écraserait
+        const padTop = trackPoints.style.paddingTop;
+        const padBot = trackPoints.style.paddingBottom;
+        clone.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;width:${trackPoints.offsetWidth}px;top:-9999px;left:-9999px;padding-top:${padTop};padding-bottom:${padBot}`;
+        clone.querySelectorAll('.hud-point, .hud-point-dot, .hud-point-name, .hud-point-time, .hud-point-distance').forEach(el => {
+            el.style.transition = 'none';
+        });
+        clone.querySelectorAll('.hud-point[data-idx]').forEach(div => {
+            const i = parseInt(div.dataset.idx, 10);
+            let cls = 'hud-point';
+            if      (i === currentIdx)     cls += ' active';
+            else if (i === currentIdx + 1) cls += ' next';
+            else if (i === currentIdx - 1) cls += ' passed-1';
+            else if (i === currentIdx + 2) cls += ' future-1';
+            else if (i < currentIdx)       cls += ' passed';
+            else                           cls += ' future';
+            if (STATE.currentRoute[i] && STATE.currentRoute[i].isStop) cls += ' stop';
+            div.className = cls;
+        });
+        document.body.appendChild(clone);
+        const cloneActive = clone.querySelector('.hud-point.active');
+        const scrollTarget = cloneActive
+            ? Math.max(0, cloneActive.offsetTop + cloneActive.offsetHeight / 2 - carouselHeight * 0.35)
+            : carousel.scrollTop;
+        document.body.removeChild(clone);
+
+        // Mise à jour des classes sur les vrais éléments (CSS transitions démarrent)
+        trackPoints.querySelectorAll('.hud-point[data-idx]').forEach(div => {
+            const i = parseInt(div.dataset.idx, 10);
+            let cls = 'hud-point';
+            if      (i === currentIdx)     cls += ' active';
+            else if (i === currentIdx + 1) cls += ' next';
+            else if (i === currentIdx - 1) cls += ' passed-1';
+            else if (i === currentIdx + 2) cls += ' future-1';
+            else if (i < currentIdx)       cls += ' passed';
+            else                           cls += ' future';
+            if (STATE.currentRoute[i] && STATE.currentRoute[i].isStop) cls += ' stop';
+            div.className = cls;
+
+            // Badge de retard pour le point nouvellement actif
+            if (i <= currentIdx && STATE.passedPoints && Object.prototype.hasOwnProperty.call(STATE.passedPoints, STATE.currentRoute[i].id)) {
+                const timeEl = div.querySelector('.hud-point-time');
+                if (timeEl && !timeEl.querySelector('.hud-point-delay')) {
+                    const delayStr = formatHudDelay(STATE.passedPoints[STATE.currentRoute[i].id]);
+                    if (delayStr) {
+                        const cls2 = STATE.passedPoints[STATE.currentRoute[i].id] < 0 ? 'hud-point-delay early' : 'hud-point-delay';
+                        const badge = document.createElement('span');
+                        badge.className = cls2;
+                        badge.textContent = delayStr;
+                        timeEl.appendChild(badge);
+                    }
+                }
+            }
+        });
+
+        // Animation de scroll de l'ancienne position vers la nouvelle, avec easing
+        if (_hudScrollAnimId) cancelAnimationFrame(_hudScrollAnimId);
+        const scrollStart = carousel.scrollTop;
+        const scrollDelta = scrollTarget - scrollStart;
+        const animStart = performance.now();
+        const SCROLL_DURATION = 750;
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+        function animateScroll(now) {
+            const elapsed = Math.min(now - animStart, SCROLL_DURATION);
+            carousel.scrollTop = scrollStart + scrollDelta * easeInOutCubic(elapsed / SCROLL_DURATION);
+            if (elapsed < SCROLL_DURATION) {
+                _hudScrollAnimId = requestAnimationFrame(animateScroll);
+            } else {
+                _hudScrollAnimId = null;
+            }
+        }
+        _hudScrollAnimId = requestAnimationFrame(animateScroll);
+    }
+
+    if (routeChanged) {
         _hudLastActiveIdx = currentIdx;
         _hudLastRouteKey = routeKey;
 
@@ -438,16 +599,18 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
         });
     }
 
-    // Every call: correct scroll position in case of drift (deferred after layout)
-    requestAnimationFrame(() => {
-        if (!carousel) return;
-        const activePoint = trackPoints.querySelector('.hud-point.active');
-        if (!activePoint) return;
-        const scrollTarget = Math.max(0, activePoint.offsetTop + activePoint.offsetHeight / 2 - carouselHeight * 0.35);
-        if (Math.abs(carousel.scrollTop - scrollTarget) > 3) {
-            carousel.scrollTop = scrollTarget;
-        }
-    });
+    // Every call: correct scroll position in case of drift (skip during transition animation)
+    if (!_hudScrollAnimId) {
+        requestAnimationFrame(() => {
+            if (!carousel) return;
+            const activePoint = trackPoints.querySelector('.hud-point.active');
+            if (!activePoint) return;
+            const scrollTarget = Math.max(0, activePoint.offsetTop + activePoint.offsetHeight / 2 - carouselHeight * 0.35);
+            if (Math.abs(carousel.scrollTop - scrollTarget) > 3) {
+                carousel.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+            }
+        });
+    }
 
     // Mise à jour des distances en temps réel (à chaque appel GPS, même sans rebuild)
     const hasCoords = typeof userLat === 'number' && typeof userLon === 'number';

@@ -53,7 +53,13 @@ export const STATE = {
     trajets: [],
 
     // Historique des dernières positions GPS pour le calcul de vitesse lissée
-    lastPositions: []
+    lastPositions: [],
+
+    // Historique de vitesse pour le sparkline (max 1200 points = 20 min à 1 pt/s)
+    speedHistory: [],
+
+    // Timestamps de passage des points pour les marqueurs sur le graphique
+    passedPointMarkers: []
 };
 
 export function restoreSettings() {

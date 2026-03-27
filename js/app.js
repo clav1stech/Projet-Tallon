@@ -344,6 +344,12 @@ function showPosition(position) {
         }
     }
 
+    // Historique de vitesse pour le sparkline
+    STATE.speedHistory.push(currentSpeed);
+    if (STATE.speedHistory.length > 1800) {
+        STATE.speedHistory.shift();
+    }
+
     // ✅ Passer lastSegmentIndex pour respecter le sens de circulation
     const {
         segmentIndex,
@@ -382,7 +388,8 @@ function showPosition(position) {
                 }
                 const theoTimestamp = STATE.departureTimestamp + cumSeconds * 1000;
                 STATE.passedPoints[passedPoint.id] = now - theoTimestamp;
-                
+                STATE.passedPointMarkers.push({ name: passedPoint.name, ts: now });
+
                 console.log(`[Passage] ✅ Point franchi: ${passedPoint.name}, retard: ${Math.round((now - theoTimestamp) / 1000)}s`);
             }
         }
@@ -403,9 +410,26 @@ function showPosition(position) {
     );
     STATE.currentDelay = currentDelayMs;
 
+    // Cas d'arrivée à destination : si on est sur le dernier segment et très proche du terminus,
+    // considérer la destination comme franchie et afficher le terminus comme point actif.
+    const lastRouteIdx = STATE.currentRoute.length - 1;
+    let displayIdx = segmentIndex;
+    if (segmentIndex === lastRouteIdx - 1 && distanceToNextPointKm < 0.2) {
+        displayIdx = lastRouteIdx;
+        // Enregistrer le passage au terminus si pas encore fait
+        const destPoint = STATE.currentRoute[lastRouteIdx];
+        if (destPoint && !STATE.passedPoints[destPoint.id]) {
+            let cumSeconds = 0;
+            for (let j = 0; j < lastRouteIdx; j++) {
+                cumSeconds += Number(STATE.currentRoute[j].durationEffective ?? STATE.currentRoute[j].baseDurationToNext ?? 0);
+            }
+            STATE.passedPoints[destPoint.id] = now - (STATE.departureTimestamp + cumSeconds * 1000);
+        }
+    }
+
     // Points pour l'affichage
-    const lastPassedPoint = STATE.currentRoute[segmentIndex] || null;
-    const nextPoint = STATE.currentRoute[segmentIndex + 1] || null;
+    const lastPassedPoint = STATE.currentRoute[displayIdx] || null;
+    const nextPoint = displayIdx < lastRouteIdx ? STATE.currentRoute[displayIdx + 1] : null;
 
     // Distance depuis le dernier point passé
     let lastPointDistanceKm = 0;
@@ -416,7 +440,7 @@ function showPosition(position) {
         );
     }
 
-    displayTimeline(segmentIndex);
+    displayTimeline(displayIdx);
 
     updateTrackingWidget(
         lastPassedPoint,
@@ -425,14 +449,16 @@ function showPosition(position) {
         distanceToNextPointKm
     );
 
-    updateLandscapeHUD(segmentIndex, currentSpeed, currentDelayMs, userLat, userLon);
+    updateLandscapeHUD(displayIdx, currentSpeed, currentDelayMs, userLat, userLon);
 
     let infoHtml = `<strong>Position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}.`;
     if (Number.isFinite(accuracyMeters) && accuracyMeters > 0) {
         infoHtml += ` (±${Math.round(accuracyMeters)} m)`;
     }
     if (nextPoint) {
-        infoHtml += ` Prochain: ${nextPoint.name} (${distanceToNextPointKm.toFixed(2)} km).`;
+        infoHtml += ` Prochain : ${nextPoint.name} (${distanceToNextPointKm.toFixed(2)} km).`;
+    } else {
+        infoHtml += ` Arrivée à ${lastPassedPoint?.name ?? 'destination'}.`;
     }
     updateInfo(infoHtml);
 }

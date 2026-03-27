@@ -1228,7 +1228,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     position: relative;
     min-height: 32px;
     opacity: 0.2;
-    transition: opacity 0.3s;
+    transition: opacity 0.7s ease, padding 0.7s ease, min-height 0.7s ease;
 }
 
 /* Nœud par défaut : petit cercle bordeaux */
@@ -1241,6 +1241,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     background: var(--primary);
     z-index: 2;
     box-sizing: border-box;
+    transition: width 0.7s ease, height 0.7s ease, left 0.7s ease, box-shadow 0.7s ease, background 0.4s ease, border-width 0.7s ease;
 }
 
 /* Gares avec arrêt (bullseye) : fond blanc + bordure bordeaux */
@@ -1259,6 +1260,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     font-weight: 500;
     color: var(--text-muted);
     font-size: 0.82em;
+    transition: font-size 0.7s ease, font-weight 0.7s ease, color 0.4s ease, letter-spacing 0.7s ease, line-height 0.7s ease;
 }
 
 .hud-point-time,
@@ -1266,6 +1268,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     font-size: 0.75em;
     color: var(--text-muted);
     font-weight: 500;
+    transition: font-size 0.7s ease;
 }
 
 /* ── Avant-dernier passé + deuxième futur : petits mais lisibles ── */
@@ -1442,15 +1445,16 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     overflow: hidden;
 }
 
-/* Jauge circulaire vitesse — arc dynamique via conic-gradient */
+/* Jauge circulaire vitesse — arc dynamique via conic-gradient (240° comme un vrai compteur) */
 #hud-speed {
     width: 160px;
     height: 160px;
     border-radius: 50%;
     background: conic-gradient(
-        var(--primary) 0deg,
-        var(--primary) var(--speed-deg, 0deg),
-        #4a4a49 var(--speed-deg, 0deg) 360deg
+        from 240deg,
+        var(--primary) 0deg var(--speed-deg, 0deg),
+        #4a4a49 var(--speed-deg, 0deg) 240deg,
+        rgb(60, 60, 59) 240deg 360deg
     );
     display: flex;
     flex-direction: column;
@@ -1458,6 +1462,8 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     align-items: center;
     flex-shrink: 0;
     position: relative;
+    margin-bottom: -38px;
+    clip-path: inset(0 0 38px 0);
 }
 
 /* Cercle intérieur pour l'effet donut */
@@ -1490,6 +1496,15 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     margin-top: 1px;
     position: relative;
     z-index: 1;
+}
+
+body.tracking-active #hud-speed-graph {
+    width: 100%;
+    max-width: 160px;
+    height: 40px;
+    margin-top: 0;
+    margin-bottom: -5px;
+    display: block;
 }
 
 /* ETA */
