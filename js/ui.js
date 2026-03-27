@@ -1,6 +1,7 @@
 // js/ui.js
 import { STATE, saveSettings } from './state.js';
 import { formatTime, timeStringToDate } from './utils.js';
+import { haversineDistance } from './geo.js';
 
 // Configuration des routes principales (départ Paris)
 export const MAIN_ROUTES = {
@@ -274,6 +275,193 @@ export function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistan
         setStatus(`Delay ${minutes} min`, 'red');
     } else {
         setStatus('On Time', 'green');
+    }
+}
+
+// -- LANDSCAPE HUD --
+
+let _hudLastActiveIdx = null;
+let _hudLastRouteKey = null;
+
+function formatHudDelay(delayMs) {
+    if (typeof delayMs !== 'number') return '';
+    const absMin = Math.floor(Math.abs(delayMs) / 60_000);
+    if (absMin < 1) return '';
+    const sign = delayMs > 0 ? '+' : '-';
+    if (absMin >= 60) {
+        const h = Math.floor(absMin / 60);
+        const m = absMin % 60;
+        return `${sign}${h}h${m > 0 ? m + 'm' : ''}`;
+    }
+    return `${sign}${absMin}min`;
+}
+
+export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, userLon) {
+    if (!window.matchMedia('(orientation: landscape)').matches) return;
+
+    // --- Dashboard ---
+    const speedEl = document.getElementById('hud-speed');
+    const etaEl = document.getElementById('hud-eta');
+    const delayEl = document.getElementById('hud-delay');
+
+    if (speedEl) {
+        const clampedSpeed = Math.min(Math.round(speed), 320);
+        const speedDeg = Math.round((clampedSpeed / 320) * 360);
+        speedEl.style.setProperty('--speed-deg', `${speedDeg}deg`);
+        speedEl.innerHTML = `
+            <span class="hud-speed-value">${clampedSpeed}</span>
+            <span class="hud-speed-unit">km/h</span>
+        `;
+    }
+
+    if (etaEl && STATE.currentRoute.length && STATE.departureTimestamp) {
+        let remainingSec = 0;
+        for (let i = currentIdx; i < STATE.currentRoute.length - 1; i++) {
+            remainingSec += Number(STATE.currentRoute[i].durationEffective ?? STATE.currentRoute[i].baseDurationToNext ?? 0);
+        }
+        const etaMs = Date.now() + remainingSec * 1000;
+        const etaDate = new Date(etaMs);
+        const hh = String(etaDate.getHours()).padStart(2, '0');
+        const mm = String(etaDate.getMinutes()).padStart(2, '0');
+        etaEl.innerHTML = `
+            <span class="hud-eta-label">ETA</span>
+            <span class="hud-eta-time">${hh}:${mm}</span>
+        `;
+    }
+
+    if (delayEl) {
+        const delayMinutes = Math.floor(Math.abs(currentDelay) / 60_000);
+        let label;
+        if (currentDelay > 60_000) {
+            label = `+ ${delayMinutes} min LATE`;
+            delayEl.className = 'late';
+        } else if (currentDelay < -60_000) {
+            label = `- ${delayMinutes} min EARLY`;
+            delayEl.className = 'early';
+        } else {
+            label = 'ON TIME';
+            delayEl.className = '';
+        }
+        delayEl.textContent = label;
+    }
+
+    // --- Carousel ---
+    const trackPoints = document.getElementById('hud-track-points');
+    if (!trackPoints || !STATE.currentRoute.length) return;
+
+    const carousel = trackPoints.closest('.hud-carousel') || trackPoints.parentElement;
+    const carouselHeight = carousel ? carousel.clientHeight : window.innerHeight;
+
+    const routeKey = STATE.selectedPatternId || String(STATE.currentRoute.length);
+    const needsRebuild = currentIdx !== _hudLastActiveIdx || routeKey !== _hudLastRouteKey;
+
+    if (needsRebuild) {
+        _hudLastActiveIdx = currentIdx;
+        _hudLastRouteKey = routeKey;
+
+        // Padding allows first/last points to scroll to their target position
+        trackPoints.style.paddingTop = `${carouselHeight * 0.35}px`;
+        trackPoints.style.paddingBottom = `${carouselHeight * 0.65}px`;
+
+        trackPoints.innerHTML = '';
+
+        // Pré-calcul des heures d'arrivée théoriques pour tous les points
+        const arrivalTimes = [];
+        let cumMs = STATE.departureTimestamp || 0;
+        arrivalTimes.push(cumMs);
+        for (let i = 0; i < STATE.currentRoute.length - 1; i++) {
+            cumMs += Number(STATE.currentRoute[i].durationEffective ?? STATE.currentRoute[i].baseDurationToNext ?? 0) * 1000;
+            arrivalTimes.push(cumMs);
+        }
+
+        for (let i = 0; i < STATE.currentRoute.length; i++) {
+            const point = STATE.currentRoute[i];
+
+            // Hiérarchie des classes : active > next > passed-1/future-1 > passed/future
+            let cls;
+            if      (i === currentIdx)     cls = 'hud-point active';
+            else if (i === currentIdx + 1) cls = 'hud-point next';
+            else if (i === currentIdx - 1) cls = 'hud-point passed-1';
+            else if (i === currentIdx + 2) cls = 'hud-point future-1';
+            else if (i < currentIdx)       cls = 'hud-point passed';
+            else                           cls = 'hud-point future';
+
+            if (point.isStop) cls += ' stop';
+
+            const div = document.createElement('div');
+            div.className = cls;
+            div.dataset.idx = i;
+
+            const arrivalDate = arrivalTimes[i] ? new Date(arrivalTimes[i]) : null;
+            const timeStr = arrivalDate
+                ? `${String(arrivalDate.getHours()).padStart(2, '0')}:${String(arrivalDate.getMinutes()).padStart(2, '0')}`
+                : '';
+
+            // Delay badge for passed points and active point
+            let delayHtml = '';
+            if (i <= currentIdx && STATE.passedPoints && Object.prototype.hasOwnProperty.call(STATE.passedPoints, point.id)) {
+                const delayStr = formatHudDelay(STATE.passedPoints[point.id]);
+                if (delayStr) {
+                    const cls2 = STATE.passedPoints[point.id] < 0 ? 'hud-point-delay early' : 'hud-point-delay';
+                    delayHtml = `<span class="${cls2}">${delayStr}</span>`;
+                }
+            }
+
+            div.innerHTML = `
+                <div class="hud-point-dot"></div>
+                <div class="hud-point-info">
+                    <div class="hud-point-name">${point.name}</div>
+                    ${timeStr ? `<div class="hud-point-time">${timeStr}${delayHtml}</div>` : ''}
+                    <div class="hud-point-distance"></div>
+                </div>
+            `;
+
+            trackPoints.appendChild(div);
+        }
+
+        // Defer layout-sensitive measurements to next frame
+        requestAnimationFrame(() => {
+            // Set bordeaux line bounds between first and last point centers
+            const allHudPoints = trackPoints.querySelectorAll('.hud-point');
+            if (allHudPoints.length >= 1) {
+                const firstPt = allHudPoints[0];
+                const lastPt = allHudPoints[allHudPoints.length - 1];
+                trackPoints.style.setProperty('--line-top', `${firstPt.offsetTop + firstPt.offsetHeight / 2}px`);
+                trackPoints.style.setProperty('--line-bottom', `${trackPoints.scrollHeight - lastPt.offsetTop - lastPt.offsetHeight / 2}px`);
+            }
+
+            // Snap carousel to active point at 35% from top
+            const activePoint = trackPoints.querySelector('.hud-point.active');
+            if (activePoint && carousel) {
+                carousel.scrollTop = Math.max(0, activePoint.offsetTop + activePoint.offsetHeight / 2 - carouselHeight * 0.35);
+            }
+        });
+    }
+
+    // Every call: correct scroll position in case of drift (deferred after layout)
+    requestAnimationFrame(() => {
+        if (!carousel) return;
+        const activePoint = trackPoints.querySelector('.hud-point.active');
+        if (!activePoint) return;
+        const scrollTarget = Math.max(0, activePoint.offsetTop + activePoint.offsetHeight / 2 - carouselHeight * 0.35);
+        if (Math.abs(carousel.scrollTop - scrollTarget) > 3) {
+            carousel.scrollTop = scrollTarget;
+        }
+    });
+
+    // Mise à jour des distances en temps réel (à chaque appel GPS, même sans rebuild)
+    const hasCoords = typeof userLat === 'number' && typeof userLon === 'number';
+    if (hasCoords) {
+        trackPoints.querySelectorAll('.hud-point[data-idx]').forEach(div => {
+            const i = parseInt(div.dataset.idx, 10);
+            const point = STATE.currentRoute[i];
+            if (!point || typeof point.lat !== 'number' || typeof point.lon !== 'number') return;
+            const distEl = div.querySelector('.hud-point-distance');
+            if (!distEl) return;
+            const dist = haversineDistance(userLat, userLon, point.lat, point.lon);
+            const arrow = i <= currentIdx ? '↓' : '↑';
+            distEl.textContent = `${arrow} ${dist.toFixed(1)} km`;
+        });
     }
 }
 

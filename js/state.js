@@ -50,7 +50,10 @@ export const STATE = {
     lastScrolledStationIdx: null,
 
     // Champ trajets neutralisé : ne plus dépendre de la globale `trajets`
-    trajets: []
+    trajets: [],
+
+    // Historique des dernières positions GPS pour le calcul de vitesse lissée
+    lastPositions: []
 };
 
 export function restoreSettings() {

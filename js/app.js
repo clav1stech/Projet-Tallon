@@ -1,6 +1,6 @@
 import { STATE, restoreSettings, saveSettings } from './state.js';
 import { buildEffectiveRoute, computeDepartureTimestamp, computeSegmentIndexAndDistance, computeCurrentDelay } from './functions.js';
-import { populateTrajetDropdown, renderStopCheckboxes, setupLocationMethodListener, displayTimeline, updateInfo, updateTrackingWidget, MAIN_ROUTES } from './ui.js';
+import { populateTrajetDropdown, renderStopCheckboxes, setupLocationMethodListener, displayTimeline, updateInfo, updateTrackingWidget, updateLandscapeHUD, MAIN_ROUTES } from './ui.js';
 import { geoErrorMessage, haversineDistance } from './geo.js';
 
 let trackingInterval = null;
@@ -325,6 +325,24 @@ function showPosition(position) {
     const userLat = position.coords.latitude;
     const userLon = position.coords.longitude;
     const accuracyMeters = Number(position.coords.accuracy);
+    const positionTimestamp = Date.now();
+
+    // Historique de positions pour vitesse lissée (max 4 entrées)
+    STATE.lastPositions.push({ lat: userLat, lon: userLon, ts: positionTimestamp });
+    if (STATE.lastPositions.length > 4) {
+        STATE.lastPositions.shift();
+    }
+
+    // Calcul de la vitesse lissée entre la position la plus ancienne et la position actuelle
+    let currentSpeed = 0;
+    if (STATE.lastPositions.length >= 2) {
+        const oldest = STATE.lastPositions[0];
+        const distanceKm = haversineDistance(oldest.lat, oldest.lon, userLat, userLon);
+        const elapsedHours = (positionTimestamp - oldest.ts) / 3_600_000;
+        if (elapsedHours > 0) {
+            currentSpeed = distanceKm / elapsedHours;
+        }
+    }
 
     // ✅ Passer lastSegmentIndex pour respecter le sens de circulation
     const {
@@ -406,6 +424,8 @@ function showPosition(position) {
         lastPointDistanceKm,
         distanceToNextPointKm
     );
+
+    updateLandscapeHUD(segmentIndex, currentSpeed, currentDelayMs, userLat, userLon);
 
     let infoHtml = `<strong>Position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}.`;
     if (Number.isFinite(accuracyMeters) && accuracyMeters > 0) {

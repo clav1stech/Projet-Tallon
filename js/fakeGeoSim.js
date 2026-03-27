@@ -15,7 +15,7 @@ const ENABLE_FAKE_GPS = false;
     console.log("🚀 Simulation GPS ACTIVÉE (ENABLE_FAKE_GPS = true).");
 
     // --- CONFIG ---
-    const SPEED_MULTIPLIER = 10;      // Facteur d'accélération global
+    const SPEED_MULTIPLIER = 50;      // Facteur d'accélération global
     const UPDATE_INTERVAL_MS = 1000; // Fréquence de mise à jour (ms)
 
     // Horloge de départ réinitialisable

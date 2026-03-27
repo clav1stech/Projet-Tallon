@@ -1120,3 +1120,425 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ===========================
+   Landscape HUD
+   =========================== */
+#landscape-hud {
+    display: none;
+}
+
+@media screen and (orientation: landscape) {
+    body.tracking-active .tracking-widget,
+    body.tracking-active .timeline-panel {
+        display: none !important;
+    }
+
+    body.tracking-active #landscape-hud {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        height: 100vh;
+        width: 100vw;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 100;
+        background: var(--background);
+    }
+
+    body.tracking-active #hud-track-points {
+        position: relative;
+        border-left: none;
+        border-right: none;
+        /* padding-top / padding-bottom positionnés via JS selon clientHeight du carousel */
+    }
+
+    body.tracking-active #hud-track-points::before {
+        content: '';
+        position: absolute;
+        /* top/bottom bornés au centre du premier et dernier nœud — calculés en JS */
+        top: var(--line-top, 0px);
+        bottom: var(--line-bottom, 0px);
+        left: 10%;
+        width: 6px;
+        background: var(--primary);
+        border-radius: 3px;
+    }
+
+    body.tracking-active .hud-carousel {
+        overflow-y: scroll;
+        overflow-x: hidden;
+        scrollbar-width: none;          /* Firefox */
+        -ms-overflow-style: none;       /* IE/Edge */
+        background: radial-gradient(ellipse at center, #ffffff 30%, #eff2f6 100%);
+        mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+        -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+    }
+
+    body.tracking-active .hud-carousel::-webkit-scrollbar {
+        display: none;                  /* Chrome/Safari */
+    }
+
+    /* Dashboard fond sombre */
+    body.tracking-active .hud-dashboard {
+        background: rgb(60, 60, 59);
+    }
+
+    /* Textes blancs sur fond sombre */
+    body.tracking-active .hud-speed-value,
+    body.tracking-active .hud-speed-unit,
+    body.tracking-active .hud-eta-label,
+    body.tracking-active .hud-eta-time {
+        color: #fff;
+    }
+
+    body.tracking-active #hud-eta {
+        border-top-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Pilule retard sur fond sombre */
+    body.tracking-active #hud-delay {
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        margin-top: 12px;
+    }
+
+    body.tracking-active #hud-delay.late {
+        background: var(--danger);
+        color: #fff;
+        box-shadow: 0 4px 18px rgba(239, 68, 68, 0.45);
+    }
+
+    body.tracking-active #hud-delay.early {
+        background: var(--success);
+        color: #fff;
+    }
+}
+
+/* ===========================
+   HUD Track Points (carousel)
+   =========================== */
+
+/* Base : tous les points hors fenêtre active → très discrets */
+.hud-point {
+    display: flex;
+    align-items: center;
+    padding: 5px 0 5px calc(10% + 28px);
+    position: relative;
+    min-height: 32px;
+    opacity: 0.2;
+    transition: opacity 0.3s;
+}
+
+/* Nœud par défaut : petit cercle bordeaux */
+.hud-point-dot {
+    position: absolute;
+    left: calc(10% + 3px - 5px);   /* centre sur la ligne (10% + 3px = centre, -5px = rayon) */
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+    z-index: 2;
+    box-sizing: border-box;
+}
+
+/* Gares avec arrêt (bullseye) : fond blanc + bordure bordeaux */
+.hud-point.stop .hud-point-dot {
+    background: #fff;
+    border: 3px solid var(--primary);
+}
+
+.hud-point-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.hud-point-name {
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 0.82em;
+}
+
+.hud-point-time,
+.hud-point-distance {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* ── Avant-dernier passé + deuxième futur : petits mais lisibles ── */
+.hud-point.passed-1,
+.hud-point.future-1 {
+    opacity: 0.55;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    min-height: 40px;
+}
+
+.hud-point.passed-1 .hud-point-dot,
+.hud-point.future-1 .hud-point-dot {
+    width: 12px;
+    height: 12px;
+    left: calc(10% + 3px - 6px);
+    background: var(--primary);
+    border: none;
+}
+
+.hud-point.passed-1.stop .hud-point-dot,
+.hud-point.future-1.stop .hud-point-dot {
+    background: #fff;
+    border: 3px solid var(--primary);
+}
+
+/* Gares avec arrêt en état passed/future : affichées au minimum comme passed-1 */
+.hud-point.passed.stop,
+.hud-point.future.stop {
+    opacity: 0.55;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    min-height: 40px;
+}
+
+.hud-point.passed.stop .hud-point-dot,
+.hud-point.future.stop .hud-point-dot {
+    width: 12px;
+    height: 12px;
+    left: calc(10% + 3px - 6px);
+    background: #fff;
+    border: 3px solid var(--primary);
+}
+
+.hud-point.passed.stop .hud-point-name,
+.hud-point.future.stop .hud-point-name {
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.hud-point.passed-1 .hud-point-name,
+.hud-point.future-1 .hud-point-name {
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.hud-point.passed-1 .hud-point-time,
+.hud-point.future-1 .hud-point-time,
+.hud-point.passed-1 .hud-point-distance,
+.hud-point.future-1 .hud-point-distance {
+    font-size: 0.85em;
+}
+
+/* ── Prochain point à passer : taille moyenne ── */
+.hud-point.next {
+    opacity: 0.9;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    min-height: 60px;
+}
+
+.hud-point.next .hud-point-dot {
+    width: 16px;
+    height: 16px;
+    left: calc(10% + 3px - 8px);
+    background: var(--primary);
+    border: none;
+    box-shadow: 0 0 0 4px rgba(135,44,59,0.12);
+}
+
+.hud-point.next.stop .hud-point-dot {
+    background: #fff;
+    border: 4px solid var(--primary);
+}
+
+.hud-point.next .hud-point-name {
+    font-size: 1.7em;
+    font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+}
+
+.hud-point.next .hud-point-time {
+    font-size: 1.1em;
+    color: var(--text-muted);
+}
+
+.hud-point.next .hud-point-distance {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+/* ── Dernier point passé (point actif) : le plus grand, bullseye bordeaux ── */
+.hud-point.active {
+    opacity: 1;
+    padding-top: 18px;
+    padding-bottom: 18px;
+    min-height: 80px;
+}
+
+.hud-point.active .hud-point-dot {
+    width: 24px;
+    height: 24px;
+    left: calc(10% + 3px - 12px);
+    background: var(--primary);
+    border: none;
+    box-shadow: 0 0 0 8px rgba(135,44,59,0.18);
+}
+
+.hud-point.active.stop .hud-point-dot {
+    background: #fff;
+    border: 6px solid var(--primary);
+    box-shadow: 0 0 0 8px rgba(135,44,59,0.18);
+}
+
+.hud-point.active .hud-point-name {
+    font-size: 2.8em;
+    font-weight: 900;
+    color: #000;
+    letter-spacing: -1px;
+    line-height: 1;
+}
+
+.hud-point.active .hud-point-time {
+    font-size: 1.4em;
+    color: var(--text-muted);
+}
+
+.hud-point.active .hud-point-distance {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+/* Retard affiché à côté de l'heure pour les points passés */
+.hud-point-delay {
+    font-size: 0.85em;
+    font-weight: 700;
+    color: var(--danger);
+    margin-left: 6px;
+}
+
+.hud-point-delay.early {
+    color: var(--success);
+}
+
+/* ===========================
+   HUD Dashboard (1/3 gauche)
+   =========================== */
+.hud-dashboard {
+    background: #fff;
+    border-right: 1px solid var(--border);
+    padding: max(16px, env(safe-area-inset-top)) 20px max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Jauge circulaire vitesse — arc dynamique via conic-gradient */
+#hud-speed {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--primary) 0deg,
+        var(--primary) var(--speed-deg, 0deg),
+        #4a4a49 var(--speed-deg, 0deg) 360deg
+    );
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    position: relative;
+}
+
+/* Cercle intérieur pour l'effet donut */
+#hud-speed::after {
+    content: '';
+    position: absolute;
+    width: 128px;   /* 160 - 2×16 */
+    height: 128px;
+    border-radius: 50%;
+    background: rgb(60, 60, 59);
+}
+
+.hud-speed-value {
+    font-size: 3.2em;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+    display: block;
+    position: relative;
+    z-index: 1;
+}
+
+.hud-speed-unit {
+    font-size: 0.78em;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.65);
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 1px;
+    position: relative;
+    z-index: 1;
+}
+
+/* ETA */
+#hud-eta {
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    text-align: center;
+    width: 100%;
+}
+
+.hud-eta-label {
+    display: block;
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 2px;
+}
+
+.hud-eta-time {
+    display: block;
+    font-size: 3.5em;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.05;
+}
+
+/* Pilule statut retard */
+#hud-delay {
+    border-radius: 50px;
+    padding: 10px 20px;
+    font-weight: 700;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 15px;
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--success);
+    transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+#hud-delay.late {
+    background: var(--danger);
+    color: #fff;
+    box-shadow: 0 4px 18px rgba(239, 68, 68, 0.40);
+}
+
+#hud-delay.early {
+    background: rgba(34, 197, 94, 0.18);
+    color: var(--success);
+}
