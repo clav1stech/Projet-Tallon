@@ -1452,7 +1452,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     border-radius: 50%;
     background: conic-gradient(
         from 240deg,
-        var(--primary) 0deg var(--speed-deg, 0deg),
+        #ffffff 0deg var(--speed-deg, 0deg),
         #4a4a49 var(--speed-deg, 0deg) 240deg,
         rgb(60, 60, 59) 240deg 360deg
     );
