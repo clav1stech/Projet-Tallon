@@ -71,8 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const useSncf = ua.includes('Scriptable') || (/Macintosh|Mac OS X/.test(ua) && !ua.includes('iPhone')) || /iPad/.test(ua);
     STATE.locationMethod = useSncf ? 'sncf' : 'geo';
 
-    await loadCoreData();
-
+    // Initialisation UI immédiate (MAIN_ROUTES est statique, pas besoin du fetch)
     populateTrajetDropdown();
 
     const routeSelect = document.getElementById('routeSelect');
@@ -81,11 +80,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const deltaMinus = document.getElementById('delta-minus');
     const deltaPlus = document.getElementById('delta-plus');
 
-    // Initialisation des champs
     if (routeSelect) {
         routeSelect.value = STATE.selectedMainRouteKey || '';
     }
     renderStopCheckboxes(STATE.selectedMainRouteKey, STATE.selectedStopIds, handleStopsChange);
+
+    await loadCoreData();
     if (departureInput) {
         departureInput.value = STATE.departureTime || '';
     }
