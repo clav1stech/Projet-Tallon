@@ -1,5 +1,5 @@
 // js/ui.js
-import { STATE, saveSettings } from './state.js';
+import { STATE } from './state.js';
 import { formatTime, timeStringToDate } from './utils.js';
 import { haversineDistance } from './geo.js';
 
@@ -138,26 +138,6 @@ export function renderStopCheckboxes(mainRouteKey, selectedStopIds = [], onChang
     });
 }
 
-// Appelé depuis app.js après ajout des listeners, pour gérer le changement de route
-export function setupLocationMethodListener() {
-    const locationRadios = document.querySelectorAll('input[name="locationMethod"]');
-    const manualCoordsDiv = document.getElementById('manualCoords');
-    if (!locationRadios.length || !manualCoordsDiv) return;
-
-    const applyLocationMethod = (method) => {
-        manualCoordsDiv.style.display = method === 'manual' ? 'flex' : 'none';
-    };
-    applyLocationMethod(STATE.locationMethod || 'geo');
-
-    locationRadios.forEach(radio => {
-        radio.addEventListener('change', e => {
-            const value = e.target.value;
-            STATE.locationMethod = value;
-            saveSettings();
-            applyLocationMethod(value);
-        });
-    });
-}
 
 // Affichage principal de la timeline à partir de STATE.currentRoute
 export function displayTimeline(currentIdx = null) {
@@ -284,6 +264,27 @@ export function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistan
 }
 
 // -- LANDSCAPE HUD --
+
+// Réduit le font-size de chaque .hud-point-name pour qu'il tienne sur une ligne en paysage.
+// Utilise un ratio (scrollWidth / clientWidth) pour approcher la bonne taille en une passe.
+function fitCarouselNames(trackPoints) {
+    if (!window.matchMedia('(orientation: landscape)').matches) return;
+    trackPoints.querySelectorAll('.hud-point-name').forEach(nameEl => {
+        nameEl.style.fontSize = ''; // réinitialise un éventuel inline précédent
+        const info = nameEl.parentElement;
+        if (!info) return;
+        const available = info.clientWidth;
+        if (available <= 0 || nameEl.scrollWidth <= available) return;
+        // Ratio : proportion disponible / contenu (avec 2 % de marge)
+        const ratio = (available / nameEl.scrollWidth) * 0.98;
+        const fitted = parseFloat(getComputedStyle(nameEl).fontSize) * ratio;
+        nameEl.style.fontSize = fitted + 'px';
+        // Passe de vérification si ça déborde encore (non-linéarités rares)
+        if (nameEl.scrollWidth > available) {
+            nameEl.style.fontSize = (fitted * (available / nameEl.scrollWidth) * 0.98) + 'px';
+        }
+    });
+}
 
 let _hudLastActiveIdx = null;
 let _hudLastRouteKey = null;
@@ -450,35 +451,6 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
     if (!routeChanged && idxChanged) {
         _hudLastActiveIdx = currentIdx;
 
-        // Mesure la position finale via un clone hors-écran (sans transitions)
-        // pour connaître la destination exacte avant de lancer l'animation de scroll
-        const clone = trackPoints.cloneNode(true);
-        // Préserver le paddingTop/Bottom (définis inline par JS) — cssText les écraserait
-        const padTop = trackPoints.style.paddingTop;
-        const padBot = trackPoints.style.paddingBottom;
-        clone.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;width:${trackPoints.offsetWidth}px;top:-9999px;left:-9999px;padding-top:${padTop};padding-bottom:${padBot}`;
-        clone.querySelectorAll('.hud-point, .hud-point-dot, .hud-point-name, .hud-point-time, .hud-point-distance').forEach(el => {
-            el.style.transition = 'none';
-        });
-        clone.querySelectorAll('.hud-point[data-idx]').forEach(div => {
-            const i = parseInt(div.dataset.idx, 10);
-            let cls = 'hud-point';
-            if      (i === currentIdx)     cls += ' active';
-            else if (i === currentIdx + 1) cls += ' next';
-            else if (i === currentIdx - 1) cls += ' passed-1';
-            else if (i === currentIdx + 2) cls += ' future-1';
-            else if (i < currentIdx)       cls += ' passed';
-            else                           cls += ' future';
-            if (STATE.currentRoute[i] && STATE.currentRoute[i].isStop) cls += ' stop';
-            div.className = cls;
-        });
-        document.body.appendChild(clone);
-        const cloneActive = clone.querySelector('.hud-point.active');
-        const scrollTarget = cloneActive
-            ? Math.max(0, cloneActive.offsetTop + cloneActive.offsetHeight / 2 - carouselHeight * 0.35)
-            : carousel.scrollTop;
-        document.body.removeChild(clone);
-
         // Mise à jour des classes sur les vrais éléments (CSS transitions démarrent)
         trackPoints.querySelectorAll('.hud-point[data-idx]').forEach(div => {
             const i = parseInt(div.dataset.idx, 10);
@@ -507,19 +479,26 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
                 }
             }
         });
+        fitCarouselNames(trackPoints);
 
-        // Animation de scroll de l'ancienne position vers la nouvelle, avec easing
+        // Animation de scroll synchronisée avec les transitions CSS :
+        // on suit la position réelle de l'élément actif chaque frame plutôt qu'une
+        // cible fixe, ce qui garantit que scroll et redimensionnement bougent ensemble.
         if (_hudScrollAnimId) cancelAnimationFrame(_hudScrollAnimId);
         const scrollStart = carousel.scrollTop;
-        const scrollDelta = scrollTarget - scrollStart;
         const animStart = performance.now();
-        const SCROLL_DURATION = 750;
-        function easeInOutCubic(t) {
-            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        const SCROLL_DURATION = 700; // identique à la durée des transitions CSS
+        function easeOutCubic(t) {
+            return 1 - Math.pow(1 - t, 3);
         }
         function animateScroll(now) {
             const elapsed = Math.min(now - animStart, SCROLL_DURATION);
-            carousel.scrollTop = scrollStart + scrollDelta * easeInOutCubic(elapsed / SCROLL_DURATION);
+            const progress = easeOutCubic(elapsed / SCROLL_DURATION);
+            const activeEl = trackPoints.querySelector('.hud-point.active');
+            if (activeEl) {
+                const liveTarget = Math.max(0, activeEl.offsetTop + activeEl.offsetHeight / 2 - carouselHeight * 0.35);
+                carousel.scrollTop = scrollStart + (liveTarget - scrollStart) * progress;
+            }
             if (elapsed < SCROLL_DURATION) {
                 _hudScrollAnimId = requestAnimationFrame(animateScroll);
             } else {
@@ -609,6 +588,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
             if (activePoint && carousel) {
                 carousel.scrollTop = Math.max(0, activePoint.offsetTop + activePoint.offsetHeight / 2 - carouselHeight * 0.35);
             }
+            fitCarouselNames(trackPoints);
         });
     }
 

@@ -229,25 +229,41 @@ function fallbackSegmentByLatitude(route, lat, lon, lastSegmentIndex, direction)
     if (southbound === null) return null;
 
     const hasLastIndex = Number.isFinite(lastSegmentIndex) && lastSegmentIndex >= 0;
-    const startIdx = hasLastIndex ? Math.min(lastSegmentIndex, route.length - 1) : 0;
+    const startIdx = hasLastIndex ? Math.min(lastSegmentIndex, route.length - 2) : 0;
 
-    const findNextIdx = (fromIdx) => {
-        for (let i = fromIdx; i < route.length; i++) {
-            const p = route[i];
-            if (!p || typeof p.lat !== 'number') continue;
-            if (southbound ? lat <= p.lat : lat >= p.lat) return i;
+    const findSegmentIdx = (fromIdx) => {
+        for (let i = fromIdx; i < route.length - 1; i++) {
+            const pStart = route[i];
+            const pEnd = route[i + 1];
+            if (!pStart || !pEnd) continue;
+            if (typeof pStart.lat !== 'number' || typeof pEnd.lat !== 'number') continue;
+
+            const isWithinLatBounds = southbound
+                ? lat <= pStart.lat && lat >= pEnd.lat
+                : lat >= pStart.lat && lat <= pEnd.lat;
+
+            if (isWithinLatBounds) return i;
         }
         return null;
     };
 
-    let nextIdx = findNextIdx(startIdx);
-    if (nextIdx === null && startIdx > 0) {
-        nextIdx = findNextIdx(0);
+    let segmentIndex = findSegmentIdx(startIdx);
+    if (segmentIndex === null && startIdx > 0) {
+        segmentIndex = findSegmentIdx(0);
     }
-    if (nextIdx === null) return null;
+    if (segmentIndex === null) {
+        const first = route[0];
+        const last = route[route.length - 1];
+        if (!first || !last || typeof first.lat !== 'number' || typeof last.lat !== 'number') {
+            return null;
+        }
 
-    let segmentIndex = Math.max(0, Math.min(route.length - 2, nextIdx - 1));
-    if (hasLastIndex) {
+        if (southbound) {
+            segmentIndex = lat > first.lat ? 0 : route.length - 2;
+        } else {
+            segmentIndex = lat < first.lat ? 0 : route.length - 2;
+        }
+    } else if (hasLastIndex) {
         segmentIndex = Math.max(segmentIndex, Math.min(route.length - 2, lastSegmentIndex));
     }
 

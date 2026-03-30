@@ -1,9 +1,15 @@
 import { STATE, restoreSettings, saveSettings } from './state.js';
 import { buildEffectiveRoute, computeDepartureTimestamp, computeSegmentIndexAndDistance, computeCurrentDelay } from './functions.js';
-import { populateTrajetDropdown, renderStopCheckboxes, setupLocationMethodListener, displayTimeline, updateInfo, updateTrackingWidget, updateLandscapeHUD, MAIN_ROUTES } from './ui.js';
+import { populateTrajetDropdown, renderStopCheckboxes, displayTimeline, updateInfo, updateTrackingWidget, updateLandscapeHUD, MAIN_ROUTES } from './ui.js';
 import { geoErrorMessage, haversineDistance } from './geo.js';
 
 let trackingInterval = null;
+
+function isIPhoneDevice() {
+    if (typeof navigator === 'undefined') return false;
+    return /iPhone/i.test(navigator.userAgent || '');
+}
+
 const handleStopsChange = async (stopIds) => {
     STATE.selectedStopIds = stopIds;
     saveSettings();
@@ -36,14 +42,38 @@ async function loadCoreData() {
     }
 }
 
+// Bridge de communication pour Scriptable
+window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'SNCF_GPS_BRIDGE') {
+        // On utilise les coordonnées injectées par Scriptable
+        showPosition({
+            coords: {
+                latitude: e.data.coords.latitude,
+                longitude: e.data.coords.longitude,
+                accuracy: e.data.coords.accuracy,
+                speed: e.data.coords.speed
+            },
+            timestamp: e.data.timestamp
+        });
+    }
+});
+
 // Chargement et initialisation DOM
 document.addEventListener('DOMContentLoaded', async () => {
+    document.body.classList.toggle('iphone-device', isIPhoneDevice());
+    document.body.classList.toggle('non-iphone-device', !isIPhoneDevice());
+
     restoreSettings();
+
+    // Auto-détection du mode de localisation
+    // Scriptable, Mac ou iPad → WiFi SNCF ; sinon GPS natif
+    const ua = navigator.userAgent;
+    const useSncf = ua.includes('Scriptable') || (/Macintosh|Mac OS X/.test(ua) && !ua.includes('iPhone')) || /iPad/.test(ua);
+    STATE.locationMethod = useSncf ? 'sncf' : 'geo';
 
     await loadCoreData();
 
     populateTrajetDropdown();
-    setupLocationMethodListener();
 
     const routeSelect = document.getElementById('routeSelect');
     const departureInput = document.getElementById('departure-time');
@@ -291,19 +321,22 @@ function startTracking() {
 }
 
 async function fetchSncfPosition() {
+    if (navigator.userAgent.includes('Scriptable')) {
+        updateInfo('Synchronisation WiFi SNCF via Scriptable active');
+        return;
+    }
     try {
         const response = await fetch('https://wifi.sncf/router/api/train/gps', { signal: AbortSignal.timeout(3000) });
         if (!response.ok) throw new Error('API injoignable');
         const data = await response.json();
         if (data.success) {
-            showPosition({ coords: { latitude: data.latitude, longitude: data.longitude, accuracy: 15, speed: data.speed }, timestamp: data.timestamp ? data.timestamp * 1000 : Date.now() });
+            const speedKmh = Number.isFinite(Number(data.speed)) ? Number(data.speed) * 3.6 : undefined;
+            showPosition({ coords: { latitude: data.latitude, longitude: data.longitude, accuracy: 15, speed: speedKmh }, timestamp: data.timestamp ? data.timestamp * 1000 : Date.now() });
             return;
         }
         throw new Error('Données invalides');
     } catch (e) {
         STATE.locationMethod = 'geo';
-        const geoRadio = document.querySelector('input[name="locationMethod"][value="geo"]');
-        if (geoRadio) geoRadio.checked = true;
         updateInfo("WiFi SNCF bloqué (CORS), bascule automatique et définitive sur GPS natif.");
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(showPosition, showError, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
@@ -324,14 +357,6 @@ function processCurrentPosition() {
         } else {
             updateInfo("La géolocalisation n'est pas supportée par ce navigateur.");
         }
-    } else {
-        const manualLat = parseFloat(STATE.manualLat);
-        const manualLon = parseFloat(STATE.manualLon);
-        if (!isNaN(manualLat) && !isNaN(manualLon)) {
-            showPosition({ coords: { latitude: manualLat, longitude: manualLon, accuracy: 0 } });
-        } else {
-            updateInfo("Veuillez saisir des coordonnées valides.");
-        }
     }
 }
 
@@ -349,21 +374,33 @@ function showPosition(position) {
     const userLon = position.coords.longitude;
     const accuracyMeters = Number(position.coords.accuracy);
     const positionTimestamp = Date.now();
+    const reportedSpeed = Number(position.coords.speed);
+    const hasDirectSncfSpeed = STATE.locationMethod === 'sncf' && Number.isFinite(reportedSpeed) && reportedSpeed >= 0;
 
-    // Historique de positions pour vitesse lissée (max 4 entrées)
+    // Historique de positions pour vitesse lissée (10 s à 1 pt/s)
     STATE.lastPositions.push({ lat: userLat, lon: userLon, ts: positionTimestamp });
-    if (STATE.lastPositions.length > 4) {
+    if (STATE.lastPositions.length > 10) {
         STATE.lastPositions.shift();
     }
 
-    // Calcul de la vitesse lissée entre la position la plus ancienne et la position actuelle
-    let currentSpeed = 0;
-    if (STATE.lastPositions.length >= 2) {
-        const oldest = STATE.lastPositions[0];
-        const distanceKm = haversineDistance(oldest.lat, oldest.lon, userLat, userLon);
-        const elapsedHours = (positionTimestamp - oldest.ts) / 3_600_000;
-        if (elapsedHours > 0) {
-            currentSpeed = distanceKm / elapsedHours;
+    // Vitesse lissée : médiane des vitesses instantanées entre chaque pas consécutif
+    let currentSpeed = hasDirectSncfSpeed ? reportedSpeed : 0;
+    if (!hasDirectSncfSpeed && STATE.lastPositions.length >= 2) {
+        const stepSpeeds = [];
+        for (let i = 1; i < STATE.lastPositions.length; i++) {
+            const a = STATE.lastPositions[i - 1];
+            const b = STATE.lastPositions[i];
+            const dt = (b.ts - a.ts) / 3_600_000;
+            if (dt > 0) {
+                stepSpeeds.push(haversineDistance(a.lat, a.lon, b.lat, b.lon) / dt);
+            }
+        }
+        if (stepSpeeds.length > 0) {
+            stepSpeeds.sort((a, b) => a - b);
+            const mid = Math.floor(stepSpeeds.length / 2);
+            currentSpeed = stepSpeeds.length % 2 === 1
+                ? stepSpeeds[mid]
+                : (stepSpeeds[mid - 1] + stepSpeeds[mid]) / 2;
         }
     }
 
@@ -472,7 +509,7 @@ function showPosition(position) {
         distanceToNextPointKm
     );
 
-    const speedReliable = STATE.locationMethod === 'geo' && STATE.lastPositions.length >= 2;
+    const speedReliable = hasDirectSncfSpeed || (STATE.locationMethod === 'geo' && STATE.lastPositions.length >= 2);
     updateLandscapeHUD(displayIdx, currentSpeed, currentDelayMs, userLat, userLon, speedReliable);
 
     let infoHtml = `<strong>Position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}.`;

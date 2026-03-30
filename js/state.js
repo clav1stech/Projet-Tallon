@@ -43,10 +43,8 @@ export const STATE = {
     // Ancien identifiant de route (ne plus utiliser comme source principale)
     selectedRoute: '',
 
-    // Méthode de localisation
+    // Méthode de localisation (auto-détectée au démarrage)
     locationMethod: 'geo',
-    manualLat: null,
-    manualLon: null,
     lastScrolledStationIdx: null,
 
     // Champ trajets neutralisé : ne plus dépendre de la globale `trajets`
@@ -66,18 +64,12 @@ export function restoreSettings() {
     try {
         const storedPatternId = localStorage.getItem('selectedPatternId');
         const storedDepartureTime = localStorage.getItem('departureTime');
-        const storedLocationMethod = localStorage.getItem('locationMethod');
-        const storedManualLat = localStorage.getItem('manualLat');
-        const storedManualLon = localStorage.getItem('manualLon');
         const storedGlobalDelta = localStorage.getItem('globalDeltaSeconds');
         const storedMainRouteKey = localStorage.getItem('selectedMainRouteKey');
         const storedStopIds = localStorage.getItem('selectedStopIds');
 
         STATE.selectedPatternId = storedPatternId || '';
         STATE.departureTime = storedDepartureTime || '';
-        STATE.locationMethod = storedLocationMethod || 'geo';
-        STATE.manualLat = storedManualLat || '';
-        STATE.manualLon = storedManualLon || '';
         STATE.selectedMainRouteKey = storedMainRouteKey || '';
         STATE.selectedStopIds = storedStopIds ? storedStopIds.split(',').filter(Boolean) : [];
 
@@ -105,9 +97,6 @@ export function saveSettings() {
     try {
         localStorage.setItem('selectedPatternId', STATE.selectedPatternId || '');
         localStorage.setItem('departureTime', STATE.departureTime || '');
-        localStorage.setItem('locationMethod', STATE.locationMethod || 'geo');
-        localStorage.setItem('manualLat', STATE.manualLat || '');
-        localStorage.setItem('manualLon', STATE.manualLon || '');
 
         // ✅ Sauvegarde du ΔT global
         localStorage.setItem('globalDeltaSeconds', String(STATE.globalDeltaSeconds || 0));
