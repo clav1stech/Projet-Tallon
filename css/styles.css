@@ -390,9 +390,8 @@ label input[type="radio"] {
     font-size: 11px;
     padding: 4px 10px;
     z-index: 9999;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.4;
+    word-break: break-all;
 }
 
 @media screen and (orientation: landscape) {

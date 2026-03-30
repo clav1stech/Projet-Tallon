@@ -27,8 +27,9 @@ const ENABLE_FAKE_GPS = false;
         console.log("⏱ Réinitialisation de l'horloge de simulation GPS (START_TIME remis à maintenant).");
     }
 
-    // On expose la fonction au scope global pour app.js
+    // On expose les paramètres au scope global pour app.js
     window.resetFakeGpsStartTime = resetFakeGpsStartTime;
+    window.FAKE_GPS_SPEED_MULTIPLIER = SPEED_MULTIPLIER;
 
     // --- DONNÉES (lat, lon, durée stockée sur le POINT D'ARRIVÉE) ---
     // Interprétation : DATA_POINTS[i+1][2] = durée du segment i -> i+1

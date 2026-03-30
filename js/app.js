@@ -20,7 +20,10 @@ function updateDebugBar(status) {
     else if (/iPad/i.test(ua))                                                 agentLabel = 'iPad Safari';
     else if (/Macintosh|Mac OS X/.test(ua) && !ua.includes('Mobile'))         agentLabel = 'Mac Safari';
     else                                                                        agentLabel = 'Autre';
-    el.textContent = `Agent: ${agentLabel} | Mode: ${STATE.locationMethod}${status ? ' | ' + status : ''}`;
+    const fakeGps = window.FAKE_GPS_SPEED_MULTIPLIER
+        ? `⚡ FakeGPS ×${window.FAKE_GPS_SPEED_MULTIPLIER}`
+        : (typeof ENABLE_FAKE_GPS !== 'undefined' && !ENABLE_FAKE_GPS ? 'FakeGPS OFF' : '');
+    el.innerHTML = `Agent: ${agentLabel} | Mode: ${STATE.locationMethod}${fakeGps ? ' | ' + fakeGps : ''}${status ? ' | ' + status : ''}<br><small style="opacity:0.6">${ua}</small>`;
 }
 
 const handleStopsChange = async (stopIds) => {
@@ -419,6 +422,11 @@ function showPosition(position) {
                 ? stepSpeeds[mid]
                 : (stepSpeeds[mid - 1] + stepSpeeds[mid]) / 2;
         }
+    }
+
+    // Correction vitesse si simulation GPS active (positions avancent × SPEED_MULTIPLIER)
+    if (window.FAKE_GPS_SPEED_MULTIPLIER) {
+        currentSpeed = currentSpeed / window.FAKE_GPS_SPEED_MULTIPLIER;
     }
 
     // Historique de vitesse pour le sparkline
