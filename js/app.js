@@ -10,6 +10,19 @@ function isIPhoneDevice() {
     return /iPhone/i.test(navigator.userAgent || '');
 }
 
+function updateDebugBar(status) {
+    const el = document.getElementById('debug-bar');
+    if (!el) return;
+    const ua = navigator.userAgent;
+    let agentLabel;
+    if (ua.includes('Scriptable'))                                              agentLabel = 'Scriptable';
+    else if (/iPhone/i.test(ua))                                               agentLabel = 'iPhone Safari';
+    else if (/iPad/i.test(ua))                                                 agentLabel = 'iPad Safari';
+    else if (/Macintosh|Mac OS X/.test(ua) && !ua.includes('Mobile'))         agentLabel = 'Mac Safari';
+    else                                                                        agentLabel = 'Autre';
+    el.textContent = `Agent: ${agentLabel} | Mode: ${STATE.locationMethod}${status ? ' | ' + status : ''}`;
+}
+
 const handleStopsChange = async (stopIds) => {
     STATE.selectedStopIds = stopIds;
     saveSettings();
@@ -70,6 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ua = navigator.userAgent;
     const useSncf = ua.includes('Scriptable') || (/Macintosh|Mac OS X/.test(ua) && !ua.includes('iPhone')) || /iPad/.test(ua);
     STATE.locationMethod = useSncf ? 'sncf' : 'geo';
+    updateDebugBar();
 
     // Initialisation UI immédiate (MAIN_ROUTES est statique, pas besoin du fetch)
     populateTrajetDropdown();
@@ -322,6 +336,7 @@ function startTracking() {
 
 async function fetchSncfPosition() {
     if (navigator.userAgent.includes('Scriptable')) {
+        updateDebugBar('Bridge Scriptable OK');
         updateInfo('Synchronisation WiFi SNCF via Scriptable active');
         return;
     }
@@ -331,13 +346,15 @@ async function fetchSncfPosition() {
         const data = await response.json();
         if (data.success) {
             const speedKmh = Number.isFinite(Number(data.speed)) ? Number(data.speed) * 3.6 : undefined;
+            updateDebugBar('WiFi SNCF OK');
             showPosition({ coords: { latitude: data.latitude, longitude: data.longitude, accuracy: 15, speed: speedKmh }, timestamp: data.timestamp ? data.timestamp * 1000 : Date.now() });
             return;
         }
         throw new Error('Données invalides');
     } catch (e) {
         STATE.locationMethod = 'geo';
-        updateInfo("WiFi SNCF bloqué (CORS), bascule automatique et définitive sur GPS natif.");
+        updateDebugBar(`SNCF KO (${e.message}) → GPS`);
+        updateInfo(`WiFi SNCF indisponible (${e.message}), bascule sur GPS natif.`);
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(showPosition, showError, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
         }

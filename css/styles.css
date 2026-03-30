@@ -379,6 +379,26 @@ label input[type="radio"] {
     color: #555;
 }
 
+#debug-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.75);
+    color: #0f0;
+    font-family: monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    z-index: 9999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media screen and (orientation: landscape) {
+    #debug-bar { display: none; }
+}
+
 /* Responsivité */
 
 @media screen and (max-width: 600px) {
