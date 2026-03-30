@@ -86,6 +86,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ua = navigator.userAgent;
     const useSncf = ua.includes('Scriptable') || (/Macintosh|Mac OS X/.test(ua) && !ua.includes('iPhone')) || /iPad/.test(ua);
     STATE.locationMethod = useSncf ? 'sncf' : 'geo';
+    // FakeGeoSim prend le dessus sur tout autre mode (dev uniquement)
+    if (window.FAKE_GPS_SPEED_MULTIPLIER) STATE.locationMethod = 'geo';
     updateDebugBar();
 
     // Initialisation UI immédiate (MAIN_ROUTES est statique, pas besoin du fetch)
