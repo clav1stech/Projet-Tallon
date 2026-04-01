@@ -441,6 +441,14 @@ function showPosition(position) {
         currentSpeed = currentSpeed / window.FAKE_GPS_SPEED_MULTIPLIER;
     }
 
+    // Filtre de cohérence physique pour éviter les pics GPS sur le graphique
+    const prevSpeed = STATE.speedHistory.length > 0 ? STATE.speedHistory[STATE.speedHistory.length - 1] : currentSpeed;
+    const delta = currentSpeed - prevSpeed;
+    if (Math.abs(delta) > 5) {
+        currentSpeed = prevSpeed + (Math.sign(delta) * 2);
+    }
+    currentSpeed = Math.max(0, Math.min(350, currentSpeed));
+
     // Historique de vitesse pour le sparkline
     STATE.speedHistory.push(currentSpeed);
     if (STATE.speedHistory.length > 1800) {
