@@ -34,6 +34,16 @@
                     <input type="time" id="departure-time" required>
                 </div>
 
+                <!-- Champ : mode de localisation -->
+                <div class="form-row">
+                    <label for="location-mode-toggle"><i class="fas fa-wifi"></i> Mode WiFi SNCF :</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="location-mode-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span id="location-mode-label" style="font-size:0.85em;opacity:0.7">GPS natif</span>
+                </div>
+
                 <!-- Champ : décalage global ΔT -->
                 <div class="form-row">
                     <label for="global-delta">

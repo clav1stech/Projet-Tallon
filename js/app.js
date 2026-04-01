@@ -84,14 +84,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     restoreSettings();
 
-    // Auto-détection du mode de localisation
-    // Scriptable, Mac ou iPad → WiFi SNCF ; sinon GPS natif
-    const ua = navigator.userAgent;
-    const useSncf = ua.includes('Scriptable') || (/Macintosh|Mac OS X/.test(ua) && !ua.includes('iPhone')) || /iPad/.test(ua);
-    STATE.locationMethod = useSncf ? 'sncf' : 'geo';
-    // FakeGeoSim prend le dessus sur tout autre mode (dev uniquement)
-    if (window.FAKE_GPS_SPEED_MULTIPLIER) STATE.locationMethod = 'geo';
-    updateDebugBar();
+    // Mode de localisation : piloté par la checkbox, pas par l'user-agent
+    const locationToggle = document.getElementById('location-mode-toggle');
+    const locationModeLabel = document.getElementById('location-mode-label');
+
+    const applyLocationMode = () => {
+        STATE.locationMethod = locationToggle.checked ? 'sncf' : 'geo';
+        // FakeGeoSim prend le dessus sur tout autre mode (dev uniquement)
+        if (window.FAKE_GPS_SPEED_MULTIPLIER) STATE.locationMethod = 'geo';
+        if (locationModeLabel) locationModeLabel.textContent = STATE.locationMethod === 'sncf' ? 'WiFi SNCF' : 'GPS natif';
+        updateDebugBar();
+    };
+
+    if (locationToggle) locationToggle.addEventListener('change', applyLocationMode);
+    applyLocationMode();
 
     // Initialisation UI immédiate (MAIN_ROUTES est statique, pas besoin du fetch)
     populateTrajetDropdown();
