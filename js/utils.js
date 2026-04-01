@@ -1,4 +1,19 @@
 // js/utils.js
+
+/**
+ * Retourne la voie de circulation d'une master route.
+ * Voie 1 = sens Paris (south-north), Voie 2 = sens Marseille/Lyon (north-south).
+ * Se base sur le champ `voie` de la route, avec fallback sur `direction`.
+ * @param {object} route - Objet master route
+ * @returns {1|2|null}
+ */
+export function getVoieForRoute(route) {
+    if (route?.voie === 1 || route?.voie === 2) return route.voie;
+    const dir = (route?.direction || '').toLowerCase();
+    if (dir === 'south-north') return 1;
+    if (dir === 'north-south') return 2;
+    return null;
+}
 export const $ = (sel) => document.querySelector(sel);
 export const $$ = (sel) => document.querySelectorAll(sel);
 

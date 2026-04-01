@@ -148,7 +148,7 @@ label input[type="radio"] {
    Master Routes Editor
    =========================== */
 .editor-container {
-    max-width: 1200px;
+    max-width: 1600px;
     width: 100%;
 }
 
@@ -205,65 +205,214 @@ label input[type="radio"] {
     align-items: start;
 }
 
-.editor-table-wrapper {
-    max-height: 720px;
+/* --- Points list (nouvelle mise en page verticale) --- */
+.editor-list-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: calc(100vh - 260px);
     overflow: auto;
+    padding: 4px 2px;
+}
+
+.point-card {
     background: #fff;
-    border-radius: 10px;
     border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-.editor-table {
-    width: 100%;
-    border-collapse: collapse;
+.point-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
 }
 
-.editor-table th,
-.editor-table td {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border);
-    text-align: left;
-}
-
-.editor-table thead th {
-    position: sticky;
-    top: 0;
+.point-index-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
     background: var(--primary);
     color: #fff;
-    z-index: 1;
-    white-space: nowrap;
+    font-weight: bold;
+    font-size: 0.8em;
+    flex-shrink: 0;
 }
 
-.editor-table tbody tr:nth-child(even) {
-    background: #f8fafc;
-}
-
-.editor-table input[type="text"],
-.editor-table input[type="number"] {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    font-size: 0.95em;
-}
-
-.actions-cell {
+.point-card-actions {
     display: flex;
-    gap: 6px;
+    gap: 4px;
 }
 
-.actions-cell button {
-    padding: 6px 8px;
-    border-radius: 6px;
+.point-card-actions button {
+    padding: 3px 7px;
+    border-radius: 5px;
     border: 1px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.88em;
+}
+
+.point-card-actions button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.point-card-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 6px;
+    align-items: flex-start;
+}
+
+.point-field {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.point-field-label {
+    font-size: 0.68em;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.point-field input {
+    padding: 3px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 0.82em;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+/* Tailles des champs selon leur contenu */
+.point-field:has(input[value*="lat"]),
+.point-field:has(input[type="number"]) { min-width: 75px; }
+
+#points-list .point-field { min-width: 70px; max-width: 130px; flex: 1 1 auto; }
+#points-list .point-field:first-child   { min-width: 95px; flex: 0 0 95px; }   /* ID */
+#points-list .point-field:nth-child(2)  { min-width: 130px; flex: 1 1 130px; } /* Nom */
+#points-list .point-field--type { min-width: 160px; flex: 0 0 160px; }
+
+.point-type-select {
+    padding: 3px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 0.82em;
+    width: 100%;
     background: #fff;
     cursor: pointer;
 }
 
-.actions-cell button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+/* Groupe voie 1 / voie 2 dans les bifurcations */
+.point-field-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 6px;
+    align-items: flex-start;
+    width: 100%;
+    padding: 4px 6px;
+    border-left: 3px solid var(--primary, #1976D2);
+    background: #f5f8ff;
+    border-radius: 0 4px 4px 0;
+}
+
+.point-field-group + .point-field-group {
+    border-left-color: #FF9800;
+    background: #fff9f0;
+}
+
+.point-field-group-title {
+    width: 100%;
+    font-size: 0.68em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--primary, #1976D2);
+    margin-bottom: 1px;
+}
+
+.point-field-group + .point-field-group .point-field-group-title {
+    color: #e65100;
+}
+
+.point-field-group .point-field { min-width: 70px; flex: 1 1 70px; }
+
+/* --- Connecteur de segment --- */
+.segment-connector {
+    display: flex;
+    align-items: stretch;
+    padding: 0 14px;
+    position: relative;
+}
+
+.segment-connector::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+    transform: translateX(-50%);
+    z-index: 0;
+}
+
+.segment-fields {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 10px;
+    margin: 2px auto;
+    z-index: 1;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.segment-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.segment-label {
+    font-size: 0.75em;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.segment-field input {
+    padding: 3px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    font-size: 0.88em;
+    box-sizing: border-box;
+    width: 100%;
+    background: #fff;
+}
+
+.segment-speed .segment-speed-value {
+    font-size: 1em;
+    font-weight: 700;
+    color: var(--primary);
+    padding: 5px 0;
 }
 
 .editor-summary {
@@ -291,6 +440,7 @@ label input[type="radio"] {
     color: var(--text-muted);
     font-size: 0.9em;
 }
+
 
 .editor-messages {
     margin-top: 12px;
@@ -1081,70 +1231,8 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     font-size: 0.9em;
 }
 
-.editor-table-wrapper {
-    max-height: 760px;
-    overflow: auto;
-    background: #fff;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-}
-
-.editor-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.editor-table th,
-.editor-table td {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border);
-    text-align: left;
-}
-
-.editor-table th.col-name,
-.editor-table td:nth-child(3) {
-    width: 340px;
-}
-
-.editor-table thead th {
-    position: sticky;
-    top: 0;
-    background: var(--primary);
-    color: #fff;
-    z-index: 1;
-    white-space: nowrap;
-}
-
-.editor-table tbody tr:nth-child(even) {
-    background: #f8fafc;
-}
-
-.editor-table input[type="text"],
-.editor-table input[type="number"] {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    font-size: 0.95em;
-}
-
-.actions-cell {
-    display: flex;
-    gap: 6px;
-}
-
-.actions-cell button {
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: #fff;
-    cursor: pointer;
-}
-
-.actions-cell button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+.editor-list-wrapper {
+    max-height: calc(100vh - 260px);
 }
 
 /* ===========================

@@ -25,30 +25,22 @@
         <aside class="editor-summary">
             <h3>Résumé</h3>
             <ul>
+                <li>
+                    <strong>Voie :</strong>
+                    <select id="voie-picker">
+                        <option value="1">Voie 1 (Paris → Province)</option>
+                        <option value="2">Voie 2 (Province → Paris)</option>
+                    </select>
+                </li>
                 <li><strong>Points :</strong> <span id="summary-points">0</span></li>
                 <li><strong>Durée totale :</strong> <span id="summary-duration">0 s</span></li>
                 <li><strong>Distance totale :</strong> <span id="summary-distance">0 km</span></li>
             </ul>
-            <p class="hint">Les modifications sont locales. Utilisez “Exporter JSON” pour récupérer le fichier mis à jour.</p>
+            <p class=”hint”>Les modifications sont locales. Utilisez “Exporter JSON” pour récupérer le fichier mis à jour.</p>
+
         </aside>
 
-        <div class="editor-table-wrapper">
-            <table id="points-table" class="editor-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>ID</th>
-                        <th class="col-name">Nom</th>
-                        <th>Lat</th>
-                        <th>Lon</th>
-                        <th>Durée →</th>
-                        <th>Longueur seg.</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+        <div class="editor-list-wrapper" id="points-list"></div>
 
         <div id="editor-messages" class="editor-messages"></div>
     </div>

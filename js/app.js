@@ -33,11 +33,11 @@ const handleStopsChange = async (stopIds) => {
     displayTimeline();
 };
 
-// Charge masterRoutes.json et servicePatterns.json
+// Charge masterRoutes.normalized.json et servicePatterns.json
 async function loadCoreData() {
     try {
         const [masterRes, patternsRes] = await Promise.all([
-            fetch('data/masterRoutes.json'),
+            fetch('data/masterRoutes.normalized.json'),
             fetch('data/servicePatterns.json')
         ]);
 
@@ -48,12 +48,15 @@ async function loadCoreData() {
         const masterData = await masterRes.json();
         const patternsData = await patternsRes.json();
 
-        STATE.masterRoutes = masterData.masterRoutes || [];
+        // Schéma v3 : dictionnaire global de points + tableau de trajets (sans dénormalisation)
+        STATE.points = masterData.points || {};
+        STATE.trajets = masterData.trajets || [];
         STATE.servicePatterns = patternsData.servicePatterns || [];
     } catch (e) {
         console.error('loadCoreData error:', e);
         updateInfo('Erreur lors du chargement des données de base (masterRoutes / servicePatterns).');
-        STATE.masterRoutes = [];
+        STATE.points = {};
+        STATE.trajets = [];
         STATE.servicePatterns = [];
     }
 }
@@ -233,8 +236,8 @@ function getMainRouteConfig() {
 function orderSelectedStops(mainRouteCfg) {
     if (!mainRouteCfg) return [];
 
-    const master = (STATE.masterRoutes || []).find(m => m.id === mainRouteCfg.masterRouteId);
-    const points = master?.points || [];
+    const trajet = (STATE.trajets || []).find(t => t.id === mainRouteCfg.masterRouteId);
+    const points = (trajet?.points || []).map(pt => ({ id: pt.id }));
 
     const allowedSet = new Set((mainRouteCfg.stopOptions || []).map(s => s.id));
     const startIndex = points.findIndex(p => p.id === mainRouteCfg.startPointId);
@@ -290,7 +293,8 @@ async function loadSelectedPatternRoute() {
         const effectiveRoute = buildEffectiveRoute(
             pattern.id,
             STATE.globalDeltaSeconds,
-            STATE.masterRoutes,
+            STATE.points,
+            STATE.trajets,
             [pattern]
         );
         STATE.currentRoute = effectiveRoute.points || [];

@@ -7,27 +7,55 @@ const CURVE_ALLOWANCE_RATIO = 0.08;
 const POINT_MATCH_TOLERANCE_KM = 0.9;
 
 /**
- * Construit une route effective à partir d'un service pattern et de la master route.
+ * Croise le dictionnaire global `pointsDict` avec les points d'un trajet.
+ * Retourne un tableau de points enrichis (données géo + métadonnées métier fusionnées).
+ * Réutilisable pour toute consommation hors-éditeur.
+ * @param {Object} pointsDict - Dictionnaire global { [id]: { lat, lon, ... } }
+ * @param {Array}  trajetPoints - Tableau du trajet [{ id, durationToNext, ... }]
  */
-export function buildEffectiveRoute(patternId, globalDeltaSeconds, masterRoutes, servicePatterns) {
+function denormalizePoints(pointsDict, trajetPoints) {
+    return (trajetPoints || []).map(pt => ({ ...(pointsDict[pt.id] || {}), ...pt }));
+}
+
+/**
+ * Construit une route effective à partir d'un service pattern et des trajets.
+ * @param {string} patternId
+ * @param {number} globalDeltaSeconds
+ * @param {Object} pointsGlobal - Dictionnaire global des points (clé = id)
+ * @param {Array}  trajets      - Tableau des trajets (schéma v3)
+ * @param {Array}  servicePatterns
+ */
+export function buildEffectiveRoute(patternId, globalDeltaSeconds, pointsGlobal, trajets, servicePatterns) {
     const pattern = (servicePatterns || []).find(p => p.id === patternId);
     if (!pattern) {
         throw new Error(`Pattern non trouvé: ${patternId}`);
     }
 
-    const master = (masterRoutes || []).find(m => m.id === pattern.masterRouteId);
-    if (!master) {
-        throw new Error(`Master route non trouvée: ${pattern.masterRouteId}`);
+    const trajet = (trajets || []).find(m => m.id === pattern.masterRouteId);
+    if (!trajet) {
+        throw new Error(`Trajet non trouvé: ${pattern.masterRouteId}`);
     }
 
-    const points = master.points || [];
+    // Croisement dictionnaire points + séquence du trajet
+    const voie = trajet.voie || 1;
+    const points = denormalizePoints(pointsGlobal, trajet.points).map(p => {
+        // Pour les bifurcations, substituer lat/lon par les coordonnées de la voie courante
+        if (p.type === 'bifurcation') {
+            const latV = p[`lat_V${voie}`];
+            const lonV = p[`lon_V${voie}`];
+            if (typeof latV === 'number' && typeof lonV === 'number') {
+                return { ...p, lat: latV, lon: lonV };
+            }
+        }
+        return p;
+    });
 
     const startIndex = points.findIndex(p => p.id === pattern.startPointId);
     const endIndex = points.findIndex(p => p.id === pattern.endPointId);
 
     // ✅ DEBUG
     console.log(`[buildEffectiveRoute] Pattern: ${patternId}`);
-    console.log(`[buildEffectiveRoute] Master: ${master.id}, ${points.length} points`);
+    console.log(`[buildEffectiveRoute] Trajet: ${trajet.id}, ${points.length} points`);
     console.log(`[buildEffectiveRoute] startPointId: ${pattern.startPointId} → index ${startIndex}`);
     console.log(`[buildEffectiveRoute] endPointId: ${pattern.endPointId} → index ${endIndex}`);
 
@@ -64,22 +92,15 @@ export function buildEffectiveRoute(patternId, globalDeltaSeconds, masterRoutes,
         const toPoint = slice[i + 1];
 
         if (isReversed) {
-            baseDurations[i] = Number(toPoint.baseDurationToNext || 0);
-            segmentLengths[i] = haversineDistance(
-                fromPoint.lat, fromPoint.lon,
-                toPoint.lat, toPoint.lon
-            );
+            baseDurations[i] = Number(toPoint.durationToNext || 0);
         } else {
-            baseDurations[i] = Number(fromPoint.baseDurationToNext || 0);
-            segmentLengths[i] = Number(fromPoint.segmentLengthToNext || 0);
-            
-            if (segmentLengths[i] <= 0) {
-                segmentLengths[i] = haversineDistance(
-                    fromPoint.lat, fromPoint.lon,
-                    toPoint.lat, toPoint.lon
-                );
-            }
+            baseDurations[i] = Number(fromPoint.durationToNext || 0);
         }
+        // Distance calculée exclusivement par Haversine (source de vérité GPS)
+        segmentLengths[i] = haversineDistance(
+            fromPoint.lat, fromPoint.lon,
+            toPoint.lat, toPoint.lon
+        );
     }
     // Le dernier point n'a pas de segment suivant
     baseDurations[n - 1] = 0;
@@ -140,7 +161,7 @@ export function buildEffectiveRoute(patternId, globalDeltaSeconds, masterRoutes,
 
     return {
         points: effectivePoints,
-        direction: isReversed ? 'NORD' : (master.direction || 'SUD')
+        direction: isReversed ? 'NORD' : (trajet.direction || 'SUD')
     };
 }
 

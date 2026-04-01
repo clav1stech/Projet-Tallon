@@ -6,9 +6,11 @@ export const STATE = {
     // Sens courant (ex: 'SUD' / 'NORD' ou équivalent)
     direction: 'north-south',
 
-    // --- NOUVELLE SOURCE DE VÉRITÉ DES ROUTES ---
-    // Contenu de data/masterRoutes.json
-    masterRoutes: [],
+    // Dictionnaire global des points — chargé depuis data/masterRoutes.normalized.json
+    points: {},
+
+    // Tableau des trajets (schéma v3) — chargé depuis data/masterRoutes.normalized.json
+    // (remplace masterRoutes)
 
     // Contenu de data/servicePatterns.json
     servicePatterns: [],
@@ -47,7 +49,6 @@ export const STATE = {
     locationMethod: 'geo',
     lastScrolledStationIdx: null,
 
-    // Champ trajets neutralisé : ne plus dépendre de la globale `trajets`
     trajets: [],
 
     // Historique des dernières positions GPS pour le calcul de vitesse lissée
@@ -81,7 +82,8 @@ export function restoreSettings() {
         }
 
         // Initialisation par défaut de champs dérivés
-        STATE.masterRoutes = STATE.masterRoutes || [];
+        STATE.points = STATE.points || {};
+        STATE.trajets = STATE.trajets || [];
         STATE.servicePatterns = STATE.servicePatterns || [];
         STATE.currentRoute = STATE.currentRoute || [];
         STATE.departureTimestamp = null;
