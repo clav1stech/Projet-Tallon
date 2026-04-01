@@ -88,7 +88,7 @@ export function displayTimeline(currentIdx = null) {
         return;
     }
 
-    const routeKey = (STATE.selectedPatternId || '') + String(STATE.currentRoute.length);
+    const routeKey = (STATE.selectedPatternId || '') + String(STATE.currentRoute.length) + String(STATE.globalDeltaSeconds || 0);
 
     // Rebuild complet uniquement si la route ou l'heure de départ a changé
     if (routeKey !== _timelineLastRouteKey || STATE.departureTime !== _timelineLastDepartureTime) {
