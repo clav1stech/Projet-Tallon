@@ -71,52 +71,100 @@ export function renderStopCheckboxes(mainRouteKey, selectedStopIds = [], onChang
 }
 
 
+// Clés de la dernière timeline rendue — pour détecter si un rebuild complet est nécessaire
+let _timelineLastRouteKey = null;
+let _timelineLastDepartureTime = null;
+
 // Affichage principal de la timeline à partir de STATE.currentRoute
 export function displayTimeline(currentIdx = null) {
     const timeline = document.getElementById('timeline');
     if (!timeline) return;
 
-    // ✅ DEBUG
-    console.log(`[displayTimeline] STATE.currentRoute.length = ${STATE.currentRoute?.length || 0}`);
-
     // Si pas de route ou pas d'heure de départ, on vide juste
     if (!STATE.currentRoute || !STATE.currentRoute.length || !STATE.departureTime) {
         timeline.replaceChildren();
+        _timelineLastRouteKey = null;
+        _timelineLastDepartureTime = null;
         return;
     }
 
-    // Header
-    const headerDiv = document.createElement('div');
-    headerDiv.className = 'station header';
-    headerDiv.innerHTML = `<span>TIME</span><span>WAYPOINT</span><span>DELAY</span>`;
+    const routeKey = (STATE.selectedPatternId || '') + String(STATE.currentRoute.length);
 
-    // On part de l'heure de départ
-    let currentDate = timeStringToDate(STATE.departureTime);
+    // Rebuild complet uniquement si la route ou l'heure de départ a changé
+    if (routeKey !== _timelineLastRouteKey || STATE.departureTime !== _timelineLastDepartureTime) {
+        _timelineLastRouteKey = routeKey;
+        _timelineLastDepartureTime = STATE.departureTime;
 
-    const nodes = [headerDiv];
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'station header';
+        headerDiv.innerHTML = `<span>TIME</span><span>WAYPOINT</span><span>DELAY</span>`;
 
-    STATE.currentRoute.forEach((point, idx) => {
-        const stationDiv = document.createElement('div');
-        stationDiv.className = 'station';
+        let currentDate = timeStringToDate(STATE.departureTime);
+        const nodes = [headerDiv];
 
-        // Pour le point idx, l'heure d'arrivée = départ + somme des durées des segments 0..(idx-1)
-        // Autrement dit : on ajoute la durée du segment PRECEDENT (route[idx-1]) pour arriver à idx
-        if (idx > 0) {
-            const prevPoint = STATE.currentRoute[idx - 1];
-            const durSec = Number(
-                prevPoint.durationEffective ??
-                prevPoint.baseDurationToNext ??
-                0
-            );
-            currentDate = new Date(currentDate.getTime() + durSec * 1000);
+        STATE.currentRoute.forEach((point, idx) => {
+            const stationDiv = document.createElement('div');
+            stationDiv.className = 'station';
+            stationDiv.dataset.idx = idx;
+
+            if (idx > 0) {
+                const prevPoint = STATE.currentRoute[idx - 1];
+                const durSec = Number(prevPoint.durationEffective ?? prevPoint.baseDurationToNext ?? 0);
+                currentDate = new Date(currentDate.getTime() + durSec * 1000);
+            }
+            const arrivalTimeStr = formatTime(currentDate);
+            stationDiv.dataset.arrivalTime = arrivalTimeStr;
+
+            const isStop = !!point.isStop;
+            const nameHtml = isStop ? `<strong>${point.name}</strong>` : point.name;
+
+            const isNextPoint = currentIdx != null && idx === currentIdx + 1;
+            let delayText = '';
+            if (STATE.passedPoints && Object.prototype.hasOwnProperty.call(STATE.passedPoints, point.id)) {
+                delayText = formatDelayMs(STATE.passedPoints[point.id]);
+            } else if (isNextPoint && typeof STATE.currentDelay === 'number') {
+                delayText = formatDelayMs(STATE.currentDelay);
+            }
+
+            const timeSpan = isNextPoint && delayText
+                ? `<span>${arrivalTimeStr} <span class="delay-inline">${delayText}</span></span>`
+                : `<span>${arrivalTimeStr}</span>`;
+
+            stationDiv.innerHTML = `
+                ${timeSpan}
+                <span>${nameHtml}</span>
+                <span class="delay">${isNextPoint ? '' : delayText}</span>
+            `;
+
+            if (currentIdx !== null && idx === currentIdx) {
+                stationDiv.classList.add('current-station');
+            } else if (currentIdx !== null && idx < currentIdx) {
+                stationDiv.classList.add('passed');
+            }
+
+            nodes.push(stationDiv);
+        });
+
+        // Remplacement atomique : pas d'état vide intermédiaire, évite le flash visuel
+        timeline.replaceChildren(...nodes);
+        return;
+    }
+
+    // Mise à jour différentielle : seulement les classes et les retards changent
+    timeline.querySelectorAll('.station[data-idx]').forEach(stationDiv => {
+        const idx = parseInt(stationDiv.dataset.idx, 10);
+        const point = STATE.currentRoute[idx];
+        if (!point) return;
+
+        // Classes de progression
+        stationDiv.classList.remove('current-station', 'passed');
+        if (currentIdx !== null && idx === currentIdx) {
+            stationDiv.classList.add('current-station');
+        } else if (currentIdx !== null && idx < currentIdx) {
+            stationDiv.classList.add('passed');
         }
-        const arrivalTimeStr = formatTime(currentDate);
 
-        // Nom du point (gras si gare/stop)
-        const isStop = !!point.isStop;
-        const nameHtml = isStop ? `<strong>${point.name}</strong>` : point.name;
-
-        // Retard affiché
+        // Retard
         const isNextPoint = currentIdx != null && idx === currentIdx + 1;
         let delayText = '';
         if (STATE.passedPoints && Object.prototype.hasOwnProperty.call(STATE.passedPoints, point.id)) {
@@ -125,28 +173,21 @@ export function displayTimeline(currentIdx = null) {
             delayText = formatDelayMs(STATE.currentDelay);
         }
 
-        const timeSpan = isNextPoint && delayText
-            ? `<span>${arrivalTimeStr} <span class="delay-inline">${delayText}</span></span>`
-            : `<span>${arrivalTimeStr}</span>`;
+        const arrivalTimeStr = stationDiv.dataset.arrivalTime;
+        const timeCell = stationDiv.children[0];
+        const delayCell = stationDiv.children[2];
 
-        stationDiv.innerHTML = `
-            ${timeSpan}
-            <span>${nameHtml}</span>
-            <span class="delay">${isNextPoint ? '' : delayText}</span>
-        `;
-
-        // Styling de la station courante / passée
-        if (currentIdx !== null && idx === currentIdx) {
-            stationDiv.classList.add('current-station');
-        } else if (currentIdx !== null && idx < currentIdx) {
-            stationDiv.classList.add('passed');
+        if (timeCell) {
+            if (isNextPoint && delayText) {
+                timeCell.innerHTML = `${arrivalTimeStr} <span class="delay-inline">${delayText}</span>`;
+            } else {
+                timeCell.textContent = arrivalTimeStr;
+            }
         }
-
-        nodes.push(stationDiv);
+        if (delayCell) {
+            delayCell.textContent = isNextPoint ? '' : delayText;
+        }
     });
-
-    // Remplacement atomique : pas d'état vide intermédiaire, évite le flash visuel
-    timeline.replaceChildren(...nodes);
 }
 
 export function updateInfo(msg) {
@@ -524,19 +565,6 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
                 carousel.scrollTop = Math.max(0, activePoint.offsetTop + activePoint.offsetHeight / 2 - carouselHeight * 0.35);
             }
             fitCarouselNames(trackPoints);
-        });
-    }
-
-    // Every call: correct scroll position in case of drift (skip during transition animation)
-    if (!_hudScrollAnimId) {
-        requestAnimationFrame(() => {
-            if (!carousel) return;
-            const activePoint = trackPoints.querySelector('.hud-point.active');
-            if (!activePoint) return;
-            const scrollTarget = Math.max(0, activePoint.offsetTop + activePoint.offsetHeight / 2 - carouselHeight * 0.35);
-            if (Math.abs(carousel.scrollTop - scrollTarget) > 3) {
-                carousel.scrollTo({ top: scrollTarget, behavior: 'smooth' });
-            }
         });
     }
 
