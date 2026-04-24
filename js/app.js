@@ -15,7 +15,7 @@ function updateDebugBar(status) {
     if (!el) return;
     const ua = navigator.userAgent;
     let agentLabel;
-    if (ua.includes('Scriptable'))                                              agentLabel = 'Scriptable';
+    if (window.IS_SCRIPTABLE_BRIDGE || ua.includes('Scriptable'))               agentLabel = 'Scriptable';
     else if (/iPhone/i.test(ua))                                               agentLabel = 'iPhone Safari';
     else if (/iPad/i.test(ua))                                                 agentLabel = 'iPad Safari';
     else if (/Macintosh|Mac OS X/.test(ua) && !ua.includes('Mobile'))         agentLabel = 'Mac Safari';
@@ -64,7 +64,15 @@ async function loadCoreData() {
 // Bridge de communication pour Scriptable
 window.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'SNCF_GPS_BRIDGE') {
-        // On utilise les coordonnées injectées par Scriptable
+        window.IS_SCRIPTABLE_BRIDGE = true;
+        if (STATE.locationMethod !== 'sncf') {
+            STATE.locationMethod = 'sncf';
+            const locationToggle = document.getElementById('location-mode-toggle');
+            if (locationToggle) { locationToggle.checked = true; }
+            const locationLabel = document.getElementById('location-mode-label');
+            if (locationLabel) { locationLabel.textContent = 'WiFi SNCF (Bridge)'; }
+            updateDebugBar('Bridge Auto-Activated');
+        }
         showPosition({
             coords: {
                 latitude: e.data.coords.latitude,
@@ -352,7 +360,7 @@ function startTracking() {
 }
 
 async function fetchSncfPosition() {
-    if (navigator.userAgent.includes('Scriptable')) {
+    if (window.IS_SCRIPTABLE_BRIDGE || navigator.userAgent.includes('Scriptable')) {
         updateDebugBar('Bridge Scriptable OK');
         updateInfo('Synchronisation WiFi SNCF via Scriptable active');
         return;
