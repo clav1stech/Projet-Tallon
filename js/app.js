@@ -318,6 +318,8 @@ async function loadSelectedPatternRoute() {
         // Reset des infos de tracking liées aux segments
         STATE.lastSegmentIndex = null;
         STATE.passedPoints = {};
+        STATE.lastTrustedPosition = null;
+        STATE.gpsRecoveryMode = false;
     } catch (e) {
         console.error(e);
         updateInfo("Erreur lors de la construction de la route pour le pattern sélectionné.");
@@ -390,6 +392,28 @@ function processCurrentPosition() {
             updateInfo("La géolocalisation n'est pas supportée par ce navigateur.");
         }
     }
+
+    // Détection de perte GPS : injection de vitesse non fiable dans l'historique
+    if (STATE.lastGpsUpdateMs > 0 && STATE.departureTimestamp) {
+        const timeSinceLastGps = Date.now() - STATE.lastGpsUpdateMs;
+        if (timeSinceLastGps > 15000 && timeSinceLastGps < 300000) {
+            const lastEntry = STATE.speedHistory.length > 0 ? STATE.speedHistory[STATE.speedHistory.length - 1] : null;
+            const lastSpeed = lastEntry ? lastEntry.v : 0;
+            STATE.speedHistory.push({ v: lastSpeed, reliable: false });
+            if (STATE.speedHistory.length > 1800) STATE.speedHistory.shift();
+
+            // Mettre à jour le HUD avec l'indicateur de signal perdu
+            const lastPos = STATE.lastPositions.length > 0 ? STATE.lastPositions[STATE.lastPositions.length - 1] : null;
+            updateLandscapeHUD(
+                STATE.lastSegmentIndex ?? 0,
+                lastSpeed,
+                STATE.currentDelay ?? 0,
+                lastPos ? lastPos.lat : 0,
+                lastPos ? lastPos.lon : 0,
+                false
+            );
+        }
+    }
 }
 
 function showError(error) {
@@ -402,8 +426,53 @@ function showPosition(position) {
         return;
     }
 
+    STATE.lastGpsUpdateMs = Date.now();
+
+    // Seed géographique : au premier fix GPS, trouver le segment le plus proche par projection
+    // pour éviter un accrochage faux en début de route.
+    if (STATE.lastSegmentIndex === null) {
+        const lat0 = position.coords.latitude;
+        const lon0 = position.coords.longitude;
+        let bestSegIdx = 0;
+        let bestDist = Infinity;
+        for (let i = 0; i < STATE.currentRoute.length - 1; i++) {
+            const a = STATE.currentRoute[i];
+            const b = STATE.currentRoute[i + 1];
+            if (typeof a.lat !== 'number' || typeof b.lat !== 'number') continue;
+            // Projection du point sur le segment [a, b]
+            const abLat = b.lat - a.lat, abLon = b.lon - a.lon;
+            const apLat = lat0 - a.lat, apLon = lon0 - a.lon;
+            const abLenSq = abLat * abLat + abLon * abLon;
+            const t = abLenSq > 0 ? Math.max(0, Math.min(1, (apLat * abLat + apLon * abLon) / abLenSq)) : 0;
+            const projLat = a.lat + t * abLat;
+            const projLon = a.lon + t * abLon;
+            const dist = haversineDistance(lat0, lon0, projLat, projLon);
+            if (dist < bestDist) { bestDist = dist; bestSegIdx = i; }
+        }
+        STATE.lastSegmentIndex = bestSegIdx;
+    }
+
     const userLat = position.coords.latitude;
     const userLon = position.coords.longitude;
+
+    // Guard anti-téléportation : ignorer les positions physiquement impossibles (> 2000 km/h)
+    const TELEPORT_THRESHOLD_KMH = 2000;
+    if (STATE.lastTrustedPosition) {
+        const dtH = (Date.now() - STATE.lastTrustedPosition.ts) / 3_600_000;
+        const impliedSpeed = dtH > 0
+            ? haversineDistance(userLat, userLon, STATE.lastTrustedPosition.lat, STATE.lastTrustedPosition.lon) / dtH
+            : 0;
+
+        if (impliedSpeed > TELEPORT_THRESHOLD_KMH) {
+            STATE.gpsRecoveryMode = true;
+            console.warn(`[GPS] Téléportation ignorée (${Math.round(impliedSpeed)} km/h)`);
+            return;
+        }
+
+        // Une seule position cohérente suffit à sortir du mode récupération
+        STATE.gpsRecoveryMode = false;
+    }
+    STATE.lastTrustedPosition = { lat: userLat, lon: userLon, ts: Date.now() };
     const accuracyMeters = Number(position.coords.accuracy);
     const positionTimestamp = Date.now();
     const reportedSpeed = Number(position.coords.speed);
@@ -442,7 +511,8 @@ function showPosition(position) {
     }
 
     // Filtre de cohérence physique pour éviter les pics GPS sur le graphique
-    const prevSpeed = STATE.speedHistory.length > 0 ? STATE.speedHistory[STATE.speedHistory.length - 1] : currentSpeed;
+    const lastEntry = STATE.speedHistory.length > 0 ? STATE.speedHistory[STATE.speedHistory.length - 1] : null;
+    const prevSpeed = lastEntry ? lastEntry.v : currentSpeed;
     const delta = currentSpeed - prevSpeed;
     if (Math.abs(delta) > 5) {
         currentSpeed = prevSpeed + (Math.sign(delta) * 2);
@@ -450,20 +520,20 @@ function showPosition(position) {
     currentSpeed = Math.max(0, Math.min(350, currentSpeed));
 
     // Historique de vitesse pour le sparkline
-    STATE.speedHistory.push(currentSpeed);
+    STATE.speedHistory.push({ v: currentSpeed, reliable: true });
     if (STATE.speedHistory.length > 1800) {
         STATE.speedHistory.shift();
     }
 
     // ✅ Passer lastSegmentIndex pour respecter le sens de circulation
-    const {
+    let {
         segmentIndex,
         distanceFromSegmentStart,
         distanceToNextPointKm
     } = computeSegmentIndexAndDistance(
-        STATE.currentRoute, 
-        userLat, 
-        userLon, 
+        STATE.currentRoute,
+        userLat,
+        userLon,
         STATE.lastSegmentIndex,
         Number.isFinite(accuracyMeters) ? accuracyMeters : null,
         STATE.direction
@@ -477,6 +547,15 @@ function showPosition(position) {
         infoHtml += " Position actuelle hors de la route prévue.";
         updateInfo(infoHtml);
         return;
+    }
+
+    // 🔒 Garde-fou unidirectionnel : l'index de segment ne peut jamais reculer
+    if (STATE.lastSegmentIndex !== null && segmentIndex < STATE.lastSegmentIndex) {
+        segmentIndex = STATE.lastSegmentIndex;
+        const nextPoint = STATE.currentRoute[segmentIndex + 1];
+        distanceToNextPointKm = nextPoint
+            ? haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon)
+            : 0;
     }
 
     const now = Date.now();

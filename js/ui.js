@@ -232,7 +232,7 @@ export function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistan
     }
 
     if (STATE.currentDelay > 30_000) {
-        const minutes = Math.max(1, Math.ceil(STATE.currentDelay / 60000));
+        const minutes = Math.floor(STATE.currentDelay / 60000);
         setStatus(`Delay ${minutes} min`, 'red');
     } else {
         setStatus('On Time', 'green');
@@ -247,6 +247,7 @@ function fitCarouselNames(trackPoints) {
     if (!window.matchMedia('(orientation: landscape)').matches) return;
     trackPoints.querySelectorAll('.hud-point-name').forEach(nameEl => {
         nameEl.style.fontSize = ''; // réinitialise un éventuel inline précédent
+        nameEl.style.whiteSpace = 'nowrap'; // force une seule ligne pour que scrollWidth reflète la largeur réelle
         const info = nameEl.parentElement;
         if (!info) return;
         const available = info.clientWidth;
@@ -290,7 +291,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
     if (speedEl) {
         if (!speedReliable) {
             speedEl.style.setProperty('--speed-deg', '0deg');
-            speedEl.innerHTML = `<span class="hud-speed-value">No GPS</span>`;
+            speedEl.innerHTML = `<span class="hud-speed-value"><i class="fa-solid fa-signal-slash"></i></span>`;
         } else {
             const displaySpeed = Math.round(speed);
             const arcSpeed = Math.min(displaySpeed, 320);
@@ -309,7 +310,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
         const w = graphCanvas.width;
         const h = graphCanvas.height;
         const history = STATE.speedHistory || [];
-        const maxSpeed = Math.max(...(history.slice(Math.max(0, history.length - 1200))), 1);
+        const maxSpeed = Math.max(...history.slice(Math.max(0, history.length - 1200)).map(p => p.v), 1);
 
         ctx.clearRect(0, 0, w, h);
 
@@ -321,6 +322,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
 
             const xScale = w / (n - 1);
 
+            // Remplissage (aire sous la courbe, toujours en valeur .v)
             const grad = ctx.createLinearGradient(0, 0, 0, h);
             grad.addColorStop(0, 'rgba(255, 255, 255, 0.20)');
             grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
@@ -328,29 +330,35 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
             ctx.beginPath();
             for (let i = 0; i < n; i++) {
                 const x = i * xScale;
-                const y = h - (Math.min(points[i], maxSpeed) / maxSpeed) * h;
+                const y = h - (Math.min(points[i].v, maxSpeed) / maxSpeed) * h;
                 if (i === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             }
-            // Fermeture du path pour le remplissage
             ctx.lineTo((n - 1) * xScale, h);
             ctx.lineTo(0, h);
             ctx.closePath();
             ctx.fillStyle = grad;
             ctx.fill();
 
-            // Ligne
-            ctx.beginPath();
+            // Ligne segment par segment selon fiabilité
             ctx.lineJoin = 'round';
             ctx.lineWidth = 1.5;
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-            for (let i = 0; i < n; i++) {
-                const x = i * xScale;
-                const y = h - (Math.min(points[i], maxSpeed) / maxSpeed) * h;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+            for (let i = 1; i < n; i++) {
+                const prev = points[i - 1];
+                const curr = points[i];
+                const reliable = curr.reliable !== false && prev.reliable !== false;
+                ctx.beginPath();
+                ctx.strokeStyle = reliable ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.35)';
+                ctx.setLineDash(reliable ? [] : [4, 4]);
+                const x0 = (i - 1) * xScale;
+                const y0 = h - (Math.min(prev.v, maxSpeed) / maxSpeed) * h;
+                const x1 = i * xScale;
+                const y1 = h - (Math.min(curr.v, maxSpeed) / maxSpeed) * h;
+                ctx.moveTo(x0, y0);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
             }
-            ctx.stroke();
+            ctx.setLineDash([]);
 
             // Marqueurs des points passés
             const nowTs = Date.now();
@@ -359,7 +367,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
                 const markerIdx = (history.length - 1 - secsAgo) - startIdx;
                 if (markerIdx < 0 || markerIdx >= n) continue;
                 const x = markerIdx * xScale;
-                const y = h - (Math.min(points[markerIdx], maxSpeed) / maxSpeed) * h;
+                const y = h - (Math.min(points[markerIdx].v, maxSpeed) / maxSpeed) * h;
 
                 // Trait vertical
                 ctx.beginPath();
@@ -385,9 +393,14 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
         }
         const theoArrivalMs = STATE.departureTimestamp + totalSec * 1000;
         const beforeDeparture = Date.now() < STATE.departureTimestamp;
-        const etaMs = beforeDeparture
-            ? theoArrivalMs
-            : theoArrivalMs + (typeof currentDelay === 'number' ? currentDelay : 0);
+        // L'ETA n'est ajusté que si le retard/avance est suffisant pour être affiché dans le HUD :
+        // retard > 60s ou avance >= 3 min. En dessous, l'ETA reste théorique (cohérence visuelle).
+        const delay = typeof currentDelay === 'number' ? currentDelay : 0;
+        const applyDelay = !beforeDeparture && (delay > 60_000 || delay < -180_000);
+        // On applique le même nombre de minutes entières que le badge (Math.floor) pour garantir la cohérence
+        const delayMinutes = Math.floor(Math.abs(delay) / 60_000);
+        const delayAligned = (delay >= 0 ? 1 : -1) * delayMinutes * 60_000;
+        const etaMs = theoArrivalMs + (applyDelay ? delayAligned : 0);
         const etaDate = new Date(etaMs);
         const hh = String(etaDate.getHours()).padStart(2, '0');
         const mm = String(etaDate.getMinutes()).padStart(2, '0');
@@ -456,32 +469,6 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
             }
         });
         fitCarouselNames(trackPoints);
-
-        // Animation de scroll synchronisée avec les transitions CSS :
-        // on suit la position réelle de l'élément actif chaque frame plutôt qu'une
-        // cible fixe, ce qui garantit que scroll et redimensionnement bougent ensemble.
-        if (_hudScrollAnimId) cancelAnimationFrame(_hudScrollAnimId);
-        const scrollStart = carousel.scrollTop;
-        const animStart = performance.now();
-        const SCROLL_DURATION = 700; // identique à la durée des transitions CSS
-        function easeOutCubic(t) {
-            return 1 - Math.pow(1 - t, 3);
-        }
-        function animateScroll(now) {
-            const elapsed = Math.min(now - animStart, SCROLL_DURATION);
-            const progress = easeOutCubic(elapsed / SCROLL_DURATION);
-            const activeEl = trackPoints.querySelector('.hud-point.active');
-            if (activeEl) {
-                const liveTarget = Math.max(0, activeEl.offsetTop + activeEl.offsetHeight / 2 - carouselHeight * 0.35);
-                carousel.scrollTop = scrollStart + (liveTarget - scrollStart) * progress;
-            }
-            if (elapsed < SCROLL_DURATION) {
-                _hudScrollAnimId = requestAnimationFrame(animateScroll);
-            } else {
-                _hudScrollAnimId = null;
-            }
-        }
-        _hudScrollAnimId = requestAnimationFrame(animateScroll);
     }
 
     if (routeChanged) {
@@ -548,24 +535,46 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
             trackPoints.appendChild(div);
         }
 
-        // Defer layout-sensitive measurements to next frame
-        requestAnimationFrame(() => {
-            // Set bordeaux line bounds between first and last point centers
-            const allHudPoints = trackPoints.querySelectorAll('.hud-point');
-            if (allHudPoints.length >= 1) {
-                const firstPt = allHudPoints[0];
-                const lastPt = allHudPoints[allHudPoints.length - 1];
+        // Snap immédiat du carousel (reflow synchrone après rebuild DOM)
+        // On cible .next (héros) à 40% ; fallback sur .active si pas de next
+        const snapTarget = trackPoints.querySelector('.hud-point.next') || trackPoints.querySelector('.hud-point.active');
+        if (snapTarget && carousel) {
+            carousel.scrollTop = Math.max(0, snapTarget.offsetTop + snapTarget.offsetHeight / 2 - carouselHeight * 0.40);
+        }
+        fitCarouselNames(trackPoints);
+    }
+
+    // Animation scroll + recalcul des bornes bordeaux à chaque frame
+    if (routeChanged || idxChanged) {
+        if (_hudScrollAnimId) cancelAnimationFrame(_hudScrollAnimId);
+        const scrollStart = carousel.scrollTop;
+        const animStart = performance.now();
+        const SCROLL_DURATION = 700;
+        function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+        function animateScroll(now) {
+            const elapsed = Math.min(now - animStart, SCROLL_DURATION);
+            const progress = easeOutCubic(elapsed / SCROLL_DURATION);
+            // On cible .next (héros) à 40% ; fallback sur .active si dernier point
+            const targetEl = trackPoints.querySelector('.hud-point.next') || trackPoints.querySelector('.hud-point.active');
+            if (targetEl) {
+                const liveTarget = Math.max(0, targetEl.offsetTop + targetEl.offsetHeight / 2 - carouselHeight * 0.40);
+                carousel.scrollTop = scrollStart + (liveTarget - scrollStart) * progress;
+            }
+            // Recalcul des bornes de la ligne bordeaux à chaque frame
+            const allPts = trackPoints.querySelectorAll('.hud-point');
+            if (allPts.length >= 1) {
+                const firstPt = allPts[0];
+                const lastPt = allPts[allPts.length - 1];
                 trackPoints.style.setProperty('--line-top', `${firstPt.offsetTop + firstPt.offsetHeight / 2}px`);
                 trackPoints.style.setProperty('--line-bottom', `${trackPoints.scrollHeight - lastPt.offsetTop - lastPt.offsetHeight / 2}px`);
             }
-
-            // Snap carousel to active point at 35% from top
-            const activePoint = trackPoints.querySelector('.hud-point.active');
-            if (activePoint && carousel) {
-                carousel.scrollTop = Math.max(0, activePoint.offsetTop + activePoint.offsetHeight / 2 - carouselHeight * 0.35);
+            if (elapsed < SCROLL_DURATION) {
+                _hudScrollAnimId = requestAnimationFrame(animateScroll);
+            } else {
+                _hudScrollAnimId = null;
             }
-            fitCarouselNames(trackPoints);
-        });
+        }
+        _hudScrollAnimId = requestAnimationFrame(animateScroll);
     }
 
     // Mise à jour des distances en temps réel (à chaque appel GPS, même sans rebuild)

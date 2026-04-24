@@ -155,6 +155,8 @@ export function buildEffectiveRoute(patternId, globalDeltaSeconds, pointsGlobal,
             baseDuration: baseDurations[idx] || 0,
             durationEffective: durationEffective[idx] || 0,
             isStop,
+            isAccelerating: isStop,
+            isDecelerating: idx < n - 1 && stopIds.includes(slice[idx + 1].id),
             segmentLengthToNext: segmentLengths[idx] || 0
         };
     });
@@ -447,7 +449,16 @@ export function computeCurrentDelay(route, segmentIndex, distanceFromStart, depa
     const segLength = getSegmentLength(segPoint, route[segmentIndex + 1] || segPoint);
 
     // Ratio de progression sur le segment (0 à 1)
-    const ratio = segLength > 0 ? Math.max(0, Math.min(1, distanceFromStart / segLength)) : 0;
+    let ratio = segLength > 0 ? Math.max(0, Math.min(1, distanceFromStart / segLength)) : 0;
+
+    // Easing physique : accélération depuis un arrêt, décélération vers un arrêt
+    if (segPoint.isAccelerating && segPoint.isDecelerating) {
+        ratio = ratio * ratio * (3 - 2 * ratio); // smoothstep pour micro-trajets arrêt→arrêt
+    } else if (segPoint.isAccelerating) {
+        ratio = Math.sqrt(ratio); // temps s'écoule vite pour peu de distance au départ
+    } else if (segPoint.isDecelerating) {
+        ratio = 1 - Math.sqrt(1 - ratio); // temps s'écoule lentement, puis rattrape à l'arrivée
+    }
 
     // Temps théorique = temps cumulé + (ratio × durée du segment actuel)
     const currentTheoSeconds = cumSeconds + ratio * segDuration;

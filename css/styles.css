@@ -1446,20 +1446,23 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
    HUD Track Points (carousel)
    =========================== */
 
-/* Base : tous les points hors fenêtre active → très discrets */
+/* Base : tous les points — espacement uniforme quelle que soit la taille du texte */
 .hud-point {
     display: flex;
     align-items: center;
-    padding: 5px 0 5px calc(10% + 28px);
+    padding: 10px 0 10px calc(10% + 28px);
     position: relative;
-    min-height: 32px;
+    transition: padding 0.7s ease;
+}
+
+/* L'opacité est portée par .hud-point-info (pas par le parent) pour que le dot reste pleine opacité */
+.hud-point .hud-point-info {
     opacity: 0.2;
-    transition: opacity 0.7s ease, padding 0.7s ease, min-height 0.7s ease;
+    transition: opacity 0.7s ease;
 }
 
 body.non-iphone-device.tracking-active .hud-point {
-    padding-left: calc(10% + 34px);
-    min-height: 38px;
+    padding: 12px 0 12px calc(10% + 34px);
 }
 
 /* Nœud par défaut : petit cercle bordeaux */
@@ -1497,7 +1500,7 @@ body.non-iphone-device.tracking-active .hud-point-dot {
     font-weight: 500;
     color: var(--text-muted);
     font-size: 0.82em;
-    transition: font-size 0.7s ease, font-weight 0.7s ease, color 0.4s ease, letter-spacing 0.7s ease, line-height 0.7s ease;
+    transition: color 0.4s ease;
 }
 
 body.non-iphone-device.tracking-active .hud-point-name {
@@ -1517,22 +1520,10 @@ body.non-iphone-device.tracking-active .hud-point-distance {
     font-size: 0.88em;
 }
 
-/* ── Avant-dernier passé + deuxième futur : petits mais lisibles ── */
-.hud-point.passed-1,
-.hud-point.future-1 {
+/* ── Avant-dernier passé + deuxième futur ── */
+.hud-point.passed-1 .hud-point-info,
+.hud-point.future-1 .hud-point-info {
     opacity: 0.55;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    min-height: 40px;
-}
-
-body.non-iphone-device.tracking-active .hud-point.passed-1,
-body.non-iphone-device.tracking-active .hud-point.future-1,
-body.non-iphone-device.tracking-active .hud-point.passed.stop,
-body.non-iphone-device.tracking-active .hud-point.future.stop {
-    padding-top: 10px;
-    padding-bottom: 10px;
-    min-height: 48px;
 }
 
 .hud-point.passed-1 .hud-point-dot,
@@ -1559,13 +1550,10 @@ body.non-iphone-device.tracking-active .hud-point.future.stop .hud-point-dot {
     border: 3px solid var(--primary);
 }
 
-/* Gares avec arrêt en état passed/future : affichées au minimum comme passed-1 */
-.hud-point.passed.stop,
-.hud-point.future.stop {
+/* Gares avec arrêt en état passed/future */
+.hud-point.passed.stop .hud-point-info,
+.hud-point.future.stop .hud-point-info {
     opacity: 0.55;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    min-height: 40px;
 }
 
 .hud-point.passed.stop .hud-point-dot,
@@ -1605,84 +1593,20 @@ body.non-iphone-device.tracking-active .hud-point.future.stop .hud-point-name {
     font-size: 0.85em;
 }
 
-/* ── Prochain point à passer : taille moyenne ── */
+/* ── Prochain point à passer : héros, le plus grand ── */
 .hud-point.next {
-    opacity: 0.9;
-    padding-top: 14px;
-    padding-bottom: 14px;
-    min-height: 60px;
-}
-
-body.non-iphone-device.tracking-active .hud-point.next {
-    padding-top: 18px;
-    padding-bottom: 18px;
-    min-height: 74px;
-}
-
-.hud-point.next .hud-point-dot {
-    width: 16px;
-    height: 16px;
-    left: calc(10% + 3px - 8px);
-    background: var(--primary);
-    border: none;
-    box-shadow: 0 0 0 4px rgba(135,44,59,0.12);
-}
-
-body.non-iphone-device.tracking-active .hud-point.next .hud-point-dot {
-    width: 20px;
-    height: 20px;
-    left: calc(10% + 4px - 10px);
-    box-shadow: 0 0 0 5px rgba(135,44,59,0.12);
-}
-
-.hud-point.next.stop .hud-point-dot {
-    background: #fff;
-    border: 4px solid var(--primary);
-}
-
-.hud-point.next .hud-point-name {
-    font-size: 1.7em;
-    font-weight: 700;
-    color: var(--text-main);
-    letter-spacing: -0.5px;
-    line-height: 1.1;
-}
-
-body.non-iphone-device.tracking-active .hud-point.next .hud-point-name {
-    font-size: 2em;
-}
-
-.hud-point.next .hud-point-time {
-    font-size: 1.1em;
-    color: var(--text-muted);
-}
-
-.hud-point.next .hud-point-distance {
-    font-size: 1.1em;
-    font-weight: 700;
-    color: var(--primary);
-}
-
-body.non-iphone-device.tracking-active .hud-point.next .hud-point-time,
-body.non-iphone-device.tracking-active .hud-point.next .hud-point-distance {
-    font-size: 1.24em;
-}
-
-/* ── Dernier point passé (point actif) : le plus grand, bullseye bordeaux ── */
-.hud-point.active {
-    opacity: 1;
     padding-top: 18px;
     padding-bottom: 18px;
     min-height: 80px;
 }
 
-body.non-iphone-device.tracking-active .hud-point.active {
+body.non-iphone-device.tracking-active .hud-point.next {
     padding-top: 24px;
     padding-bottom: 24px;
     min-height: 98px;
 }
 
-.hud-point.active .hud-point-dot {
+.hud-point.next .hud-point-dot {
     width: 24px;
     height: 24px;
     left: calc(10% + 3px - 12px);
@@ -1691,48 +1615,116 @@ body.non-iphone-device.tracking-active .hud-point.active {
     box-shadow: 0 0 0 8px rgba(135,44,59,0.18);
 }
 
-body.non-iphone-device.tracking-active .hud-point.active .hud-point-dot {
+body.non-iphone-device.tracking-active .hud-point.next .hud-point-dot {
     width: 30px;
     height: 30px;
     left: calc(10% + 4px - 15px);
     box-shadow: 0 0 0 10px rgba(135,44,59,0.18);
 }
 
-.hud-point.active.stop .hud-point-dot {
+.hud-point.next.stop .hud-point-dot {
     background: #fff;
     border: 6px solid var(--primary);
     box-shadow: 0 0 0 8px rgba(135,44,59,0.18);
 }
 
-.hud-point.active .hud-point-name {
+.hud-point.next .hud-point-name {
     font-size: 2.8em;
     font-weight: 900;
     color: #000;
     letter-spacing: -1px;
-    line-height: 1;
+    line-height: 1.2;
 }
 
-body.non-iphone-device.tracking-active .hud-point.active .hud-point-name {
+body.non-iphone-device.tracking-active .hud-point.next .hud-point-name {
     font-size: 3.35em;
 }
 
-.hud-point.active .hud-point-time {
+.hud-point.next .hud-point-time {
     font-size: 1.4em;
     color: var(--text-muted);
 }
 
-.hud-point.active .hud-point-distance {
+.hud-point.next .hud-point-distance {
     font-size: 1.2em;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+body.non-iphone-device.tracking-active .hud-point.next .hud-point-time,
+body.non-iphone-device.tracking-active .hud-point.next .hud-point-distance {
+    font-size: 1.4em;
+}
+
+.hud-point.next .hud-point-info,
+.hud-point.active .hud-point-info {
+    opacity: 1;
+}
+
+/* ── Dernier point passé (point actif) : repère secondaire ── */
+.hud-point.active {
+    padding-top: 14px;
+    padding-bottom: 14px;
+    min-height: 60px;
+}
+
+body.non-iphone-device.tracking-active .hud-point.active {
+    padding-top: 18px;
+    padding-bottom: 18px;
+    min-height: 74px;
+}
+
+.hud-point.active .hud-point-dot {
+    width: 16px;
+    height: 16px;
+    left: calc(10% + 3px - 8px);
+    background: var(--primary);
+    border: none;
+    box-shadow: 0 0 0 4px rgba(135,44,59,0.12);
+}
+
+body.non-iphone-device.tracking-active .hud-point.active .hud-point-dot {
+    width: 20px;
+    height: 20px;
+    left: calc(10% + 4px - 10px);
+    box-shadow: 0 0 0 5px rgba(135,44,59,0.12);
+}
+
+.hud-point.active.stop .hud-point-dot {
+    background: #fff;
+    border: 4px solid var(--primary);
+    box-shadow: 0 0 0 4px rgba(135,44,59,0.12);
+}
+
+.hud-point.active .hud-point-name {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: -0.3px;
+    line-height: 1.1;
+}
+
+body.non-iphone-device.tracking-active .hud-point.active .hud-point-name {
+    font-size: 1.65em;
+}
+
+.hud-point.active .hud-point-time {
+    font-size: 1em;
+    color: var(--text-muted);
+}
+
+.hud-point.active .hud-point-distance {
+    font-size: 1em;
     font-weight: 700;
     color: var(--text-muted);
 }
 
 body.non-iphone-device.tracking-active .hud-point.active .hud-point-time {
-    font-size: 1.65em;
+    font-size: 1.1em;
 }
 
 body.non-iphone-device.tracking-active .hud-point.active .hud-point-distance {
-    font-size: 1.4em;
+    font-size: 1.1em;
 }
 
 /* Retard affiché à côté de l'heure pour les points passés */

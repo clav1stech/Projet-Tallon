@@ -54,7 +54,15 @@ export const STATE = {
     // Historique des dernières positions GPS pour le calcul de vitesse lissée
     lastPositions: [],
 
-    // Historique de vitesse pour le sparkline (max 1200 points = 20 min à 1 pt/s)
+    // Timestamp du dernier appel GPS reçu (ms depuis epoch)
+    lastGpsUpdateMs: 0,
+
+    // Fiabilité GPS : dernière position validée + flag de récupération post-téléportation
+    lastTrustedPosition: null,   // { lat, lon, ts }
+    gpsRecoveryMode: false,
+
+    // Historique de vitesse pour le sparkline (max 1800 points = 30 min à 1 pt/s)
+    // Chaque entrée : { v: number, reliable: boolean }
     speedHistory: [],
 
     // Timestamps de passage des points pour les marqueurs sur le graphique
