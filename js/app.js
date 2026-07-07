@@ -1,5 +1,6 @@
 import { STATE, restoreSettings, saveSettings } from './state.js';
-import { buildEffectiveRoute, computeDepartureTimestamp, computeSegmentIndexAndDistance, computeCurrentDelay } from './functions.js';
+import { buildEffectiveRoute, computeDepartureTimestamp, computeSegmentIndexAndDistance, computeCurrentDelay, projectPositionOnRouteSegment, findNearestSegmentIndex } from './functions.js';
+import { shouldAcceptAccuracy, evaluateTeleport, medianStepSpeed, noiseFloorKmh, filterSpeedSpike } from './tracking.js';
 import { populateTrajetDropdown, renderStopCheckboxes, displayTimeline, updateInfo, updateTrackingWidget, updateLandscapeHUD, MAIN_ROUTES } from './ui.js';
 import { geoErrorMessage, haversineDistance } from './geo.js';
 
@@ -328,6 +329,8 @@ async function loadSelectedPatternRoute() {
         STATE.passedPoints = {};
         STATE.lastTrustedPosition = null;
         STATE.gpsRecoveryMode = false;
+        STATE.teleportRejections = 0;
+        STATE.lastAcceptedFixMs = 0;
     } catch (e) {
         console.error(e);
         updateInfo("Erreur lors de la construction de la route pour le pattern sélectionné.");
@@ -436,53 +439,47 @@ function showPosition(position) {
 
     STATE.lastGpsUpdateMs = Date.now();
 
-    // Seed géographique : au premier fix GPS, trouver le segment le plus proche par projection
-    // pour éviter un accrochage faux en début de route.
-    if (STATE.lastSegmentIndex === null) {
-        const lat0 = position.coords.latitude;
-        const lon0 = position.coords.longitude;
-        let bestSegIdx = 0;
-        let bestDist = Infinity;
-        for (let i = 0; i < STATE.currentRoute.length - 1; i++) {
-            const a = STATE.currentRoute[i];
-            const b = STATE.currentRoute[i + 1];
-            if (typeof a.lat !== 'number' || typeof b.lat !== 'number') continue;
-            // Projection du point sur le segment [a, b]
-            const abLat = b.lat - a.lat, abLon = b.lon - a.lon;
-            const apLat = lat0 - a.lat, apLon = lon0 - a.lon;
-            const abLenSq = abLat * abLat + abLon * abLon;
-            const t = abLenSq > 0 ? Math.max(0, Math.min(1, (apLat * abLat + apLon * abLon) / abLenSq)) : 0;
-            const projLat = a.lat + t * abLat;
-            const projLon = a.lon + t * abLon;
-            const dist = haversineDistance(lat0, lon0, projLat, projLon);
-            if (dist < bestDist) { bestDist = dist; bestSegIdx = i; }
-        }
-        STATE.lastSegmentIndex = bestSegIdx;
-    }
-
     const userLat = position.coords.latitude;
     const userLon = position.coords.longitude;
-
-    // Guard anti-téléportation : ignorer les positions physiquement impossibles (> 2000 km/h)
-    const TELEPORT_THRESHOLD_KMH = 2000;
-    if (STATE.lastTrustedPosition) {
-        const dtH = (Date.now() - STATE.lastTrustedPosition.ts) / 3_600_000;
-        const impliedSpeed = dtH > 0
-            ? haversineDistance(userLat, userLon, STATE.lastTrustedPosition.lat, STATE.lastTrustedPosition.lon) / dtH
-            : 0;
-
-        if (impliedSpeed > TELEPORT_THRESHOLD_KMH) {
-            STATE.gpsRecoveryMode = true;
-            console.warn(`[GPS] Téléportation ignorée (${Math.round(impliedSpeed)} km/h)`);
-            return;
-        }
-
-        // Une seule position cohérente suffit à sortir du mode récupération
-        STATE.gpsRecoveryMode = false;
-    }
-    STATE.lastTrustedPosition = { lat: userLat, lon: userLon, ts: Date.now() };
     const accuracyMeters = Number(position.coords.accuracy);
     const positionTimestamp = Date.now();
+
+    // Filtre de précision : rejeter les rebonds imprécis (positionnement
+    // cellulaire post-tunnel), sauf en mode dégradé (disette de fix prolongée).
+    if (!shouldAcceptAccuracy(accuracyMeters, STATE.lastAcceptedFixMs || 0, positionTimestamp)) {
+        console.warn(`[GPS] Fix rejeté (précision ±${Math.round(accuracyMeters)} m)`);
+        return;
+    }
+
+    // Guard anti-téléportation avec récupération : les positions physiquement
+    // impossibles (> 2000 km/h) sont ignorées, mais si elles persistent
+    // (app suspendue par iOS puis réveillée ailleurs), on ré-ancre le tracking.
+    const teleportVerdict = evaluateTeleport(
+        STATE.lastTrustedPosition,
+        userLat, userLon,
+        positionTimestamp,
+        STATE.teleportRejections || 0
+    );
+    STATE.teleportRejections = teleportVerdict.rejections;
+    if (!teleportVerdict.accept) {
+        STATE.gpsRecoveryMode = true;
+        console.warn('[GPS] Téléportation ignorée');
+        return;
+    }
+    STATE.gpsRecoveryMode = false;
+    if (teleportVerdict.reseeded) {
+        console.warn('[GPS] Position divergente persistante → ré-ancrage du tracking');
+        STATE.lastSegmentIndex = null;
+        STATE.lastPositions = [];
+    }
+    STATE.lastTrustedPosition = { lat: userLat, lon: userLon, ts: positionTimestamp };
+    STATE.lastAcceptedFixMs = positionTimestamp;
+
+    // Seed géographique : au premier fix GPS (ou après ré-ancrage), trouver le
+    // segment le plus proche par projection pour éviter un accrochage faux.
+    if (STATE.lastSegmentIndex === null) {
+        STATE.lastSegmentIndex = findNearestSegmentIndex(STATE.currentRoute, userLat, userLon);
+    }
     const reportedSpeed = Number(position.coords.speed);
     const hasDirectSncfSpeed = STATE.locationMethod === 'sncf' && Number.isFinite(reportedSpeed) && reportedSpeed >= 0;
 
@@ -495,21 +492,16 @@ function showPosition(position) {
     // Vitesse lissée : médiane des vitesses instantanées entre chaque pas consécutif
     let currentSpeed = hasDirectSncfSpeed ? reportedSpeed : 0;
     if (!hasDirectSncfSpeed && STATE.lastPositions.length >= 2) {
-        const stepSpeeds = [];
-        for (let i = 1; i < STATE.lastPositions.length; i++) {
-            const a = STATE.lastPositions[i - 1];
-            const b = STATE.lastPositions[i];
-            const dt = (b.ts - a.ts) / 3_600_000;
-            if (dt > 0) {
-                stepSpeeds.push(haversineDistance(a.lat, a.lon, b.lat, b.lon) / dt);
-            }
-        }
-        if (stepSpeeds.length > 0) {
-            stepSpeeds.sort((a, b) => a - b);
-            const mid = Math.floor(stepSpeeds.length / 2);
-            currentSpeed = stepSpeeds.length % 2 === 1
-                ? stepSpeeds[mid]
-                : (stepSpeeds[mid - 1] + stepSpeeds[mid]) / 2;
+        currentSpeed = medianStepSpeed(STATE.lastPositions);
+
+        // Plancher de bruit : à l'arrêt en gare, le jitter GPS produit une
+        // vitesse fantôme (±30 m sur 10 s ≈ 11 km/h). En dessous du plancher,
+        // la vitesse est considérée nulle.
+        const first = STATE.lastPositions[0];
+        const last = STATE.lastPositions[STATE.lastPositions.length - 1];
+        const windowSeconds = (last.ts - first.ts) / 1000;
+        if (currentSpeed < noiseFloorKmh(accuracyMeters, windowSeconds)) {
+            currentSpeed = 0;
         }
     }
 
@@ -521,10 +513,7 @@ function showPosition(position) {
     // Filtre de cohérence physique pour éviter les pics GPS sur le graphique
     const lastEntry = STATE.speedHistory.length > 0 ? STATE.speedHistory[STATE.speedHistory.length - 1] : null;
     const prevSpeed = lastEntry ? lastEntry.v : currentSpeed;
-    const delta = currentSpeed - prevSpeed;
-    if (Math.abs(delta) > 5) {
-        currentSpeed = prevSpeed + (Math.sign(delta) * 2);
-    }
+    currentSpeed = filterSpeedSpike(prevSpeed, currentSpeed);
     currentSpeed = Math.max(0, Math.min(350, currentSpeed));
 
     // Historique de vitesse pour le sparkline
@@ -557,13 +546,14 @@ function showPosition(position) {
         return;
     }
 
-    // 🔒 Garde-fou unidirectionnel : l'index de segment ne peut jamais reculer
+    // 🔒 Garde-fou unidirectionnel : l'index de segment ne peut jamais reculer.
+    // Les distances sont reprojetées sur le segment retenu, sinon le calcul de
+    // retard utiliserait une distance mesurée sur un autre segment.
     if (STATE.lastSegmentIndex !== null && segmentIndex < STATE.lastSegmentIndex) {
         segmentIndex = STATE.lastSegmentIndex;
-        const nextPoint = STATE.currentRoute[segmentIndex + 1];
-        distanceToNextPointKm = nextPoint
-            ? haversineDistance(userLat, userLon, nextPoint.lat, nextPoint.lon)
-            : 0;
+        const projection = projectPositionOnRouteSegment(STATE.currentRoute, segmentIndex, userLat, userLon);
+        distanceFromSegmentStart = projection.distanceFromSegmentStart;
+        distanceToNextPointKm = projection.distanceToNextPointKm;
     }
 
     const now = Date.now();
@@ -593,14 +583,13 @@ function showPosition(position) {
     }
 
     // Calcul du retard
-    const currentDelayMs = computeCurrentDelay(
+    let currentDelayMs = computeCurrentDelay(
         STATE.currentRoute,
         segmentIndex,
         distanceFromSegmentStart,
         STATE.departureTimestamp,
         now
     );
-    STATE.currentDelay = currentDelayMs;
 
     // Cas d'arrivée à destination : si on est sur le dernier segment et très proche du terminus,
     // considérer la destination comme franchie et afficher le terminus comme point actif.
@@ -618,6 +607,15 @@ function showPosition(position) {
             STATE.passedPoints[destPoint.id] = now - (STATE.departureTimestamp + cumSeconds * 1000);
         }
     }
+
+    // Gel du retard à l'arrivée : une fois le terminus franchi (y compris en
+    // avance), le retard affiché est celui constaté au passage — sinon il
+    // croîtrait indéfiniment tant que le train reste à quai.
+    const terminusPoint = STATE.currentRoute[lastRouteIdx];
+    if (terminusPoint && STATE.passedPoints[terminusPoint.id] != null) {
+        currentDelayMs = STATE.passedPoints[terminusPoint.id];
+    }
+    STATE.currentDelay = currentDelayMs;
 
     // Points pour l'affichage
     const lastPassedPoint = STATE.currentRoute[displayIdx] || null;

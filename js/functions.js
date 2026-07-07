@@ -189,10 +189,14 @@ export function computeDepartureTimestamp(timeStr) {
  * Retourne le ratio (0 = A, 1 = B, >1 = dépassé B, <0 = avant A)
  */
 function projectOnSegment(pLat, pLon, aLat, aLon, bLat, bLon) {
+    // Correction de latitude : 1° de longitude vaut cos(lat) fois moins de km
+    // qu'un degré de latitude (~0.66 à 48°N). Sans cela, la projection est
+    // biaisée sur les segments orientés est-ouest.
+    const cosLat = Math.cos(((aLat + bLat) / 2) * Math.PI / 180);
     const abLat = bLat - aLat;
-    const abLon = bLon - aLon;
+    const abLon = (bLon - aLon) * cosLat;
     const apLat = pLat - aLat;
-    const apLon = pLon - aLon;
+    const apLon = (pLon - aLon) * cosLat;
 
     const dotProduct = apLat * abLat + apLon * abLon;
     const abLengthSq = abLat * abLat + abLon * abLon;
@@ -397,17 +401,22 @@ export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex
         }
 
         const segmentIndex = Math.max(0, Math.min(route.length - 2, nearestPointIdx));
+        // Projeter réellement sur le segment retenu : renvoyer distanceToNextPointKm=0
+        // ici déclencherait une fausse détection d'arrivée dans showPosition.
+        const snapped = buildSegmentCandidate(route[segmentIndex], route[segmentIndex + 1], lat, lon);
+        if (snapped) {
+            return {
+                segmentIndex,
+                distanceFromSegmentStart: snapped.distanceFromSegmentStart,
+                distanceToNextPointKm: snapped.distanceToNextPointKm
+            };
+        }
+        const segLen = getSegmentLength(route[segmentIndex], route[segmentIndex + 1]);
         return {
             segmentIndex,
             distanceFromSegmentStart: 0,
-            distanceToNextPointKm: 0
+            distanceToNextPointKm: segLen
         };
-    }
-
-    if (!bestCandidate) {
-        const fallback = fallbackSegmentByLatitude(route, lat, lon, lastSegmentIndex, direction);
-        if (fallback) return fallback;
-        return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
     }
 
     return {
@@ -429,12 +438,57 @@ function getSegmentLength(pStart, pEnd) {
 }
 
 /**
+ * Projette une position sur un segment donné de la route et retourne les
+ * distances associées. Utilisé notamment quand le garde-fou unidirectionnel
+ * force l'index de segment : les distances doivent être recalculées sur le
+ * segment retenu, pas sur celui d'origine.
+ * @returns {{ distanceFromSegmentStart: number, distanceToNextPointKm: number }}
+ */
+export function projectPositionOnRouteSegment(route, segmentIndex, lat, lon) {
+    if (!route || !Number.isFinite(segmentIndex) || segmentIndex < 0 || segmentIndex >= route.length - 1) {
+        return { distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
+    }
+    const candidate = buildSegmentCandidate(route[segmentIndex], route[segmentIndex + 1], lat, lon);
+    if (!candidate) {
+        return { distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
+    }
+    return {
+        distanceFromSegmentStart: candidate.distanceFromSegmentStart,
+        distanceToNextPointKm: candidate.distanceToNextPointKm
+    };
+}
+
+/**
+ * Trouve le segment le plus proche d'une position par projection orthogonale.
+ * Sert au "seed" du premier fix GPS (le train peut embarquer en milieu de route).
+ * @returns {number} index de segment (0 par défaut)
+ */
+export function findNearestSegmentIndex(route, lat, lon) {
+    if (!route || route.length < 2) return 0;
+    let bestIdx = 0;
+    let bestOffset = Infinity;
+    for (let i = 0; i < route.length - 1; i++) {
+        const candidate = buildSegmentCandidate(route[i], route[i + 1], lat, lon);
+        if (candidate && candidate.offsetKm < bestOffset) {
+            bestOffset = candidate.offsetKm;
+            bestIdx = i;
+        }
+    }
+    return bestIdx;
+}
+
+/**
  * Calcule le retard courant (en ms)
  */
 export function computeCurrentDelay(route, segmentIndex, distanceFromStart, departureTimestamp, nowTs = Date.now()) {
-    if (!route || !route.length || departureTimestamp == null || segmentIndex == null || segmentIndex < 0) {
+    if (!route || !route.length || departureTimestamp == null ||
+        segmentIndex == null || !Number.isFinite(segmentIndex) || segmentIndex < 0) {
         return 0;
     }
+
+    // Clamp de sécurité : un index hors bornes (route rechargée, terminus)
+    // ne doit jamais faire crasher le calcul.
+    segmentIndex = Math.min(segmentIndex, route.length - 1);
 
     // Temps cumulé des segments COMPLETS (avant le segment actuel)
     let cumSeconds = 0;
@@ -448,8 +502,10 @@ export function computeCurrentDelay(route, segmentIndex, distanceFromStart, depa
     const segDuration = Number(segPoint.durationEffective ?? segPoint.baseDuration ?? segPoint.baseDurationToNext ?? 0);
     const segLength = getSegmentLength(segPoint, route[segmentIndex + 1] || segPoint);
 
+    const safeDistance = Number.isFinite(distanceFromStart) ? distanceFromStart : 0;
+
     // Ratio de progression sur le segment (0 à 1)
-    let ratio = segLength > 0 ? Math.max(0, Math.min(1, distanceFromStart / segLength)) : 0;
+    let ratio = segLength > 0 ? Math.max(0, Math.min(1, safeDistance / segLength)) : 0;
 
     // Easing physique : accélération depuis un arrêt, décélération vers un arrêt
     if (segPoint.isAccelerating && segPoint.isDecelerating) {

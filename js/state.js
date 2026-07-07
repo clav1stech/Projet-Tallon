@@ -61,6 +61,12 @@ export const STATE = {
     lastTrustedPosition: null,   // { lat, lon, ts }
     gpsRecoveryMode: false,
 
+    // Compteur de rejets anti-téléportation consécutifs (récupération après N rejets)
+    teleportRejections: 0,
+
+    // Timestamp du dernier fix GPS accepté (filtre de précision / mode dégradé)
+    lastAcceptedFixMs: 0,
+
     // Historique de vitesse pour le sparkline (max 1800 points = 30 min à 1 pt/s)
     // Chaque entrée : { v: number, reliable: boolean }
     speedHistory: [],
