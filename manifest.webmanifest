@@ -1,0 +1,11 @@
+{
+  "name": "Railway Timeline",
+  "short_name": "Timeline",
+  "description": "Suivi de trajet TGV : position, horaires et retard en temps réel",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#111418",
+  "theme_color": "#111418",
+  "lang": "fr"
+}

@@ -1,5 +1,29 @@
 # Changelog
 
+## [Non publié] — Mode hors-ligne (PWA) et localisation WiFi SNCF sur iPhone
+
+### Ajouts
+
+#### Service worker hors-ligne (`sw.js`, `manifest.webmanifest`, `index.html`)
+**Cas d'usage : réseau instable / absent en TGV.**
+La coquille applicative (HTML, CSS, JS, JSONs de routes, CSS font-awesome) est
+pré-cachée à l'installation, puis servie en *stale-while-revalidate* : réponse
+instantanée depuis le cache, mise à jour en arrière-plan. L'app se charge et
+fonctionne intégralement sans réseau après la première visite. Les appels
+temps réel (`wifi.sncf`) ne sont jamais mis en cache. Vérifié sous Chromium :
+rechargement complet hors-ligne, données JSON servies depuis le cache.
+Manifest + méta `apple-mobile-web-app-*` : l'app s'installe en PWA plein écran
+sur iPhone (« Sur l'écran d'accueil »). Incrémenter `CACHE_VERSION` dans
+`sw.js` à chaque déploiement pour purger l'ancien cache.
+
+#### Bridge WiFi SNCF pour iPhone (`tools/scriptable-sncf-bridge.js`, `docs/wifi-sncf-iphone.md`)
+Le listener `SNCF_GPS_BRIDGE` existait dans `app.js` mais sans script
+compagnon. Ajout du script Scriptable qui ouvre l'app en WebView, interroge
+nativement `https://wifi.sncf/router/api/train/gps` (hors CORS, impossible
+depuis Safari) toutes les 2 s et injecte les positions via `postMessage`
+(vitesse convertie m/s → km/h comme attendu par `showPosition`). Documentation
+complète des options iPhone dans `docs/wifi-sncf-iphone.md`.
+
 ## [Non publié] — Robustesse du calcul de position (cas limites TGV)
 
 Branche : `claude/tgv-position-edge-cases-lkgh0z` (issue de `Routes-v2`).
