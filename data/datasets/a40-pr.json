@@ -1,0 +1,18 @@
+{
+  "id": "a40-pr",
+  "kind": "pk-corridor",
+  "label": "A40 Mâcon → Sallanches (PR autoroute)",
+  "file": "data/csv/a40_pr.csv",
+  "csv": { "delimiter": ";", "hasHeader": true, "decimalSeparator": "," },
+  "columns": { "pk": "pr", "line": "route", "lat": "latitude", "lon": "longitude" },
+  "pkFormat": "plus",
+  "filters": [{ "column": "route", "equals": "A40" }],
+  "sortBy": "pk",
+  "everyNth": 1,
+  "notes": [
+    "PLACEHOLDER — le fichier CSV réel n'est pas encore disponible.",
+    "data/csv/a40_pr.csv contient ~15 points GROSSIERS et APPROXIMATIFS de l'A40 pour démonstration ; à remplacer par le fichier PR réel.",
+    "Pour brancher le vrai fichier : remplacer data/csv/a40_pr.csv et adapter `csv`, `columns`, `pkFormat` et `filters` — aucun code à modifier.",
+    "pkFormat : 'plus' (123+456), 'decimal-km' (123.456) ou 'meters' (123456)."
+  ]
+}

@@ -1,5 +1,161 @@
 # Changelog
 
+## [Non publié] — Référencement PK et mode voiture (Mâcon → Combloux)
+
+Branche : `claude/tgv-tracker-multi-mode-83nbkd`.
+
+Objectif : préparer deux évolutions dont les fichiers CSV (PK ferroviaires,
+PR autoroute A40) **ne sont pas encore disponibles** (colonnes inconnues) :
+1. un enrichissement PK du mode rail (PK précis affiché en plus des points
+   nommés, même page, même calcul de retard) ;
+2. un mode voiture sur une URL séparée (`car.html`) pour le trajet
+   Mâcon → Combloux (A40 par corridor PR + montée Sallanches → Combloux par
+   projection sur segments droits), affichage progression + ETA.
+
+Contrainte structurante : brancher les CSV réels plus tard **sans recoder**
+— tout ce qui dépend de la forme des fichiers vit dans des descripteurs JSON.
+Le mode rail existant est inchangé (les 57 tests historiques passent à
+l'identique ; le CSV rail absent = no-op silencieux).
+
+> **Release/tag** : recommandé de taguer l'état précédant cette section
+> (ex: `v1.0.0`, commit `c11fac6`) puis l'état incluant cette section
+> (ex: `v1.1.0`) — le diff entre les deux correspond exactement au périmètre
+> décrit ici. Penser au bump `CACHE_VERSION` (fait : `tallon-v2`).
+
+### Ajouts
+
+#### Datasets CSV configurables par descripteurs JSON (`js/csv.js`, `data/datasets/*.json`)
+**Cas d'usage : les CSV réels (PK rail, PR A40) arriveront plus tard, colonnes inconnues.**
+Parseur CSV sans dépendance (guillemets, `""`, CRLF, lignes vides) + notion de
+*descripteur de dataset* : un JSON par fichier déclarant chemin du CSV,
+délimiteur, séparateur décimal, mapping des colonnes logiques
+`{pk, line, lat, lon}` vers les colonnes réelles, format de PK (`plus` =
+`123+456`, `decimal-km`, `meters`), filtres de lignes (`equals` / `oneOf`),
+tri et décimation optionnelle (`everyNth`) pour les gros fichiers.
+**Brancher un fichier réel = déposer le CSV + éditer le descripteur, zéro code.**
+Deux descripteurs placeholder commis : `data/datasets/rail-pk.json` (colonnes
+provisoires devinées d'après `python/extract_pk.py`) et
+`data/datasets/a40-pr.json`. Erreurs typées (`DatasetError` :
+`csv-missing`, `missing-column` avec liste des colonnes réellement présentes,
+etc.) pour distinguer « fichier pas encore branché » d'un vrai bug.
+
+#### Référencement linéaire PK (`js/linearref.js`)
+**Cas d'usage : position exprimée en point kilométrique précis sur une ligne numérotée.**
+Un CSV de PK est une polyline dense : le matching réutilise le moteur
+existant `computeSegmentIndexAndDistance` **tel quel** (fenêtre glissante,
+tolérance selon précision GPS, snap) — aucun nouveau moteur de projection.
+`buildCorridor()` (filtrage, doublons, distances cumulées),
+`locateOnCorridor()` (segment matché + PK interpolé PAR SEGMENT : un saut de
+PK entre deux lignes ne contamine pas les voisins), `formatPk()`
+(`123.456` → `"123+456"`). Le fallback par latitude est désactivé sur les
+corridors (voir « Décisions » ci-dessous).
+
+#### Moteur de position réutilisable (`js/position-engine.js`)
+**Cas d'usage : partager la chaîne de fiabilité GPS entre rail et voiture sans duplication.**
+`createPositionEngine()` compose les helpers PURS de `tracking.js` dans
+l'ordre exact de la chaîne historique de `showPosition` : filtre de précision
+(mode dégradé après disette) → anti-téléportation (ré-ancrage après 3 rejets)
+→ historique 10 positions → vitesse médiane → plancher de bruit → anti-pic →
+clamp (configurable : 350 km/h rail, 150 voiture). Options :
+`trustReportedSpeed` (vitesse directe type WiFi SNCF), `speedDivisor`
+(correction simulation fakeGeoSim). `app.js` (rail) conserve son
+implémentation en place — non-régression garantie ; la bascule du rail sur ce
+moteur reste une évolution optionnelle et isolée.
+
+#### Mode voiture (`car.html`, `js/car-app.js`, `js/car-ui.js`, `js/car-config.js`, `js/car-route.js`)
+**Cas d'usage : suivi du trajet Mâcon → Combloux en voiture.**
+Nouvelle page autonome. Un itinéraire (`CAR_ROUTES`, miroir du pattern
+`MAIN_ROUTES`) est une liste ordonnée de *legs* de deux types :
+`pk-corridor` (tronçon autoroutier référencé PR via dataset — l'A40) et
+`points` (waypoints manuels projetés sur segments droits, comme le rail —
+la montée Sallanches → Combloux, coordonnées placeholder à affiner).
+`buildCarRoute()` aplatit les legs en UNE route unique (jonctions
+dédupliquées, distances cumulées, durées indicatives par `avgSpeedKmh`) que
+les fonctions de matching existantes consomment telles quelles. Affichage :
+tronçon courant, `PK 123+456 (A40)` ou prochain waypoint nommé, km
+faits/restants + barre de progression, vitesse, **ETA = distance restante ÷
+vitesse moyenne glissante** (120 derniers échantillons fiables, plancher
+20 km/h — pas d'ETA infinie au péage). Pas de notion d'horaire/retard.
+Un CSV placeholder `data/csv/a40_pr.csv` (~15 points approximatifs de l'A40)
+rend la page démontrable avant le fichier réel ; compatible fakeGeoSim
+(la simulation lit les `durationEffective` fournies par `buildCarRoute`).
+
+#### Enrichissement PK du mode rail (`js/app.js`, `js/state.js`)
+**Cas d'usage : afficher un PK précis en TGV, sans rien changer au suivi actuel.**
+Au démarrage, `data/datasets/rail-pk.json` est chargé en non-bloquant : si le
+CSV est présent, le PK interpolé (+ n° de ligne) s'ajoute à la ligne d'info
+après chaque match réussi. **Purement informatif** : aucun couplage avec le
+calcul de retard ni le matching des points nommés (endiguement du risque
+volontaire). CSV absent = no-op silencieux, comportement strictement
+identique à avant.
+
+### Modifications
+
+- `js/functions.js` : `export` ajouté à `buildSegmentCandidate` (réutilisé par
+  `linearref.js`) ; nouveau paramètre optionnel `opts.disableLatitudeFallback`
+  sur `computeSegmentIndexAndDistance` (défaut : comportement inchangé).
+- `sw.js` : `CACHE_VERSION` → `tallon-v2` ; pré-cache de `car.html`, des 7
+  nouveaux modules JS, des descripteurs et du CSV placeholder (hors-ligne sur
+  l'A40 aussi). **À l'arrivée des CSV réels, les ajouter à `PRECACHE_URLS` et
+  re-bumper `CACHE_VERSION`.**
+- `js/state.js` : champs `railCorridor` / `railCorridorIndex` (reset à chaque
+  rechargement de route).
+
+### Décisions d'architecture
+
+- **Aucune logique cardinale côté voiture.** Mâcon → Combloux est un trajet
+  globalement **ouest-est** (Mâcon ~4,8°E → Combloux ~6,6°E, la variation de
+  longitude domine largement celle de latitude) : `fallbackSegmentByLatitude`
+  (pensé pour les LGV nord-sud) serait faux par construction et est **exclu**
+  du mode voiture, même en dernier recours. Le filet de sécurité en cas
+  d'échec temporaire du matching est **purement séquentiel** : on reste sur le
+  dernier index validé et on ne reprend que vers l'avant — la densité du
+  corridor PR (~100 m entre points) rend tout calcul de cap inutile.
+- Pas de duplication du moteur de projection : corridor PK = polyline dense
+  consommée par le matcher rail existant, PK obtenu par interpolation.
+- Le garde-fou unidirectionnel, le seuil d'arrivée (0,2 km) et toute la
+  chaîne de filtres GPS du rail sont conservés à l'identique côté voiture.
+
+### Tests
+
+Suite Vitest étendue : **119 tests, 8 fichiers** (les 57 historiques passent
+inchangés) :
+- `tests/csv.test.js` : délimiteurs `,`/`;`, guillemets/échappement, CRLF,
+  virgule décimale, les 3 formats de PK, filtres `equals`/`oneOf`, décimation,
+  erreurs typées (colonne non mappée / absente, descripteur ou CSV
+  introuvable, dataset vide).
+- `tests/linearref.test.js` : corridor synthétique ouest-est 50 points,
+  interpolation PK (y compris discontinuité de PK au raccord de lignes),
+  fenêtre autour de `lastIndex`, position hors corridor → `null` (preuve que
+  le fallback latitude est bien désactivé), `formatPk` (arrondis au mètre).
+- `tests/positionEngine.test.js` : rejet précision + mode dégradé 30 s,
+  anti-téléportation avec ré-ancrage après 3 rejets, vitesse médiane limitée
+  par l'anti-pic, plancher de bruit à l'arrêt, vitesse directe (WiFi SNCF),
+  clamp voiture 150 km/h, correction `speedDivisor` (simulation).
+- `tests/carRoute.test.js` : concaténation hybride corridor + waypoints
+  (jonction dédupliquée), `cumKm` strictement croissant, PK présent uniquement
+  sur le leg corridor, `durationEffective` depuis `avgSpeedKmh`, métadonnées
+  de legs, erreurs de config ; ETA (nominal, plancher 20 km/h, échantillons
+  non fiables ignorés, fenêtre glissante, cas dégénérés).
+
+Vérification E2E (Chromium headless, serveur statique) : `index.html` se
+comporte comme avant (7 trajets, timeline construite, message
+`[PK] Corridor ferroviaire indisponible … no-op` en console) ; `car.html`
+suit un trajet simulé complet — PK affiché le long de l'A40, bascule sur les
+waypoints nommés dans la montée, arrivée détectée, barre à 100 %.
+
+### Brancher les CSV réels (mode d'emploi, zéro code)
+
+1. Déposer le fichier : `data/csv/rail_pk.csv` (rail) ou remplacer
+   `data/csv/a40_pr.csv` (A40).
+2. Ajuster le descripteur correspondant dans `data/datasets/` : `csv`
+   (délimiteur, en-tête, séparateur décimal), `columns` (noms réels des
+   colonnes), `pkFormat`, `filters` (ex: ne garder qu'un `code_ligne`).
+3. Ajouter le CSV à `PRECACHE_URLS` (`sw.js`) et incrémenter `CACHE_VERSION`.
+4. Recharger : le PK apparaît côté rail ; le corridor A40 réel remplace le
+   placeholder côté voiture. En cas d'erreur de mapping, le message
+   `DatasetError` liste les colonnes réellement présentes dans le fichier.
+
 ## [Non publié] — Mode hors-ligne (PWA) et localisation WiFi SNCF sur iPhone
 
 ### Ajouts

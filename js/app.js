@@ -3,6 +3,8 @@ import { buildEffectiveRoute, computeDepartureTimestamp, computeSegmentIndexAndD
 import { shouldAcceptAccuracy, evaluateTeleport, medianStepSpeed, noiseFloorKmh, filterSpeedSpike } from './tracking.js';
 import { populateTrajetDropdown, renderStopCheckboxes, displayTimeline, updateInfo, updateTrackingWidget, updateLandscapeHUD, MAIN_ROUTES } from './ui.js';
 import { geoErrorMessage, haversineDistance } from './geo.js';
+import { loadDataset } from './csv.js';
+import { buildCorridor, locateOnCorridor, formatPk } from './linearref.js';
 
 let trackingInterval = null;
 
@@ -59,6 +61,22 @@ async function loadCoreData() {
         STATE.points = {};
         STATE.trajets = [];
         STATE.servicePatterns = [];
+    }
+}
+
+// Corridor PK ferroviaire (ENRICHISSEMENT optionnel) : si le dataset décrit
+// par data/datasets/rail-pk.json est disponible, un PK précis est affiché en
+// plus des points nommés. Tant que le CSV n'est pas branché, l'absence du
+// fichier est un no-op silencieux : aucun impact sur le mode rail existant.
+async function loadRailPkCorridor() {
+    try {
+        const ds = await loadDataset('data/datasets/rail-pk.json');
+        STATE.railCorridor = buildCorridor(ds.points);
+        STATE.railCorridorIndex = null;
+        console.log(`[PK] Corridor ferroviaire chargé : ${STATE.railCorridor.points.length} points (PK ${STATE.railCorridor.pkStart} → ${STATE.railCorridor.pkEnd})`);
+    } catch (e) {
+        STATE.railCorridor = null;
+        console.info(`[PK] Corridor ferroviaire indisponible (${e.message}) — affichage PK désactivé.`);
     }
 }
 
@@ -123,6 +141,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderStopCheckboxes(STATE.selectedMainRouteKey, STATE.selectedStopIds, handleStopsChange);
 
     await loadCoreData();
+
+    // Chargement non bloquant : le PK est un enrichissement, pas un prérequis.
+    loadRailPkCorridor();
     if (departureInput) {
         departureInput.value = STATE.departureTime || '';
     }
@@ -331,6 +352,7 @@ async function loadSelectedPatternRoute() {
         STATE.gpsRecoveryMode = false;
         STATE.teleportRejections = 0;
         STATE.lastAcceptedFixMs = 0;
+        STATE.railCorridorIndex = null;
     } catch (e) {
         console.error(e);
         updateInfo("Erreur lors de la construction de la route pour le pattern sélectionné.");
@@ -650,6 +672,16 @@ function showPosition(position) {
         infoHtml += ` Prochain : ${nextPoint.name} (${distanceToNextPointKm.toFixed(2)} km).`;
     } else {
         infoHtml += ` Arrivée à ${lastPassedPoint?.name ?? 'destination'}.`;
+    }
+
+    // Enrichissement PK (informatif uniquement — aucun couplage avec le calcul
+    // de retard) : PK interpolé sur le corridor ferroviaire si disponible.
+    if (STATE.railCorridor) {
+        const loc = locateOnCorridor(STATE.railCorridor, userLat, userLon, STATE.railCorridorIndex, accuracyMeters);
+        if (loc) {
+            STATE.railCorridorIndex = loc.index;
+            infoHtml += ` PK ${formatPk(loc.pk)}${loc.line ? ` (ligne ${loc.line})` : ''}.`;
+        }
     }
     updateInfo(infoHtml);
 }

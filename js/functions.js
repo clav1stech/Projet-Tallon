@@ -207,7 +207,7 @@ function projectOnSegment(pLat, pLon, aLat, aLon, bLat, bLon) {
     return dotProduct / abLengthSq;
 }
 
-function buildSegmentCandidate(pStart, pEnd, lat, lon, preferredRatio = null) {
+export function buildSegmentCandidate(pStart, pEnd, lat, lon, preferredRatio = null) {
     if (!pStart || !pEnd) return null;
     if (typeof pStart.lat !== 'number' || typeof pStart.lon !== 'number') return null;
     if (typeof pEnd.lat !== 'number' || typeof pEnd.lon !== 'number') return null;
@@ -318,9 +318,12 @@ function fallbackSegmentByLatitude(route, lat, lon, lastSegmentIndex, direction)
  * @param {number|null} lastSegmentIndex - Dernier segment validé
  * @param {number|null} accuracyMeters - Précision GPS en mètres
  * @param {string|null} direction - Sens de circulation (ex: SUD/NORD)
+ * @param {object} [opts] - { disableLatitudeFallback } : le fallback par latitude
+ *   suppose une route orientée nord-sud (LGV) ; il doit être désactivé pour les
+ *   itinéraires est-ouest (ex: mode voiture Mâcon → Combloux).
  * @returns {{ segmentIndex, distanceFromSegmentStart, distanceToNextPointKm }}
  */
-export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex = null, accuracyMeters = null, direction = null) {
+export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex = null, accuracyMeters = null, direction = null, opts = {}) {
     if (!route || route.length < 2) {
         return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
     }
@@ -395,8 +398,10 @@ export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex
         }
 
         if (nearestPointIdx === null || nearestPointDistKm > pointToleranceKm) {
-            const fallback = fallbackSegmentByLatitude(route, lat, lon, lastSegmentIndex, direction);
-            if (fallback) return fallback;
+            if (!opts.disableLatitudeFallback) {
+                const fallback = fallbackSegmentByLatitude(route, lat, lon, lastSegmentIndex, direction);
+                if (fallback) return fallback;
+            }
             return { segmentIndex: null, distanceFromSegmentStart: 0, distanceToNextPointKm: 0 };
         }
 

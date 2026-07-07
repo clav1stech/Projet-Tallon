@@ -72,7 +72,12 @@ export const STATE = {
     speedHistory: [],
 
     // Timestamps de passage des points pour les marqueurs sur le graphique
-    passedPointMarkers: []
+    passedPointMarkers: [],
+
+    // Corridor PK ferroviaire (enrichissement optionnel — voir js/linearref.js).
+    // null tant que data/datasets/rail-pk.json + son CSV ne sont pas branchés.
+    railCorridor: null,
+    railCorridorIndex: null
 };
 
 export function restoreSettings() {

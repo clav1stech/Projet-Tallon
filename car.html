@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Tracker — Mâcon → Combloux</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Car Tracker">
+    <meta name="theme-color" content="#111418">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        /* Styles propres au mode voiture (le reste vient de styles.css) */
+        .car-progress-track {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.12);
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        #car-progress-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #4dd0e1, #66bb6a);
+            transition: width 0.5s ease;
+        }
+        .car-stat-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 4px 0;
+        }
+        .car-stat-label { opacity: 0.7; font-size: 0.85em; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="controls-panel">
+            <div class="settings-panel">
+                <h1>Car Tracker</h1>
+
+                <div class="form-row">
+                    <label for="car-route-select"><i class="fas fa-car"></i> Itinéraire :</label>
+                    <select id="car-route-select">
+                        <option value="">-- Choisir l'itinéraire --</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="car-start-btn" class="start-btn">Start</button>
+
+            <div id="car-widget" class="tracking-widget">
+                <div class="widget-section card">
+                    <div class="car-stat-row">
+                        <span class="car-stat-label"><i class="fas fa-road"></i> Tronçon</span>
+                        <span id="car-leg">—</span>
+                    </div>
+                    <div class="car-stat-row">
+                        <span class="car-stat-label"><i class="fas fa-map-marker-alt"></i> Repère</span>
+                        <span id="car-position">—</span>
+                    </div>
+                    <div class="car-progress-track"><div id="car-progress-bar"></div></div>
+                    <div class="car-stat-row">
+                        <span class="car-stat-label"><i class="fas fa-route"></i> Progression</span>
+                        <span id="car-km">—</span>
+                    </div>
+                    <div class="car-stat-row">
+                        <span class="car-stat-label"><i class="fas fa-tachometer-alt"></i> Vitesse</span>
+                        <span id="car-speed">—</span>
+                    </div>
+                    <div class="car-stat-row">
+                        <span class="car-stat-label"><i class="far fa-clock"></i> ETA</span>
+                        <span id="car-eta">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <p id="car-info"></p>
+        </div>
+    </div>
+
+    <div id="debug-bar"></div>
+
+    <!-- fakeGeoSim (dev) : simulateur GPS partagé avec le rail — lit
+         STATE.currentRoute, que car-app.js renseigne avec la route voiture. -->
+    <script type="module" src="js/fakeGeoSim.js"></script>
+    <script type="module" src="js/car-app.js"></script>
+
+    <!-- Service worker : même cache hors-ligne que le mode rail. -->
+    <script>
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch((e) => {
+                    console.warn('Service worker non enregistré :', e);
+                });
+            });
+        }
+    </script>
+
+</body>
+
+</html>

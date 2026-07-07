@@ -4,12 +4,13 @@
 // immédiatement (zéro latence même sans réseau), puis rafraîchie en arrière-plan
 // pour la prochaine visite. Incrémenter CACHE_VERSION pour forcer une purge.
 
-const CACHE_VERSION = 'tallon-v1';
+const CACHE_VERSION = 'tallon-v2';
 
 // Coquille applicative pré-cachée à l'installation.
 const PRECACHE_URLS = [
     './',
     './index.html',
+    './car.html',
     './css/styles.css',
     './js/app.js',
     './js/functions.js',
@@ -20,8 +21,20 @@ const PRECACHE_URLS = [
     './js/utils.js',
     './js/routes-config.js',
     './js/fakeGeoSim.js',
+    './js/csv.js',
+    './js/linearref.js',
+    './js/position-engine.js',
+    './js/car-config.js',
+    './js/car-route.js',
+    './js/car-app.js',
+    './js/car-ui.js',
     './data/masterRoutes.normalized.json',
     './data/servicePatterns.json',
+    // Datasets PK/PR : descripteurs + CSV (hors-ligne sur l'A40 aussi).
+    // Ajouter ici les futurs CSV réels (ex: ./data/csv/rail_pk.csv).
+    './data/datasets/rail-pk.json',
+    './data/datasets/a40-pr.json',
+    './data/csv/a40_pr.csv',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css'
 ];
 
