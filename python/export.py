@@ -70,9 +70,8 @@ MODULE_SUMMARY = {
     'python/extract_pk.py': "Extraction interactive de points kilométriques SNCF depuis un CSV brut.",
 }
 
-# Dossier parent et sous-dossier Export (hors du dépôt, jamais versionné)
-PARENT_DIR = os.path.dirname(os.getcwd())
-EXPORT_PATH = os.path.join(PARENT_DIR, "Export")
+# Dossier Export à la racine du projet (généré, jamais versionné — voir .gitignore)
+EXPORT_PATH = os.path.join(os.getcwd(), "Export")
 
 
 def get_current_version(project_root):

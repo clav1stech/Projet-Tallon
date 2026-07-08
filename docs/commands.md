@@ -6,8 +6,8 @@
 
 ## Export du projet (`python/export.py`)
 
-Génère un ou plusieurs fichiers texte dans `../Export/` (hors du dépôt, jamais
-versionné) à partir des fichiers `.html/.css/.js/.json/.md/.py` du projet
+Génère un ou plusieurs fichiers texte dans `Export/` (à la racine du projet,
+gitignoré, jamais versionné) à partir des fichiers `.html/.css/.js/.json/.md/.py` du projet
 (code + documentation), en excluant `node_modules/`, `data/raw/`, `.git/`,
 `.claude/`, `.vscode/`. La version dans le nom de fichier est lue en tête de
 `CHANGELOG.md` (jamais codée en dur). La liste d'extensions et le manifeste
