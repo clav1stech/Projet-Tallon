@@ -45,4 +45,3 @@
 - Ne jamais committer sans demande explicite de l'utilisateur.
 - Ne jamais pousser ni agir sur le dépôt distant sans demande explicite (voir `CLAUDE.md` § Git).
 - Environnements, caches, artefacts d'export, `data/raw/`, `node_modules/` : jamais versionnés.
-- Ne pas mélanger le contenu de `dev/road-rail-route` (mode voiture, mode hors-ligne, données réelles — encore en test) avec le versionnage semver de `main`.

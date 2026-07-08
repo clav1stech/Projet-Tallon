@@ -28,7 +28,7 @@
 - Ne jamais pousser (`git push`) ni agir sur le dépôt distant (tags, releases, suppression de branches distantes) sans demande explicite, même quand une tâche décrit tout un enchaînement d'actions git — s'arrêter juste avant le push et livrer un état local prêt à valider.
 - Fichiers générés, environnements virtuels, caches, exports, données lourdes (`data/raw/`), `node_modules/` : toujours gitignorés, jamais versionnés.
 - Travail en branche vs main : main pour un changement ponctuel à risque quasi nul et immédiatement déployable ; une branche dédiée pour un chantier structurant multi-commits.
-- **Branche `dev/road-rail-route`** : chantier de test actif (mode voiture multi-mode, robustesse position, mode hors-ligne PWA, pipeline de données réelles). Ne **jamais** merger son contenu dans `main` ni le faire apparaître dans le versionnage semver de `main` tant qu'il n'a pas été explicitement validé — elle a son propre suivi (son propre `CHANGELOG.md`, encore au format `[Non publié]`).
+- Une branche de test/expérimentation (feature non stabilisée, en cours de validation) ne s'intègre au versionnage semver de `main` qu'après validation explicite de l'utilisateur — jamais par anticipation, même si le contenu semble prêt. Voir la mémoire du projet pour l'état courant des branches en cours et lesquelles sont concernées.
 
 ## Versionnage sémantique X.Y.Z
 - Z (patch) : changement significatif normal, cas par défaut.
