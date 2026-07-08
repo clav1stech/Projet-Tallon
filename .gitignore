@@ -1,1 +1,6 @@
 node_modules/
+
+# Fichiers sources volumineux (~175 Mo) — voir data/raw/README.md (catalogue versionné).
+# Les fichiers exploitables par l'app sont générés dans data/csv/ (versionnés).
+data/raw/*
+!data/raw/README.md

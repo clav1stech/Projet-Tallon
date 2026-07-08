@@ -1,18 +1,17 @@
 {
   "id": "a40-pr",
   "kind": "pk-corridor",
-  "label": "A40 Mâcon → Sallanches (PR autoroute)",
-  "file": "data/csv/a40_pr.csv",
-  "csv": { "delimiter": ";", "hasHeader": true, "decimalSeparator": "," },
-  "columns": { "pk": "pr", "line": "route", "lat": "latitude", "lon": "longitude" },
-  "pkFormat": "plus",
-  "filters": [{ "column": "route", "equals": "A40" }],
+  "label": "A40 Mâcon → Le Fayet (PR IGN, ordre reconstruit)",
+  "file": "data/csv/road_pr.csv",
+  "csv": { "delimiter": ",", "hasHeader": true, "decimalSeparator": "." },
+  "columns": { "pk": "pk_cum", "line": "route", "lat": "Y", "lon": "X" },
+  "pkFormat": "decimal-km",
+  "filters": [{ "column": "corridor", "equals": "a40" }],
   "sortBy": "pk",
   "everyNth": 1,
   "notes": [
-    "PLACEHOLDER — le fichier CSV réel n'est pas encore disponible.",
-    "data/csv/a40_pr.csv contient ~15 points GROSSIERS et APPROXIMATIFS de l'A40 pour démonstration ; à remplacer par le fichier PR réel.",
-    "Pour brancher le vrai fichier : remplacer data/csv/a40_pr.csv et adapter `csv`, `columns`, `pkFormat` et `filters` — aucun code à modifier.",
-    "pkFormat : 'plus' (123+456), 'decimal-km' (123.456) ou 'meters' (123456)."
+    "Fichier généré par `python3 python/extract_pr.py` depuis data/raw/road/pr-national-autoroutes.csv (IGN BD TOPO — voir data/raw/README.md).",
+    "`pk_cum` = km cumulés depuis Mâcon (ordre géométrique reconstruit) et NON le PR réel : la numérotation PR de l'A40 n'est pas monotone (APRR PR 102→207 puis ATMB PR 102→0).",
+    "Le PR réel reste dans la colonne `numero` (+ cote, gestionnaire, etc.) pour un affichage futur."
   ]
 }

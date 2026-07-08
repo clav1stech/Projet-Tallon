@@ -33,6 +33,39 @@ const ROUTE_CFG = {
     ]
 };
 
+describe('buildCarRoute — pkRange', () => {
+    it('ne garde que la portion [min, max] du corridor (jonction en cours de route, sortie avant la fin)', () => {
+        const cfg = {
+            legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', pkRange: [5, 10] }]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.points.map(p => p.pk)).toEqual([5, 10]);
+    });
+
+    it('borne non finie = non contraignante (null)', () => {
+        const cfg = {
+            legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', pkRange: [null, 10] }]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.points.map(p => p.pk)).toEqual([0, 5, 10]);
+    });
+
+    it('sans pkRange : corridor complet (comportement inchangé)', () => {
+        const cfg = {
+            legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40' }]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.points).toHaveLength(4);
+    });
+
+    it('pkRange vidant le corridor → erreur (moins de 2 points)', () => {
+        const cfg = {
+            legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', pkRange: [100, 200] }]
+        };
+        expect(() => buildCarRoute(cfg, DATASETS)).toThrowError(/moins de 2 points/);
+    });
+});
+
 describe('buildCarRoute', () => {
     const route = buildCarRoute(ROUTE_CFG, DATASETS);
 

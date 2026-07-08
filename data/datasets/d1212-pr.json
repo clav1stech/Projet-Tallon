@@ -1,0 +1,16 @@
+{
+  "id": "d1212-pr",
+  "kind": "pk-corridor",
+  "label": "D1212 Sallanches → Megève (PR IGN, dépt 74)",
+  "file": "data/csv/road_pr.csv",
+  "csv": { "delimiter": ",", "hasHeader": true, "decimalSeparator": "." },
+  "columns": { "pk": "pk_cum", "line": "route", "lat": "Y", "lon": "X" },
+  "pkFormat": "decimal-km",
+  "filters": [{ "column": "corridor", "equals": "d1212" }],
+  "sortBy": "pk",
+  "everyNth": 1,
+  "notes": [
+    "Fichier généré par `python3 python/extract_pr.py` depuis data/raw/road/pr-departemental.csv (voir data/raw/README.md).",
+    "Corridor orienté Sallanches (PR 0) → Megève ; le trajet Combloux n'en utilise que [0, 5.3] km (pkRange du leg dans car-config.js)."
+  ]
+}

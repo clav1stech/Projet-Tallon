@@ -49,6 +49,16 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
             }
             const corridor = buildCorridor(ds.points);
             legPoints = corridor.points.map(p => ({ lat: p.lat, lon: p.lon, pk: p.pk, line: p.line ?? null }));
+            // pkRange: [min, max] — ne garder qu'une portion du corridor.
+            // Nécessaire quand le trajet quitte la route avant sa fin (sortie
+            // Sallanches sur l'A40) ou la rejoint en cours (jonction A406→A40).
+            if (Array.isArray(leg.pkRange) && leg.pkRange.length === 2) {
+                const [pkMin, pkMax] = leg.pkRange;
+                legPoints = legPoints.filter(p =>
+                    (!Number.isFinite(pkMin) || p.pk >= pkMin) &&
+                    (!Number.isFinite(pkMax) || p.pk <= pkMax)
+                );
+            }
         } else if (leg.type === 'points') {
             legPoints = (leg.points || [])
                 .filter(p => p && Number.isFinite(p.lat) && Number.isFinite(p.lon))

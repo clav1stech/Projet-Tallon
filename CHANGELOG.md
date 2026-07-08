@@ -1,5 +1,82 @@
 # Changelog
 
+## [Non publié] — Données réelles branchées : PK SNCF, corridors A406/A40/D1212, catalogue data/raw
+
+Branche : `claude/tgv-tracker-multi-mode-83nbkd`.
+
+Les fichiers sources attendus sont arrivés (~175 Mo dans `data/raw/`, non
+versionnés) : le CSV PK SNCF, 3 GeoJSON ferroviaires d'enrichissement et les
+2 CSV IGN BD TOPO de points de repère routiers. Cette section branche les
+corridors réels **sans toucher au moteur JS** (les descripteurs
+`data/datasets/*.json` absorbent la forme des fichiers, comme prévu) et met
+en place le mécanisme de documentation/extraction demandé.
+
+> **Release/tag** : le diff de cette section = pipeline de données réelles.
+> `CACHE_VERSION` bumpée (`tallon-v3`) — penser au re-bump à chaque évolution
+> des fichiers précachés.
+
+### Ajouts
+
+#### Catalogue des données brutes (`data/raw/README.md`, `.gitignore`, `CLAUDE.md`)
+**Cas d'usage : documenter 175 Mo de sources sans jamais les re-parser (discipline token).**
+`data/raw/*` est exclu de git (seul le README y est suivi) et ne sera JAMAIS
+précaché par le service worker. Le README catalogue chaque fichier : source,
+volumétrie, schéma exact, pièges (NULL littéraux SNCF, `abscisse` IGN qui
+redémarre par section, chaussées G/D dupliquées avec sections disjointes,
+PR non monotones sur A40), usages actuels ✅ et pistes futures 🔮 (v_max au PK,
+tunnels/perte GPS, enrichissement gares via `lignePK`, PR réel routier).
+`CLAUDE.md` (nouveau) impose la règle aux futures sessions : lire le
+catalogue, sonder en streaming, ne jamais lire ces fichiers en entier.
+
+#### Pipeline d'extraction locale (`python/extract_pk.py` réécrit, `python/extract_pr.py`, `python/profile_raw.py`)
+**Cas d'usage : produire des fichiers légers versionnés depuis les sources lourdes, re-runnable.**
+Scripts stdlib uniquement (plus de pandas/tqdm/input()), non interactifs,
+streaming :
+- `extract_pk.py` → `data/csv/rail_pk.csv` (1,1 Mo) : lignes 752000/752100/
+  830000, **toutes colonnes conservées** (vitesse, altitudes… prêtes pour de
+  futures features sans ré-extraction), lignes NULL écartées, tri
+  (code_ligne, pk). `--lines` pour ajouter des lignes SNCF.
+- `extract_pr.py` → `data/csv/road_pr.csv` (47 Ko) : corridors `a406` (10 pts,
+  8,8 km), `a40` (206 pts, 200,6 km), `d1212` (20 pts, 16,4 km). Les PR IGN
+  sont dédupliqués par chaussée (clé `(numero, gestionnaire)` — les sections
+  G/D sont disjointes), ré-ordonnés par **chaînage plus-proche-voisin** (la
+  numérotation PR de l'A40 n'est pas monotone : APRR 102→207 puis ATMB 102→0)
+  et coupés au premier saut aberrant (points hors parcours, ex. tronçon
+  A40↔A6). Colonne `pk_cum` émise = km cumulés servant d'axe au corridor ;
+  le PR réel reste en colonne `numero`.
+- `profile_raw.py` : régénère les schémas du catalogue en markdown, à coût nul.
+
+#### PK ferroviaire réel sur index.html (`data/csv/rail_pk.csv`, `data/datasets/rail-pk.json`)
+**Cas d'usage : PK précis affiché en TGV — la feature préparée à la section précédente devient effective.**
+Le descripteur passe au délimiteur virgule (seul écart avec les colonnes
+devinées, qui étaient justes) ; le corridor 752000 (7113 points, LGV Sud-Est)
+se charge au démarrage et la ligne d'info affiche « PK 169+900 (ligne
+752000) ». Zéro changement de code applicatif.
+
+#### Vrai itinéraire voiture A406 → A40 → D1212 (`js/car-config.js`, `js/car-route.js`, descripteurs)
+**Cas d'usage : suivi Mâcon → Combloux sur les corridors IGN réels.**
+Le CSV placeholder `a40_pr.csv` est supprimé, remplacé par `road_pr.csv` et
+trois descripteurs (`a406-pr`, `a40-pr` réécrit, `d1212-pr`). Nouvelle option
+de leg `pkRange: [min, max]` dans `buildCarRoute` : on rejoint l'A40 à la
+jonction A406 (pk_cum ≈ 6,0) et on la quitte à la sortie Sallanches
+(≈ 194,7) ; la D1212 est coupée à Combloux (≈ 5,3) avant Megève. Trajet total
+≈ 204 km. Le « PK » affiché en voiture = km cumulés du corridor (le PR réel,
+non monotone, est conservé pour un affichage futur — noté au catalogue).
+
+### Modifications
+- `sw.js` : precache `rail_pk.csv` + `road_pr.csv` + les 2 nouveaux
+  descripteurs, retrait du placeholder ; `CACHE_VERSION` → `tallon-v3`.
+- `.gitignore` : `data/raw/*` (avec exception README).
+
+### Tests
+**123 tests, 8 fichiers** (les 119 précédents inchangés + 4 tests `pkRange` :
+portion [min,max], borne null non contraignante, absence d'option = corridor
+complet, plage vide → erreur).
+Vérification E2E (Chromium headless, GPS mocké sur les coordonnées réelles des
+corridors) : index.html affiche « PK 169+900 (ligne 752000) » pendant le
+tracking ; car.html enchaîne A406 → A40 → D1212 → arrivée Combloux (204,4 km,
+barre à 100 %) sans erreur console.
+
 ## [Non publié] — Référencement PK et mode voiture (Mâcon → Combloux)
 
 Branche : `claude/tgv-tracker-multi-mode-83nbkd`.

@@ -1,0 +1,16 @@
+{
+  "id": "a406-pr",
+  "kind": "pk-corridor",
+  "label": "A406 contournement sud de Mâcon (PR IGN)",
+  "file": "data/csv/road_pr.csv",
+  "csv": { "delimiter": ",", "hasHeader": true, "decimalSeparator": "." },
+  "columns": { "pk": "pk_cum", "line": "route", "lat": "Y", "lon": "X" },
+  "pkFormat": "decimal-km",
+  "filters": [{ "column": "corridor", "equals": "a406" }],
+  "sortBy": "pk",
+  "everyNth": 1,
+  "notes": [
+    "Fichier généré par `python3 python/extract_pr.py` (voir data/raw/README.md).",
+    "Corridor orienté A6 (sud de Mâcon) → jonction A40, dans le sens du trajet."
+  ]
+}

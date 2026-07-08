@@ -3,18 +3,16 @@
   "kind": "pk-corridor",
   "label": "PK ferroviaires — LGV Sud-Est (ligne 752000)",
   "file": "data/csv/rail_pk.csv",
-  "csv": { "delimiter": ";", "hasHeader": true, "decimalSeparator": "." },
+  "csv": { "delimiter": ",", "hasHeader": true, "decimalSeparator": "." },
   "columns": { "pk": "pk", "line": "code_ligne", "lat": "lat", "lon": "lon" },
   "pkFormat": "decimal-km",
   "filters": [{ "column": "code_ligne", "equals": "752000" }],
   "sortBy": "pk",
   "everyNth": 1,
   "notes": [
-    "PLACEHOLDER — le fichier CSV réel n'est pas encore disponible.",
-    "Colonnes provisoires devinées d'après python/extract_pk.py ; à ajuster à réception du fichier.",
-    "Pour brancher le vrai fichier : déposer le CSV à l'emplacement `file` et adapter `csv`, `columns`, `pkFormat` et `filters` — aucun code à modifier.",
-    "Tant que le CSV est absent, l'app rail fonctionne exactement comme avant (aucun PK affiché).",
-    "pkFormat : 'plus' (123+456), 'decimal-km' (123.456) ou 'meters' (123456).",
-    "everyNth > 1 décime le fichier (1 point sur N) si le CSV est très volumineux."
+    "Fichier généré par `python3 python/extract_pk.py` depuis data/raw/rail/pks 2.csv (voir data/raw/README.md).",
+    "Contient les lignes 752000 (LGV Sud-Est, 7113 pts), 752100 et 830000 — le filtre `code_ligne` sélectionne le corridor ; corridors multi-lignes = évolution future.",
+    "Toutes les colonnes source sont conservées (vitesse, altitude, altitude_tunnels, altitude_declivites) pour de futures features.",
+    "Relancer le script avec --lines pour ajouter d'autres lignes SNCF."
   ]
 }
