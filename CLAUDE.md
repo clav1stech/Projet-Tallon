@@ -61,9 +61,10 @@
 - Sens de dépendance du front : `state.js` (données) ← `functions.js`/`geo.js` (calcul pur, ne touchent jamais au DOM) ← `ui.js` (rendu DOM) ← `app.js` (orchestration/événements). `routes-config.js` est transverse (consommé par `ui.js` ET `master-editor.js`).
 
 ## Export / partage de contexte vers l'IA
-- Prévoir un outil d'export du projet (profil "IA" léger : code + doc + manifeste, sans les gros fichiers de données ; profil "sauvegarde" complet en zip avec rotation des N plus récents).
-- Permettre un export ciblé par périmètre (--only module) pour réduire le volume envoyé à l'IA quand la question ne porte que sur une partie du projet.
-- `python/export.py` remplit ce rôle aujourd'hui (export zip horodaté X.Y.Z des fichiers `.html/.css/.js/.json`) ; encore basique (pas de profil "IA léger" ni de --only module) — à étoffer plutôt que dupliquer si le besoin se précise.
+- `python/export.py` (commandes détaillées dans `docs/commands.md`) exporte sous la vraie version courante, lue en tête de `CHANGELOG.md` (jamais codée en dur dans le script).
+- Export complet (défaut, sans argument) : génère simultanément un profil "IA" léger (JSON tronqué + manifeste arborescence/rôle par fichier) et un profil "complet" (JSON intégral), pour ne payer le coût en tokens du détail des données que quand c'est nécessaire.
+- Export "lite" (`--lite release` / `--lite commit`) : diff texte depuis la dernière release (dernier tag `vX.Y.0`) ou depuis le dernier commit de version (dernier tag `vX.Y.Z`), pour ne transmettre que ce qui a changé.
+- Reste à faire si le besoin se précise : export ciblé par périmètre (`--only module`), et/ou profil "sauvegarde" complet en zip avec rotation des N plus récents — ne pas dupliquer, étoffer `export.py` le moment venu.
 
 ---
 
@@ -86,6 +87,6 @@
 - `data/servicePatterns.json` : patterns de desserte nommés (quels arrêts intermédiaires pour quel trajet) — distincts des trajets sélectionnables par l'utilisateur dans l'UI (`MAIN_ROUTES`), qui construisent leur propre pattern à la volée (`buildPatternFromSelection` dans `app.js`).
 - `python/migrate_v2_to_v3.py` : migration ponctuelle du schéma (déjà appliquée, gardé pour référence/rollback).
 - `python/extract_pk.py` : extraction de points kilométriques SNCF depuis un CSV brut (dépendances `pandas`/`tqdm`, script interactif — pas encore réécrit en stdlib pur sur `main`, cette réécriture existe sur `dev/road-rail-route`).
-- `python/export.py` : export zip du projet pour partage/sauvegarde, versionné X.Y (constantes en tête de fichier, à mettre à jour manuellement).
+- `python/export.py` : export texte du projet pour partage de contexte IA (profils "ia"/"full" + mode "lite" par diff), versionné automatiquement sur `CHANGELOG.md` — voir `docs/commands.md`.
 
 **Pas de suite de tests ni de build sur `main` actuellement** (`package.json`/`vitest` arrivent avec `dev/road-rail-route`, pas encore mergés). Vérification manuelle via `js/fakeGeoSim.js` ou test réel en conditions.
