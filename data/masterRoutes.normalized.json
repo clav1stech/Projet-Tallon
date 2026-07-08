@@ -1,0 +1,1569 @@
+{
+  "_schema": "v3",
+  "points": {
+    "PARIS_LYON": {
+      "name": "Paris-Lyon",
+      "lat": 48.84431,
+      "lon": 2.37564,
+      "type": "passage",
+      "code_ligne": "830000",
+      "PK": "0",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "BIF_DE_CRETEIL": {
+      "name": "Bifurcation de Créteil",
+      "lat": 48.7749,
+      "lon": 2.43626,
+      "type": "bifurcation",
+      "code_ligne": "830000",
+      "code_ligne_2": "752100",
+      "PK_V1": "9,326",
+      "PK_V2": "9,326",
+      "PK_2_V1": "0",
+      "PK_2_V2": "0",
+      "Vmax": null,
+      "altitude": null
+    },
+    "TUNNEL_DE_LIMEIL_BREVANNES": {
+      "name": "Tunnel de Limeil-Brevannes",
+      "lat": 48.74884,
+      "lon": 2.4724,
+      "type": "ouvrage_art",
+      "code_ligne": "752100",
+      "PK": "4,231",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": 1682
+    },
+    "TRANCHEE_COUVERTE_DE_VILLECRESNE": {
+      "name": "Tranchée couverte de Villecresne",
+      "lat": 48.73355,
+      "lon": 2.50744,
+      "type": "ouvrage_art",
+      "code_ligne": "752100",
+      "PK": "7,633",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": 2793
+    },
+    "BIF_DE_CHEVRY_COSSIGNY": {
+      "name": "Bifurcation de Chevry-Cossigny",
+      "lat": 48.70186,
+      "lon": 2.68159,
+      "type": "bifurcation",
+      "code_ligne": "752100",
+      "code_ligne_2": "",
+      "PK_V1": "21,590",
+      "PK_V2": "21,590",
+      "PK_2_V1": "",
+      "PK_2_V2": "",
+      "Vmax": null,
+      "altitude": null
+    },
+    "BIF_DE_SOLERS": {
+      "name": "Bifurcation de Solers",
+      "lat": 48.67599,
+      "lon": 2.72792,
+      "type": "bifurcation",
+      "code_ligne": "752100",
+      "code_ligne_2": "",
+      "PK_V1": "26,546",
+      "PK_V2": "27,146",
+      "PK_2_V1": "",
+      "PK_2_V2": "",
+      "Vmax": null,
+      "altitude": null
+    },
+    "BIF_DE_MOISENAY": {
+      "name": "Bifurcation de Moisenay",
+      "lat": 48.56911,
+      "lon": 2.75358,
+      "type": "bifurcation",
+      "code_ligne": "752100",
+      "code_ligne_2": "752000",
+      "PK_V1": "39,406",
+      "PK_V2": "39,406",
+      "PK_2_V1": "17,099",
+      "PK_2_V2": "17,099",
+      "Vmax": null,
+      "altitude": null
+    },
+    "VIADUC_DE_MONTEREAU": {
+      "name": "Viaduc de Montereau",
+      "lat": 48.39683,
+      "lon": 2.9782,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "42,740",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": 200
+    },
+    "PRS_DE_MAROLLES": {
+      "name": "SEI de Marolles",
+      "lat": 48.3726,
+      "lon": 3.05381,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "49,284",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "PASSAGE_SOUS_L_A19": {
+      "name": "Passage sous l'A19",
+      "lat": 48.2596,
+      "lon": 3.28652,
+      "type": "passage",
+      "code_ligne": "752000",
+      "PK": "72,250",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "PRS_DE_VAUMORT": {
+      "name": "SEI de Vaumort",
+      "lat": 48.11586,
+      "lon": 3.44976,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "93,000",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_SUR_LE_CANAL_DE_BOURGOGNE": {
+      "name": "Viaduc sur le canal de Bourgogne",
+      "lat": 47.98193,
+      "lon": 3.67834,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "115,752",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": 160
+    },
+    "BIF_DE_VERGIGNY": {
+      "name": "Bifurcation de Vergigny",
+      "lat": 47.97407,
+      "lon": 3.69335,
+      "type": "bifurcation",
+      "code_ligne": "752000",
+      "code_ligne_2": "",
+      "PK_V1": "117,236",
+      "PK_V2": "117,959",
+      "PK_2_V1": "",
+      "PK_2_V2": "",
+      "Vmax": null,
+      "altitude": null
+    },
+    "PRS_TONNERRE": {
+      "name": "SEI de Tonnerre",
+      "lat": 47.85008,
+      "lon": 3.92233,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "139,817",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "BIF_DE_PASILLY": {
+      "name": "Bifurcation de Pasilly",
+      "lat": 47.68374,
+      "lon": 4.0791,
+      "type": "bifurcation",
+      "code_ligne": "752000",
+      "code_ligne_2": "",
+      "PK_V1": "160,516",
+      "PK_V2": "161,746",
+      "PK_2_V1": "",
+      "PK_2_V2": "",
+      "Vmax": null,
+      "altitude": null
+    },
+    "VIADUC_D_EPOISSES": {
+      "name": "Viaduc d'Époisses",
+      "lat": 47.48607,
+      "lon": 4.15635,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "185,353",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": 90
+    },
+    "PRS_DE_LACOUR_D_ARCENAY": {
+      "name": "SEI de Lacour d'Arcenay",
+      "lat": 47.3479,
+      "lon": 4.24603,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "202,367",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_DE_SAULIEU": {
+      "name": "Viaduc de Saulieu",
+      "lat": 47.29473,
+      "lon": 4.27178,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "208,686",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": 202
+    },
+    "PRS_DE_VIANGES": {
+      "name": "SEI de Vianges",
+      "lat": 47.149,
+      "lon": 4.34201,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "225,809",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "PRS_DE_SULLY": {
+      "name": "SEI de Sully",
+      "lat": 46.99679,
+      "lon": 4.45548,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "247,214",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_DE_LA_DIGOINE_DREE": {
+      "name": "Viaduc de la Digoine",
+      "lat": 46.9478,
+      "lon": 4.48808,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "253,454",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": 420
+    },
+    "CREUSOT_TGV": {
+      "name": "Le Creusot – Montceau – Montchanin TGV",
+      "lat": 46.76534,
+      "lon": 4.5001,
+      "type": "gare",
+      "code_ligne": "752000",
+      "PK": "273,816",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "PRS_DE_VAUX_EN_PRE": {
+      "name": "SEI de Vaux-en-Pré",
+      "lat": 46.6119,
+      "lon": 4.60418,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "292,995",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "PRS_DE_CLUNY": {
+      "name": "SEI de Cluny",
+      "lat": 46.43449,
+      "lon": 4.67387,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "313,579",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_DE_LA_ROCHE": {
+      "name": "Viaduc de la Roche",
+      "lat": 46.37125,
+      "lon": 4.67518,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "321,187",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": 385
+    },
+    "MACON_LOCHE": {
+      "name": "Macon – Loché TGV",
+      "lat": 46.28338,
+      "lon": 4.77797,
+      "type": "gare",
+      "code_ligne": "752000",
+      "PK": "333,917",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "PRS_DE_CESSEIN": {
+      "name": "SEI de Cessein",
+      "lat": 46.06674,
+      "lon": 4.84928,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "361,134",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "PASSAGE_SOUS_L_A46": {
+      "name": "Passage sous l'A46",
+      "lat": 45.90156,
+      "lon": 4.87495,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "379,572",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "BIF_MONTANAY": {
+      "name": "Bifurcation V.1 de Montanay",
+      "lat": 45.8936,
+      "lon": 4.87707,
+      "type": "bifurcation",
+      "code_ligne": "752000",
+      "code_ligne_2": "",
+      "PK_V1": "380,540",
+      "PK_V2": "380,540",
+      "PK_2_V1": "",
+      "PK_2_V2": "",
+      "Vmax": null,
+      "altitude": null
+    },
+    "PONT_SUR_L_A46": {
+      "name": "Pont sur l'A46",
+      "lat": 45.86041,
+      "lon": 4.90772,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "385,133",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_DE_LA_COTIERE": {
+      "name": "Viaduc de la Cotière",
+      "lat": 45.84303,
+      "lon": 5.01456,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "394,060",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "LYON_ST_EX": {
+      "name": "Lyon-Saint-Exupéry TGV",
+      "lat": 45.72106,
+      "lon": 5.07589,
+      "type": "gare",
+      "code_ligne": "752000",
+      "PK": "409,705",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "BIF_DE_GRENAY_NORD": {
+      "name": "Bif. de Grenay-Nord",
+      "lat": 45.66017,
+      "lon": 5.07287,
+      "type": "bifurcation",
+      "code_ligne": "752000",
+      "code_ligne_2": "",
+      "PK_V1": "416,647",
+      "PK_V2": "416,647",
+      "PK_2_V1": "",
+      "PK_2_V2": "",
+      "Vmax": null,
+      "altitude": null
+    },
+    "TUNNEL_DE_MEYSSIEZ": {
+      "name": "Tunnel de Meyssiez",
+      "lat": 45.46091,
+      "lon": 5.04418,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "440,545",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_DE_LA_GALAURE": {
+      "name": "Viaduc de la Galaure",
+      "lat": 45.19677,
+      "lon": 4.91898,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "471,869",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "PRCI_DE_CLAVEYSON_BREN": {
+      "name": "PRCI de Claveyson - Bren",
+      "lat": 45.1576,
+      "lon": 4.92203,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "476,336",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VALENCE_TGV": {
+      "name": "Valence TGV",
+      "lat": 44.99112,
+      "lon": 4.97879,
+      "type": "gare",
+      "code_ligne": "752000",
+      "PK": "495,464",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "TUNNEL_DE_TARTAIGUILLE": {
+      "name": "Tunnel de Tartaiguille (2 340 m)",
+      "lat": 44.68243,
+      "lon": 4.9353,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "531,661",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "SEI_D_ALLAN": {
+      "name": "SEI d'Allan",
+      "lat": 44.49641,
+      "lon": 4.77729,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "556,011",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_SUR_L_A7": {
+      "name": "Viaduc sur l'A7",
+      "lat": 44.37792,
+      "lon": 4.73232,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "569,737",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "BIF_VERS_LE_RACC_DE_BOLLENE": {
+      "name": "Bif. vers le racc. de Bollène",
+      "lat": 44.30675,
+      "lon": 4.7012,
+      "type": "bifurcation",
+      "code_ligne": "752000",
+      "code_ligne_2": "",
+      "PK_V1": "578,411",
+      "PK_V2": "578,411",
+      "PK_2_V1": "",
+      "PK_2_V2": "",
+      "Vmax": null,
+      "altitude": null
+    },
+    "SEI_DE_PIOLENC": {
+      "name": "SEI de Piolenc",
+      "lat": 44.16485,
+      "lon": 4.73397,
+      "type": "poste_aiguillage",
+      "code_ligne": "752000",
+      "PK": "595,040",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "BIF_D_AVIGNON_NORD": {
+      "name": "Bif. d'Avignon-Nord",
+      "lat": 43.97382,
+      "lon": 4.73681,
+      "type": "bifurcation",
+      "code_ligne": "752000",
+      "code_ligne_2": "",
+      "PK_V1": "617,742",
+      "PK_V2": "617,742",
+      "PK_2_V1": "",
+      "PK_2_V2": "",
+      "Vmax": null,
+      "altitude": null
+    },
+    "AVIGNON_TGV": {
+      "name": "Avignon TGV",
+      "lat": 43.92171,
+      "lon": 4.78642,
+      "type": "gare",
+      "code_ligne": "752000",
+      "PK": "625,162",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_DE_CHEVAL_BLANC_900_M": {
+      "name": "Viaduc de Cheval-Blanc (900 m)",
+      "lat": 43.80702,
+      "lon": 5.04268,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "650,559",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_DE_VERNEGUES_1_211_M": {
+      "name": "Viaduc de Vernègues (1 211 m)",
+      "lat": 43.68812,
+      "lon": 5.19707,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "669,022",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "VIADUC_DE_VENTABREN_1_730_M": {
+      "name": "Viaduc de Ventabren (1 730 m)",
+      "lat": 43.54931,
+      "lon": 5.32919,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "688,232",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "AIX_TGV": {
+      "name": "Aix-en-Provence TGV",
+      "lat": 43.45553,
+      "lon": 5.31718,
+      "type": "gare",
+      "code_ligne": "752000",
+      "PK": "699,140",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "TUNNEL_DES_PENNES_MIRABEAU": {
+      "name": "Tunnel des Pennes-Mirabeau",
+      "lat": 43.42822,
+      "lon": 5.32977,
+      "type": "ouvrage_art",
+      "code_ligne": "752000",
+      "PK": "702,280",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "BIF_DES_TUILERIES": {
+      "name": "Bif. des Tuileries",
+      "lat": 43.35441,
+      "lon": 5.35259,
+      "type": "bifurcation",
+      "code_ligne": "752000",
+      "code_ligne_2": "830000",
+      "PK_V1": "711,001",
+      "PK_V2": "711,001",
+      "PK_2_V1": "854,736",
+      "PK_2_V2": "854,736",
+      "Vmax": null,
+      "altitude": null
+    },
+    "MARSEILLE_ST_CHARLES": {
+      "name": "Marseille Saint-Charles",
+      "lat": 43.30334,
+      "lon": 5.38096,
+      "type": "poste_aiguillage",
+      "code_ligne": "830000",
+      "PK": "861,800",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "SATHONAY_RILLIEU": {
+      "name": "Gare de Sathonay-Rillieu",
+      "lat": 45.85896,
+      "lon": 4.90772,
+      "type": "gare",
+      "code_ligne": "",
+      "PK": "",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "TUNNEL_DES_MERCIERES": {
+      "name": "Tunnel des Mercières",
+      "lat": 45.81778,
+      "lon": 5.01456,
+      "type": "ouvrage_art",
+      "code_ligne": "",
+      "PK": "",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "GARE_DE_LYON_SAINT_CLAIR": {
+      "name": "Gare de Lyon-Saint-Clair",
+      "lat": 45.81778,
+      "lon": 5.07589,
+      "type": "gare",
+      "code_ligne": "",
+      "PK": "",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    },
+    "LYON_PART_DIEU": {
+      "name": "Lyon-Part-Dieu",
+      "lat": 45.78947,
+      "lon": 4.8608,
+      "type": "passage",
+      "code_ligne": "",
+      "PK": "",
+      "Vmax": null,
+      "altitude": null,
+      "longueur": null
+    }
+  },
+  "trajets": [
+    {
+      "id": "PAR_MRS_SUD",
+      "name": "Ligne Paris -> Marseille (Sud)",
+      "voie": 1,
+      "direction": "south-north",
+      "points": [
+        {
+          "id": "PARIS_LYON",
+          "durationToNext": 350
+        },
+        {
+          "id": "BIF_DE_CRETEIL",
+          "durationToNext": 142
+        },
+        {
+          "id": "TUNNEL_DE_LIMEIL_BREVANNES",
+          "durationToNext": 118
+        },
+        {
+          "id": "TRANCHEE_COUVERTE_DE_VILLECRESNE",
+          "durationToNext": 300
+        },
+        {
+          "id": "BIF_DE_CHEVRY_COSSIGNY",
+          "durationToNext": 75
+        },
+        {
+          "id": "BIF_DE_SOLERS",
+          "durationToNext": 240
+        },
+        {
+          "id": "BIF_DE_MOISENAY",
+          "durationToNext": 350
+        },
+        {
+          "id": "VIADUC_DE_MONTEREAU",
+          "durationToNext": 85
+        },
+        {
+          "id": "PRS_DE_MAROLLES",
+          "durationToNext": 305
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A19",
+          "durationToNext": 275
+        },
+        {
+          "id": "PRS_DE_VAUMORT",
+          "durationToNext": 305
+        },
+        {
+          "id": "VIADUC_SUR_LE_CANAL_DE_BOURGOGNE",
+          "durationToNext": 20
+        },
+        {
+          "id": "BIF_DE_VERGIGNY",
+          "durationToNext": 300
+        },
+        {
+          "id": "PRS_TONNERRE",
+          "durationToNext": 305
+        },
+        {
+          "id": "BIF_DE_PASILLY",
+          "durationToNext": 245
+        },
+        {
+          "id": "VIADUC_D_EPOISSES",
+          "durationToNext": 90
+        },
+        {
+          "id": "PRS_DE_LACOUR_D_ARCENAY",
+          "durationToNext": 295
+        },
+        {
+          "id": "VIADUC_DE_SAULIEU",
+          "durationToNext": 245
+        },
+        {
+          "id": "PRS_DE_VIANGES",
+          "durationToNext": 110
+        },
+        {
+          "id": "PRS_DE_SULLY",
+          "durationToNext": 115
+        },
+        {
+          "id": "VIADUC_DE_LA_DIGOINE_DREE",
+          "durationToNext": 290
+        },
+        {
+          "id": "CREUSOT_TGV",
+          "durationToNext": 305
+        },
+        {
+          "id": "PRS_DE_VAUX_EN_PRE",
+          "durationToNext": 130
+        },
+        {
+          "id": "PRS_DE_CLUNY",
+          "durationToNext": 185
+        },
+        {
+          "id": "VIADUC_DE_LA_ROCHE",
+          "durationToNext": 400
+        },
+        {
+          "id": "MACON_LOCHE",
+          "durationToNext": 392
+        },
+        {
+          "id": "PRS_DE_CESSEIN",
+          "durationToNext": 260
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A46",
+          "durationToNext": 13
+        },
+        {
+          "id": "BIF_MONTANAY",
+          "durationToNext": 62
+        },
+        {
+          "id": "PONT_SUR_L_A46",
+          "durationToNext": 125
+        },
+        {
+          "id": "VIADUC_DE_LA_COTIERE",
+          "durationToNext": 205
+        },
+        {
+          "id": "LYON_ST_EX",
+          "durationToNext": 95
+        },
+        {
+          "id": "BIF_DE_GRENAY_NORD",
+          "durationToNext": 340
+        },
+        {
+          "id": "TUNNEL_DE_MEYSSIEZ",
+          "durationToNext": 395
+        },
+        {
+          "id": "VIADUC_DE_LA_GALAURE",
+          "durationToNext": 58
+        },
+        {
+          "id": "PRCI_DE_CLAVEYSON_BREN",
+          "durationToNext": 245
+        },
+        {
+          "id": "VALENCE_TGV",
+          "durationToNext": 500
+        },
+        {
+          "id": "TUNNEL_DE_TARTAIGUILLE",
+          "durationToNext": 314
+        },
+        {
+          "id": "SEI_D_ALLAN",
+          "durationToNext": 180
+        },
+        {
+          "id": "VIADUC_SUR_L_A7",
+          "durationToNext": 115
+        },
+        {
+          "id": "BIF_VERS_LE_RACC_DE_BOLLENE",
+          "durationToNext": 230
+        },
+        {
+          "id": "SEI_DE_PIOLENC",
+          "durationToNext": 330
+        },
+        {
+          "id": "BIF_D_AVIGNON_NORD",
+          "durationToNext": 180
+        },
+        {
+          "id": "AVIGNON_TGV",
+          "durationToNext": 660
+        },
+        {
+          "id": "VIADUC_DE_CHEVAL_BLANC_900_M",
+          "durationToNext": 240
+        },
+        {
+          "id": "VIADUC_DE_VERNEGUES_1_211_M",
+          "durationToNext": 300
+        },
+        {
+          "id": "VIADUC_DE_VENTABREN_1_730_M",
+          "durationToNext": 240
+        },
+        {
+          "id": "AIX_TGV",
+          "durationToNext": 240
+        },
+        {
+          "id": "TUNNEL_DES_PENNES_MIRABEAU",
+          "durationToNext": 300
+        },
+        {
+          "id": "BIF_DES_TUILERIES",
+          "durationToNext": 360
+        },
+        {
+          "id": "MARSEILLE_ST_CHARLES",
+          "durationToNext": 0
+        }
+      ]
+    },
+    {
+      "id": "PAR_LPD_SUD",
+      "name": "Ligne Paris -> Lyon Part-Dieu (Sud)",
+      "voie": 1,
+      "direction": "south-north",
+      "points": [
+        {
+          "id": "PARIS_LYON",
+          "durationToNext": 350
+        },
+        {
+          "id": "BIF_DE_CRETEIL",
+          "durationToNext": 142
+        },
+        {
+          "id": "TUNNEL_DE_LIMEIL_BREVANNES",
+          "durationToNext": 118
+        },
+        {
+          "id": "TRANCHEE_COUVERTE_DE_VILLECRESNE",
+          "durationToNext": 300
+        },
+        {
+          "id": "BIF_DE_CHEVRY_COSSIGNY",
+          "durationToNext": 75
+        },
+        {
+          "id": "BIF_DE_SOLERS",
+          "durationToNext": 240
+        },
+        {
+          "id": "BIF_DE_MOISENAY",
+          "durationToNext": 350
+        },
+        {
+          "id": "VIADUC_DE_MONTEREAU",
+          "durationToNext": 85
+        },
+        {
+          "id": "PRS_DE_MAROLLES",
+          "durationToNext": 305
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A19",
+          "durationToNext": 275
+        },
+        {
+          "id": "PRS_DE_VAUMORT",
+          "durationToNext": 305
+        },
+        {
+          "id": "VIADUC_SUR_LE_CANAL_DE_BOURGOGNE",
+          "durationToNext": 20
+        },
+        {
+          "id": "BIF_DE_VERGIGNY",
+          "durationToNext": 300
+        },
+        {
+          "id": "PRS_TONNERRE",
+          "durationToNext": 305
+        },
+        {
+          "id": "BIF_DE_PASILLY",
+          "durationToNext": 245
+        },
+        {
+          "id": "VIADUC_D_EPOISSES",
+          "durationToNext": 90
+        },
+        {
+          "id": "PRS_DE_LACOUR_D_ARCENAY",
+          "durationToNext": 295
+        },
+        {
+          "id": "VIADUC_DE_SAULIEU",
+          "durationToNext": 245
+        },
+        {
+          "id": "PRS_DE_VIANGES",
+          "durationToNext": 110
+        },
+        {
+          "id": "PRS_DE_SULLY",
+          "durationToNext": 115
+        },
+        {
+          "id": "VIADUC_DE_LA_DIGOINE_DREE",
+          "durationToNext": 290
+        },
+        {
+          "id": "CREUSOT_TGV",
+          "durationToNext": 305
+        },
+        {
+          "id": "PRS_DE_VAUX_EN_PRE",
+          "durationToNext": 130
+        },
+        {
+          "id": "PRS_DE_CLUNY",
+          "durationToNext": 185
+        },
+        {
+          "id": "VIADUC_DE_LA_ROCHE",
+          "durationToNext": 400
+        },
+        {
+          "id": "MACON_LOCHE",
+          "durationToNext": 392
+        },
+        {
+          "id": "PRS_DE_CESSEIN",
+          "durationToNext": 20
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A46",
+          "durationToNext": 280
+        },
+        {
+          "id": "BIF_MONTANAY",
+          "durationToNext": 280
+        },
+        {
+          "id": "SATHONAY_RILLIEU",
+          "durationToNext": 30
+        },
+        {
+          "id": "TUNNEL_DES_MERCIERES",
+          "durationToNext": 210
+        },
+        {
+          "id": "GARE_DE_LYON_SAINT_CLAIR",
+          "durationToNext": 260
+        },
+        {
+          "id": "LYON_PART_DIEU",
+          "durationToNext": 0
+        }
+      ]
+    },
+    {
+      "id": "MRS_PAR_NORD",
+      "name": "Ligne Marseille -> Paris (Nord)",
+      "voie": 2,
+      "direction": "north-south",
+      "points": [
+        {
+          "id": "MARSEILLE_ST_CHARLES",
+          "durationToNext": 360
+        },
+        {
+          "id": "BIF_DES_TUILERIES",
+          "durationToNext": 240
+        },
+        {
+          "id": "TUNNEL_DES_PENNES_MIRABEAU",
+          "durationToNext": 240
+        },
+        {
+          "id": "AIX_TGV",
+          "durationToNext": 300
+        },
+        {
+          "id": "VIADUC_DE_VENTABREN_1_730_M",
+          "durationToNext": 240
+        },
+        {
+          "id": "VIADUC_DE_VERNEGUES_1_211_M",
+          "durationToNext": 660
+        },
+        {
+          "id": "VIADUC_DE_CHEVAL_BLANC_900_M",
+          "durationToNext": 180
+        },
+        {
+          "id": "AVIGNON_TGV",
+          "durationToNext": 230
+        },
+        {
+          "id": "BIF_D_AVIGNON_NORD",
+          "durationToNext": 115
+        },
+        {
+          "id": "SEI_DE_PIOLENC",
+          "durationToNext": 180
+        },
+        {
+          "id": "BIF_VERS_LE_RACC_DE_BOLLENE",
+          "durationToNext": 314
+        },
+        {
+          "id": "VIADUC_SUR_L_A7",
+          "durationToNext": 500
+        },
+        {
+          "id": "SEI_D_ALLAN",
+          "durationToNext": 245
+        },
+        {
+          "id": "TUNNEL_DE_TARTAIGUILLE",
+          "durationToNext": 58
+        },
+        {
+          "id": "PRCI_DE_CLAVEYSON_BREN",
+          "durationToNext": 395
+        },
+        {
+          "id": "VIADUC_DE_LA_GALAURE",
+          "durationToNext": 340
+        },
+        {
+          "id": "TUNNEL_DE_MEYSSIEZ",
+          "durationToNext": 95
+        },
+        {
+          "id": "BIF_DE_GRENAY_NORD",
+          "durationToNext": 205
+        },
+        {
+          "id": "LYON_ST_EX",
+          "durationToNext": 125
+        },
+        {
+          "id": "VIADUC_DE_LA_COTIERE",
+          "durationToNext": 62
+        },
+        {
+          "id": "PONT_SUR_L_A46",
+          "durationToNext": 13
+        },
+        {
+          "id": "BIF_MONTANAY",
+          "durationToNext": 260
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A46",
+          "durationToNext": 392
+        },
+        {
+          "id": "PRS_DE_CESSEIN",
+          "durationToNext": 165
+        },
+        {
+          "id": "MACON_LOCHE",
+          "durationToNext": 290
+        },
+        {
+          "id": "VIADUC_DE_LA_ROCHE",
+          "durationToNext": 279
+        },
+        {
+          "id": "PRS_DE_CLUNY",
+          "durationToNext": 284
+        },
+        {
+          "id": "PRS_DE_VAUX_EN_PRE",
+          "durationToNext": 270
+        },
+        {
+          "id": "CREUSOT_TGV",
+          "durationToNext": 85
+        },
+        {
+          "id": "VIADUC_DE_LA_DIGOINE_DREE",
+          "durationToNext": 270
+        },
+        {
+          "id": "PRS_DE_SULLY",
+          "durationToNext": 225
+        },
+        {
+          "id": "PRS_DE_VIANGES",
+          "durationToNext": 95
+        },
+        {
+          "id": "VIADUC_DE_SAULIEU",
+          "durationToNext": 255
+        },
+        {
+          "id": "PRS_DE_LACOUR_D_ARCENAY",
+          "durationToNext": 330
+        },
+        {
+          "id": "VIADUC_D_EPOISSES",
+          "durationToNext": 294
+        },
+        {
+          "id": "BIF_DE_PASILLY",
+          "durationToNext": 290
+        },
+        {
+          "id": "PRS_TONNERRE",
+          "durationToNext": 290
+        },
+        {
+          "id": "BIF_DE_VERGIGNY",
+          "durationToNext": 26
+        },
+        {
+          "id": "VIADUC_SUR_LE_CANAL_DE_BOURGOGNE",
+          "durationToNext": 290
+        },
+        {
+          "id": "PRS_DE_VAUMORT",
+          "durationToNext": 299
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A19",
+          "durationToNext": 83
+        },
+        {
+          "id": "PRS_DE_MAROLLES",
+          "durationToNext": 343
+        },
+        {
+          "id": "VIADUC_DE_MONTEREAU",
+          "durationToNext": 220
+        },
+        {
+          "id": "BIF_DE_MOISENAY",
+          "durationToNext": 86
+        },
+        {
+          "id": "BIF_DE_SOLERS",
+          "durationToNext": 300
+        },
+        {
+          "id": "BIF_DE_CHEVRY_COSSIGNY",
+          "durationToNext": 118
+        },
+        {
+          "id": "TRANCHEE_COUVERTE_DE_VILLECRESNE",
+          "durationToNext": 142
+        },
+        {
+          "id": "TUNNEL_DE_LIMEIL_BREVANNES",
+          "durationToNext": 350
+        },
+        {
+          "id": "BIF_DE_CRETEIL",
+          "durationToNext": 350
+        },
+        {
+          "id": "PARIS_LYON",
+          "durationToNext": 0
+        }
+      ]
+    },
+    {
+      "id": "LPD_PAR_NORD",
+      "name": "Ligne Lyon Part-Dieu -> Paris (Nord)",
+      "voie": 2,
+      "direction": "north-south",
+      "points": [
+        {
+          "id": "LYON_PART_DIEU",
+          "durationToNext": 260
+        },
+        {
+          "id": "GARE_DE_LYON_SAINT_CLAIR",
+          "durationToNext": 210
+        },
+        {
+          "id": "TUNNEL_DES_MERCIERES",
+          "durationToNext": 30
+        },
+        {
+          "id": "SATHONAY_RILLIEU",
+          "durationToNext": 280
+        },
+        {
+          "id": "BIF_MONTANAY",
+          "durationToNext": 280
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A46",
+          "durationToNext": 20
+        },
+        {
+          "id": "PRS_DE_CESSEIN",
+          "durationToNext": 270
+        },
+        {
+          "id": "MACON_LOCHE",
+          "durationToNext": 400
+        },
+        {
+          "id": "VIADUC_DE_LA_ROCHE",
+          "durationToNext": 185
+        },
+        {
+          "id": "PRS_DE_CLUNY",
+          "durationToNext": 130
+        },
+        {
+          "id": "PRS_DE_VAUX_EN_PRE",
+          "durationToNext": 305
+        },
+        {
+          "id": "CREUSOT_TGV",
+          "durationToNext": 285
+        },
+        {
+          "id": "VIADUC_DE_LA_DIGOINE_DREE",
+          "durationToNext": 115
+        },
+        {
+          "id": "PRS_DE_SULLY",
+          "durationToNext": 110
+        },
+        {
+          "id": "PRS_DE_VIANGES",
+          "durationToNext": 245
+        },
+        {
+          "id": "VIADUC_DE_SAULIEU",
+          "durationToNext": 295
+        },
+        {
+          "id": "PRS_DE_LACOUR_D_ARCENAY",
+          "durationToNext": 90
+        },
+        {
+          "id": "VIADUC_D_EPOISSES",
+          "durationToNext": 240
+        },
+        {
+          "id": "BIF_DE_PASILLY",
+          "durationToNext": 305
+        },
+        {
+          "id": "PRS_TONNERRE",
+          "durationToNext": 295
+        },
+        {
+          "id": "BIF_DE_VERGIGNY",
+          "durationToNext": 20
+        },
+        {
+          "id": "VIADUC_SUR_LE_CANAL_DE_BOURGOGNE",
+          "durationToNext": 300
+        },
+        {
+          "id": "PRS_DE_VAUMORT",
+          "durationToNext": 270
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A19",
+          "durationToNext": 305
+        },
+        {
+          "id": "PRS_DE_MAROLLES",
+          "durationToNext": 85
+        },
+        {
+          "id": "VIADUC_DE_MONTEREAU",
+          "durationToNext": 350
+        },
+        {
+          "id": "BIF_DE_MOISENAY",
+          "durationToNext": 240
+        },
+        {
+          "id": "BIF_DE_SOLERS",
+          "durationToNext": 75
+        },
+        {
+          "id": "BIF_DE_CHEVRY_COSSIGNY",
+          "durationToNext": 300
+        },
+        {
+          "id": "TRANCHEE_COUVERTE_DE_VILLECRESNE",
+          "durationToNext": 120
+        },
+        {
+          "id": "TUNNEL_DE_LIMEIL_BREVANNES",
+          "durationToNext": 145
+        },
+        {
+          "id": "BIF_DE_CRETEIL",
+          "durationToNext": 320
+        },
+        {
+          "id": "PARIS_LYON",
+          "durationToNext": 0
+        }
+      ]
+    },
+    {
+      "id": "PAR_MAC_SUD",
+      "name": "Ligne Paris → Mâcon",
+      "voie": 1,
+      "direction": "south-north",
+      "points": [
+        {
+          "id": "PARIS_LYON",
+          "durationToNext": 350
+        },
+        {
+          "id": "BIF_DE_CRETEIL",
+          "durationToNext": 112
+        },
+        {
+          "id": "TUNNEL_DE_LIMEIL_BREVANNES",
+          "durationToNext": 82
+        },
+        {
+          "id": "TRANCHEE_COUVERTE_DE_VILLECRESNE",
+          "durationToNext": 230
+        },
+        {
+          "id": "BIF_DE_CHEVRY_COSSIGNY",
+          "durationToNext": 70
+        },
+        {
+          "id": "BIF_DE_SOLERS",
+          "durationToNext": 175
+        },
+        {
+          "id": "BIF_DE_MOISENAY",
+          "durationToNext": 350
+        },
+        {
+          "id": "VIADUC_DE_MONTEREAU",
+          "durationToNext": 87
+        },
+        {
+          "id": "PRS_DE_MAROLLES",
+          "durationToNext": 300
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A19",
+          "durationToNext": 283
+        },
+        {
+          "id": "PRS_DE_VAUMORT",
+          "durationToNext": 305
+        },
+        {
+          "id": "VIADUC_SUR_LE_CANAL_DE_BOURGOGNE",
+          "durationToNext": 21
+        },
+        {
+          "id": "BIF_DE_VERGIGNY",
+          "durationToNext": 310
+        },
+        {
+          "id": "PRS_TONNERRE",
+          "durationToNext": 286
+        },
+        {
+          "id": "BIF_DE_PASILLY",
+          "durationToNext": 320
+        },
+        {
+          "id": "VIADUC_D_EPOISSES",
+          "durationToNext": 230
+        },
+        {
+          "id": "PRS_DE_LACOUR_D_ARCENAY",
+          "durationToNext": 85
+        },
+        {
+          "id": "VIADUC_DE_SAULIEU",
+          "durationToNext": 236
+        },
+        {
+          "id": "PRS_DE_VIANGES",
+          "durationToNext": 280
+        },
+        {
+          "id": "PRS_DE_SULLY",
+          "durationToNext": 87
+        },
+        {
+          "id": "VIADUC_DE_LA_DIGOINE_DREE",
+          "durationToNext": 290
+        },
+        {
+          "id": "CREUSOT_TGV",
+          "durationToNext": 276
+        },
+        {
+          "id": "PRS_DE_VAUX_EN_PRE",
+          "durationToNext": 289
+        },
+        {
+          "id": "PRS_DE_CLUNY",
+          "durationToNext": 115
+        },
+        {
+          "id": "VIADUC_DE_LA_ROCHE",
+          "durationToNext": 340
+        },
+        {
+          "id": "MACON_LOCHE",
+          "durationToNext": 392
+        }
+      ]
+    },
+    {
+      "id": "MAC_PAR_NORD",
+      "name": "Ligne Mâcon → Paris",
+      "voie": 2,
+      "direction": "north-south",
+      "points": [
+        {
+          "id": "MACON_LOCHE",
+          "durationToNext": 290
+        },
+        {
+          "id": "VIADUC_DE_LA_ROCHE",
+          "durationToNext": 279
+        },
+        {
+          "id": "PRS_DE_CLUNY",
+          "durationToNext": 284
+        },
+        {
+          "id": "PRS_DE_VAUX_EN_PRE",
+          "durationToNext": 270
+        },
+        {
+          "id": "CREUSOT_TGV",
+          "durationToNext": 85
+        },
+        {
+          "id": "VIADUC_DE_LA_DIGOINE_DREE",
+          "durationToNext": 270
+        },
+        {
+          "id": "PRS_DE_SULLY",
+          "durationToNext": 225
+        },
+        {
+          "id": "PRS_DE_VIANGES",
+          "durationToNext": 95
+        },
+        {
+          "id": "VIADUC_DE_SAULIEU",
+          "durationToNext": 255
+        },
+        {
+          "id": "PRS_DE_LACOUR_D_ARCENAY",
+          "durationToNext": 330
+        },
+        {
+          "id": "VIADUC_D_EPOISSES",
+          "durationToNext": 294
+        },
+        {
+          "id": "BIF_DE_PASILLY",
+          "durationToNext": 290
+        },
+        {
+          "id": "PRS_TONNERRE",
+          "durationToNext": 290
+        },
+        {
+          "id": "BIF_DE_VERGIGNY",
+          "durationToNext": 26
+        },
+        {
+          "id": "VIADUC_SUR_LE_CANAL_DE_BOURGOGNE",
+          "durationToNext": 290
+        },
+        {
+          "id": "PRS_DE_VAUMORT",
+          "durationToNext": 299
+        },
+        {
+          "id": "PASSAGE_SOUS_L_A19",
+          "durationToNext": 83
+        },
+        {
+          "id": "PRS_DE_MAROLLES",
+          "durationToNext": 343
+        },
+        {
+          "id": "VIADUC_DE_MONTEREAU",
+          "durationToNext": 220
+        },
+        {
+          "id": "BIF_DE_MOISENAY",
+          "durationToNext": 86
+        },
+        {
+          "id": "BIF_DE_SOLERS",
+          "durationToNext": 300
+        },
+        {
+          "id": "BIF_DE_CHEVRY_COSSIGNY",
+          "durationToNext": 118
+        },
+        {
+          "id": "TRANCHEE_COUVERTE_DE_VILLECRESNE",
+          "durationToNext": 142
+        },
+        {
+          "id": "TUNNEL_DE_LIMEIL_BREVANNES",
+          "durationToNext": 350
+        },
+        {
+          "id": "BIF_DE_CRETEIL",
+          "durationToNext": 350
+        },
+        {
+          "id": "PARIS_LYON",
+          "durationToNext": 0
+        }
+      ]
+    }
+  ]
+}

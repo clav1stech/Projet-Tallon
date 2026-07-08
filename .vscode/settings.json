@@ -1,0 +1,9 @@
+{
+    "liveServer.settings.ignoreFiles": [
+        ".git/**",
+        ".DS_Store",
+        "**/.DS_Store",
+        "python/**",
+        "*.log"
+    ]
+}

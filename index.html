@@ -11,70 +11,102 @@
 
 <body>
     <div class="container">
-        <h1>Railway Timeline</h1>
-        <div class="route-selection">
-            <label for="routeSelect">Route selection:</label>
-            <select id="routeSelect" onchange="loadSelectedTrajet()">
-                <option value="">-- Select a route --</option>
-                <!-- Les options seront ajoutées dynamiquement via JavaScript -->
-            </select>
-        </div>
+        <div class="controls-panel">
+            <div class="settings-panel">
+                <h1>Railway Timeline</h1>
 
-        <div class="departure-section">
-            <label for="departure-time">Departure time (HH:MM):</label>
-            <input type="time" id="departure-time" required>
-        </div>
+                <div class="form-row">
+                    <label for="routeSelect"><i class="fas fa-route"></i> Trajet principal :</label>
+                    <select id="routeSelect">
+                        <option value="">-- Choisir la destination --</option>
+                    </select>
+                </div>
 
-        <div class="location-section">
-            <h4>Location:</h4>
-            <label><input type="radio" name="locationMethod" value="geo" checked> <i class="fas fa-location-arrow"></i> Use GPS</label>
-            <label><input type="radio" name="locationMethod" value="manual"> <i class="fas fa-edit"></i> Manual input</label>
+                <div class="form-row" id="stopsRow">
+                    <label><i class="fas fa-flag-checkered"></i> Arrêts intermédiaires :</label>
+                    <div id="stopCheckboxes" class="checkbox-group">
+                        <span class="hint">Sélectionnez une destination pour afficher les arrêts.</span>
+                    </div>
+                </div>
 
-            <div id="manualCoords" class="manual-coords" style="display:none;">
-                <label for="manualLat">Latitude :</label>
-                <input type="number" id="manualLat" step="0.00001" placeholder="Enter latitude">
-                <label for="manualLon">Longitude :</label>
-                <input type="number" id="manualLon" step="0.00001" placeholder="Enter longitude">
+                <div class="form-row">
+                    <label for="departure-time"><i class="far fa-clock"></i> Departure time (HH:MM):</label>
+                    <input type="time" id="departure-time" required>
+                </div>
+
+                <!-- Champ : mode de localisation -->
+                <div class="form-row">
+                    <label for="location-mode-toggle"><i class="fas fa-wifi"></i> Mode WiFi SNCF :</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="location-mode-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span id="location-mode-label" style="font-size:0.85em;opacity:0.7">GPS natif</span>
+                </div>
+
+                <!-- Champ : décalage global ΔT -->
+                <div class="form-row">
+                    <label for="global-delta">
+                        <i class="far fa-clock"></i> Global time offset (minutes):
+                    </label>
+                    <div class="delta-wrapper">
+                        <button type="button" id="delta-minus" class="delta-btn">-</button>
+                        <input type="number" id="global-delta" step="1" min="-30" max="30" placeholder="0" inputmode="numeric">
+                        <button type="button" id="delta-plus" class="delta-btn">+</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <button id="start-btn" class="start-btn">Start</button>
+
+            <!-- widget -->
+            <div id="tracking-widget" class="tracking-widget">
+                <div class="widget-section card dual-stops">
+                    <div class="widget-line combined" id="last-line"></div>
+                    <div class="widget-line combined" id="next-line"></div>
+                </div>
+                <div class="widget-section status">
+                    <div class="section-header">
+                        <i class="fas fa-stopwatch"></i>
+                        <span class="widget-title">Statut temps réel</span>
+                    </div>
+                    <div class="status-chip">
+                        <span id="current-time"></span>
+                    </div>
+                </div>
             </div>
         </div>
-        <button class="start-btn" onclick="startTracking()">Start</button>
-        <!-- widget -->
-        <div id="tracking-widget" class="tracking-widget">
-            <div class="widget-section">
-                <div class="widget-title">Last</div>
-                <div class="point" id="last-passed-point"></div>
-                <div class="theoretical-time" id="last-passed-theoretical"></div>
-                <div class="time" id="last-passed-time"></div>
-                <div class="distance" id="last-point-distance"></div>
+
+        <div id="landscape-hud" class="landscape-hud hidden">
+            <div class="hud-dashboard">
+                <div id="hud-speed"></div>
+                <canvas id="hud-speed-graph" width="160" height="40"></canvas>
+                <div id="hud-eta"></div>
+                <div id="hud-delay"></div>
             </div>
-            <div class="widget-section">
-                <div class="widget-title">Next</div>
-                <div class="point" id="next-point"></div>
-                <div class="theoretical-time" id="next-point-theoretical"></div>
-                <div class="time" id="next-point-time"></div>
-                <div class="distance" id="next-point-distance"></div>
-            </div>
-            <div class="widget-section">
-                <div class="widget-title">Time</div>
-                <div class="time" id="current-time"></div>
+            <div class="hud-carousel">
+                <div id="hud-track-points"></div>
             </div>
         </div>
 
-
-
-        <div id="timeline">
-            <div class="station header">
-                <span>Time</span>
-                <span>Waypoint</span>
+        <div class="timeline-panel">
+            <div id="timeline">
+                <div class="station header">
+                    <span>Time</span>
+                    <span>Waypoint</span>
+                </div>
             </div>
+            <p id="info"></p>
         </div>
-        <p id="info"></p>
     </div>
 
+    <div id="debug-bar"></div>
+
     <!-- Inclusion des fichiers JavaScript -->
-    <script src="data/routes.js"></script>
-    <script src="js/functions.js"></script>
-    <script src="js/main.js"></script>
+    <script type="module" src="js/fakeGeoSim.js"></script>
+    <script type="module" src="js/app.js"></script>
+
 </body>
 
 </html>
