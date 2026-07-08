@@ -4,3 +4,6 @@ node_modules/
 # Les fichiers exploitables par l'app sont générés dans data/csv/ (versionnés).
 data/raw/*
 !data/raw/README.md
+
+# Dossier d'export généré par python/export.py (voir docs/commands.md)
+/Export/
