@@ -113,6 +113,24 @@ describe('applyDescriptor', () => {
         expect(points[0]).toMatchObject({ lat: 46.0, lon: 5.0, line: 'A40' });
     });
 
+    it('colonne vmax optionnelle : mappée si numérique, omise sinon (NULL SNCF)', () => {
+        const rows = parseCsv([
+            'route;pr;latitude;longitude;vitesse',
+            'A40;0+000;46,00;5,00;300',
+            'A40;10+000;46,10;5,10;NULL',
+            'A40;20+500;46,20;5,20;270'
+        ].join('\n'), DESCRIPTOR.csv);
+        const desc = { ...DESCRIPTOR, columns: { ...DESCRIPTOR.columns, vmax: 'vitesse' } };
+        const points = applyDescriptor(rows, desc);
+        expect(points.map(p => p.vmax)).toEqual([300, undefined, 270]);
+    });
+
+    it('sans mapping vmax, le champ est absent même si la colonne existe', () => {
+        const rows = parseCsv('route;pr;latitude;longitude;vitesse\nA40;0+000;46,00;5,00;300', DESCRIPTOR.csv);
+        const points = applyDescriptor(rows, DESCRIPTOR);
+        expect(points[0]).not.toHaveProperty('vmax');
+    });
+
     it('filtre oneOf', () => {
         const rows = parseCsv(CSV_TEXT, DESCRIPTOR.csv);
         const desc = { ...DESCRIPTOR, filters: [{ column: 'route', oneOf: ['A40', 'A41'] }] };

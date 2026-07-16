@@ -4,7 +4,7 @@
   "label": "PK ferroviaires — LGV Sud-Est (ligne 752000)",
   "file": "data/csv/rail_pk.csv",
   "csv": { "delimiter": ",", "hasHeader": true, "decimalSeparator": "." },
-  "columns": { "pk": "pk", "line": "code_ligne", "lat": "lat", "lon": "lon" },
+  "columns": { "pk": "pk", "line": "code_ligne", "lat": "lat", "lon": "lon", "vmax": "vitesse" },
   "pkFormat": "decimal-km",
   "filters": [{ "column": "code_ligne", "equals": "752000" }],
   "sortBy": "pk",
@@ -13,6 +13,7 @@
     "Fichier généré par `python3 python/extract_pk.py` depuis data/raw/rail/pks 2.csv (voir data/raw/README.md).",
     "Contient les lignes 752000 (LGV Sud-Est, 7113 pts), 752100 et 830000 — le filtre `code_ligne` sélectionne le corridor ; corridors multi-lignes = évolution future.",
     "Toutes les colonnes source sont conservées (vitesse, altitude, altitude_tunnels, altitude_declivites) pour de futures features.",
+    "La colonne `vitesse` (vitesse limite de ligne au PK, km/h) est mappée sur la colonne logique `vmax` — affichée en comparaison de la vitesse GPS mesurée.",
     "Relancer le script avec --lines pour ajouter d'autres lignes SNCF."
   ]
 }

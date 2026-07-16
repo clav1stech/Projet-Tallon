@@ -82,6 +82,36 @@ export function evaluateTeleport(lastTrusted, lat, lon, nowTs, rejections = 0, o
     return { accept: false, reseeded: false, rejections: nextRejections };
 }
 
+// Écart position→corridor au-delà duquel le matching devient suspect
+// (le matcher peut snapper jusqu'à POINT_MATCH_TOLERANCE_KM = 0.9 km ;
+// un écart durable au-delà de 0.5 km signale un mauvais accrochage).
+export const CORRIDOR_OFFSET_WARN_KM = 0.5;
+
+// Nombre de ticks consécutifs au-dessus du seuil avant d'alerter : un écart
+// ponctuel (rebond GPS, courbe serrée) ne doit pas déclencher.
+export const CORRIDOR_OFFSET_WARN_TICKS = 5;
+
+/**
+ * Garde-fou d'écart au corridor, pendant analogique runtime de la coupe au
+ * "premier saut aberrant" d'extract_pr.py : compte les ticks consécutifs où
+ * l'écart position→corridor dépasse le seuil, et signale UNE fois par épisode
+ * (au franchissement du N-ième tick) qu'un mauvais matching est probable.
+ * @param {number|null} offsetKm - écart au corridor du tick courant
+ * @param {number} streak - compteur de ticks consécutifs au-dessus du seuil
+ * @param {object} [opts] - { warnKm, warnTicks }
+ * @returns {{ streak: number, warn: boolean }}
+ */
+export function trackCorridorOffset(offsetKm, streak = 0, opts = {}) {
+    const warnKm = opts.warnKm ?? CORRIDOR_OFFSET_WARN_KM;
+    const warnTicks = opts.warnTicks ?? CORRIDOR_OFFSET_WARN_TICKS;
+
+    if (!Number.isFinite(offsetKm) || offsetKm <= warnKm) {
+        return { streak: 0, warn: false };
+    }
+    const nextStreak = streak + 1;
+    return { streak: nextStreak, warn: nextStreak === warnTicks };
+}
+
 /**
  * Vitesse lissée : médiane des vitesses instantanées entre positions consécutives.
  * @param {Array<{lat:number, lon:number, ts:number}>} positions

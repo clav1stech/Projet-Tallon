@@ -96,6 +96,17 @@ describe('locateOnCorridor', () => {
         expect(after.pk).toBeLessThanOrEqual(111);
     });
 
+    it('expose la vitesse limite (vmax) du segment matché, null si inconnue', () => {
+        const pts = makeCorridorPoints().map((p, i) => ({ ...p, vmax: i === 10 ? 300 : undefined }));
+        const c = buildCorridor(pts);
+        // Milieu du segment 10 : vmax vient de son point de départ
+        const withVmax = locateOnCorridor(c, 46.2, 5.189, null, 15);
+        expect(withVmax.vmax).toBe(300);
+        // Segment 11 : pas de vmax renseignée → null
+        const withoutVmax = locateOnCorridor(c, 46.2, 5.21, 10, 15);
+        expect(withoutVmax.vmax).toBeNull();
+    });
+
     it('corridor invalide ou coordonnées invalides → null', () => {
         expect(locateOnCorridor(null, 46.2, 5.1)).toBeNull();
         expect(locateOnCorridor(buildCorridor([]), 46.2, 5.1)).toBeNull();

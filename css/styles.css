@@ -1808,6 +1808,18 @@ body.non-iphone-device.tracking-active .hud-point.active .hud-point-distance {
     z-index: 1;
 }
 
+/* Vitesse limite de ligne au PK courant, sous la vitesse mesurée */
+.hud-speed-vmax {
+    font-size: 0.72em;
+    font-weight: 600;
+    color: rgba(255, 200, 87, 0.85);
+    display: block;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+    position: relative;
+    z-index: 1;
+}
+
 body.tracking-active #hud-speed-graph {
     width: 100%;
     max-width: 160px;

@@ -1,6 +1,6 @@
-import { STATE, restoreSettings, saveSettings } from './state.js';
+import { STATE, restoreSettings, saveSettings, saveTrackingSnapshot, restoreTrackingSnapshot } from './state.js';
 import { buildEffectiveRoute, computeDepartureTimestamp, computeSegmentIndexAndDistance, computeCurrentDelay, projectPositionOnRouteSegment, findNearestSegmentIndex } from './functions.js';
-import { shouldAcceptAccuracy, evaluateTeleport, medianStepSpeed, noiseFloorKmh, filterSpeedSpike } from './tracking.js';
+import { shouldAcceptAccuracy, evaluateTeleport, medianStepSpeed, noiseFloorKmh, filterSpeedSpike, trackCorridorOffset, CORRIDOR_OFFSET_WARN_KM } from './tracking.js';
 import { populateTrajetDropdown, renderStopCheckboxes, displayTimeline, updateInfo, updateTrackingWidget, updateLandscapeHUD, MAIN_ROUTES } from './ui.js';
 import { geoErrorMessage, haversineDistance } from './geo.js';
 import { loadDataset } from './csv.js';
@@ -72,7 +72,15 @@ async function loadRailPkCorridor() {
     try {
         const ds = await loadDataset('data/datasets/rail-pk.json');
         STATE.railCorridor = buildCorridor(ds.points);
-        STATE.railCorridorIndex = null;
+        // Un index restauré depuis le snapshot de session est conservé s'il est
+        // valide pour ce corridor (le chargement est asynchrone : la restauration
+        // peut avoir eu lieu avant ou après ce point).
+        const restoredIndex = STATE.railCorridorIndex;
+        STATE.railCorridorIndex = (Number.isInteger(restoredIndex)
+            && restoredIndex >= 0
+            && restoredIndex < STATE.railCorridor.points.length - 1)
+            ? restoredIndex
+            : null;
         console.log(`[PK] Corridor ferroviaire chargé : ${STATE.railCorridor.points.length} points (PK ${STATE.railCorridor.pkStart} → ${STATE.railCorridor.pkEnd})`);
     } catch (e) {
         STATE.railCorridor = null;
@@ -220,6 +228,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Chargement initial de la route sélectionnée
     if (STATE.selectedMainRouteKey) {
         await loadSelectedPatternRoute();
+    }
+
+    // Persistance de session : après le reset initial de loadSelectedPatternRoute,
+    // ré-ancrer le tracking sur le snapshot si l'app vient d'être tuée par iOS
+    // (snapshot récent) — évite un re-seed complet à chaque relance accidentelle.
+    if (restoreTrackingSnapshot()) {
+        console.log('[GPS] Snapshot de session restauré (position de confiance + index corridor)');
     }
 
     if (STATE.departureTime) {
@@ -496,6 +511,9 @@ function showPosition(position) {
     }
     STATE.lastTrustedPosition = { lat: userLat, lon: userLon, ts: positionTimestamp };
     STATE.lastAcceptedFixMs = positionTimestamp;
+    // Persistance de session : chaque fix accepté met le snapshot à jour
+    // (railCorridorIndex y est celui du tick précédent, sans importance à 1 Hz).
+    saveTrackingSnapshot(positionTimestamp);
 
     // Seed géographique : au premier fix GPS (ou après ré-ancrage), trouver le
     // segment le plus proche par projection pour éviter un accrochage faux.
@@ -675,12 +693,29 @@ function showPosition(position) {
     }
 
     // Enrichissement PK (informatif uniquement — aucun couplage avec le calcul
-    // de retard) : PK interpolé sur le corridor ferroviaire si disponible.
+    // de retard) : PK interpolé sur le corridor ferroviaire si disponible,
+    // avec vitesse limite de ligne au PK courant en regard de la vitesse GPS.
     if (STATE.railCorridor) {
         const loc = locateOnCorridor(STATE.railCorridor, userLat, userLon, STATE.railCorridorIndex, accuracyMeters);
         if (loc) {
             STATE.railCorridorIndex = loc.index;
+            STATE.currentVmax = Number.isFinite(loc.vmax) ? loc.vmax : null;
             infoHtml += ` PK ${formatPk(loc.pk)}${loc.line ? ` (ligne ${loc.line})` : ''}.`;
+            if (STATE.currentVmax !== null) {
+                infoHtml += ` V<sub>max</sub> ${Math.round(STATE.currentVmax)} km/h.`;
+            }
+        } else {
+            STATE.currentVmax = null;
+        }
+
+        // Garde-fou : un écart au corridor durablement élevé signale un mauvais
+        // matching (pendant runtime de la coupe au "premier saut aberrant"
+        // d'extract_pr.py) — log seulement, aucun effet sur le tracking.
+        const offsetVerdict = trackCorridorOffset(loc ? loc.offsetKm : null, STATE.corridorOffsetStreak || 0);
+        STATE.corridorOffsetStreak = offsetVerdict.streak;
+        if (offsetVerdict.warn) {
+            console.warn(`[PK] Écart au corridor > ${CORRIDOR_OFFSET_WARN_KM} km depuis ${offsetVerdict.streak} ticks consécutifs `
+                + `(offset ${loc.offsetKm.toFixed(2)} km au PK ${formatPk(loc.pk)}) — matching corridor suspect`);
         }
     }
     updateInfo(infoHtml);

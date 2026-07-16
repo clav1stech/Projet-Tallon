@@ -77,8 +77,81 @@ export const STATE = {
     // Corridor PK ferroviaire (enrichissement optionnel — voir js/linearref.js).
     // null tant que data/datasets/rail-pk.json + son CSV ne sont pas branchés.
     railCorridor: null,
-    railCorridorIndex: null
+    railCorridorIndex: null,
+
+    // Vitesse limite de ligne au PK courant (km/h) — null si corridor absent,
+    // position hors corridor ou vitesse inconnue au point matché.
+    currentVmax: null,
+
+    // Ticks consécutifs où l'écart au corridor dépasse le seuil d'alerte
+    // (détection de mauvais matching — voir trackCorridorOffset dans tracking.js)
+    corridorOffsetStreak: 0
 };
+
+// --- Persistance de session du tracking ---
+// iOS tue fréquemment l'app en arrière-plan (cas documenté pour le bridge
+// Scriptable) : sans snapshot, lastTrustedPosition et railCorridorIndex
+// repartent de zéro au rechargement et le tracking se re-seed intégralement.
+// Le TTL évite de ré-ancrer sur une position d'un trajet précédent.
+const TRACKING_SNAPSHOT_KEY = 'trackingSnapshot';
+export const TRACKING_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
+
+/**
+ * Valide un snapshot sérialisé (fonction pure, testable sans localStorage).
+ * @param {string|null} json - contenu brut de localStorage
+ * @param {number} nowTs
+ * @param {number} [maxAgeMs]
+ * @returns {{ lastTrustedPosition: {lat:number, lon:number, ts:number},
+ *             railCorridorIndex: number|null } | null} null si absent/périmé/corrompu
+ */
+export function parseTrackingSnapshot(json, nowTs, maxAgeMs = TRACKING_SNAPSHOT_MAX_AGE_MS) {
+    if (!json) return null;
+    let raw;
+    try {
+        raw = JSON.parse(json);
+    } catch {
+        return null;
+    }
+    if (!raw || typeof raw !== 'object') return null;
+    if (!Number.isFinite(raw.savedAt) || nowTs - raw.savedAt > maxAgeMs || raw.savedAt > nowTs) return null;
+
+    const pos = raw.lastTrustedPosition;
+    if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lon) || !Number.isFinite(pos.ts)) return null;
+
+    const idx = raw.railCorridorIndex;
+    return {
+        lastTrustedPosition: { lat: pos.lat, lon: pos.lon, ts: pos.ts },
+        railCorridorIndex: Number.isInteger(idx) && idx >= 0 ? idx : null
+    };
+}
+
+export function saveTrackingSnapshot(nowTs = Date.now()) {
+    if (!STATE.lastTrustedPosition) return;
+    try {
+        localStorage.setItem(TRACKING_SNAPSHOT_KEY, JSON.stringify({
+            lastTrustedPosition: STATE.lastTrustedPosition,
+            railCorridorIndex: STATE.railCorridorIndex,
+            savedAt: nowTs
+        }));
+    } catch (e) {
+        // localStorage saturé/indisponible : la persistance est un confort,
+        // jamais bloquante pour le tracking.
+    }
+}
+
+export function restoreTrackingSnapshot(nowTs = Date.now()) {
+    try {
+        const snapshot = parseTrackingSnapshot(localStorage.getItem(TRACKING_SNAPSHOT_KEY), nowTs);
+        if (!snapshot) return false;
+        STATE.lastTrustedPosition = snapshot.lastTrustedPosition;
+        if (snapshot.railCorridorIndex !== null) {
+            STATE.railCorridorIndex = snapshot.railCorridorIndex;
+        }
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
 
 export function restoreSettings() {
     try {

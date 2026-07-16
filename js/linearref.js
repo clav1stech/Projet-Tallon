@@ -21,7 +21,7 @@ const DUPLICATE_POINT_KM = 0.001;
  * Construit un corridor exploitable à partir des points d'un dataset
  * (sortie de csv.js). Filtre les points invalides et les doublons,
  * précalcule les distances cumulées.
- * @param {Array<{pk:number, lat:number, lon:number, line?:string}>} datasetPoints
+ * @param {Array<{pk:number, lat:number, lon:number, line?:string, vmax?:number}>} datasetPoints
  * @returns {{ points: Array, cumKm: number[], totalKm: number, pkStart: number|null, pkEnd: number|null }}
  */
 export function buildCorridor(datasetPoints) {
@@ -30,7 +30,10 @@ export function buildCorridor(datasetPoints) {
         if (!p || !Number.isFinite(p.lat) || !Number.isFinite(p.lon) || !Number.isFinite(p.pk)) continue;
         const prev = points[points.length - 1];
         if (prev && haversineDistance(prev.lat, prev.lon, p.lat, p.lon) < DUPLICATE_POINT_KM) continue;
-        points.push({ lat: p.lat, lon: p.lon, pk: p.pk, line: p.line ?? null });
+        points.push({
+            lat: p.lat, lon: p.lon, pk: p.pk, line: p.line ?? null,
+            vmax: Number.isFinite(p.vmax) ? p.vmax : null
+        });
     }
 
     const cumKm = points.length > 0 ? [0] : [];
@@ -56,8 +59,9 @@ export function buildCorridor(datasetPoints) {
  * @param {number} lon
  * @param {number|null} [lastIndex] - dernier index matché (fenêtre de recherche)
  * @param {number|null} [accuracyMeters]
- * @returns {{ index:number, pk:number, line:string|null, distanceFromStartKm:number,
- *             distanceToEndKm:number, offsetKm:number|null } | null}
+ * @returns {{ index:number, pk:number, line:string|null, vmax:number|null,
+ *             distanceFromStartKm:number, distanceToEndKm:number,
+ *             offsetKm:number|null } | null}
  *          null si la position est hors corridor.
  */
 export function locateOnCorridor(corridor, lat, lon, lastIndex = null, accuracyMeters = null) {
@@ -85,6 +89,9 @@ export function locateOnCorridor(corridor, lat, lon, lastIndex = null, accuracyM
         index: segmentIndex,
         pk,
         line: a.line ?? null,
+        // Vitesse limite du segment matché (celle de son point de départ) ;
+        // les points PK SNCF sont assez denses pour que l'approximation suffise.
+        vmax: a.vmax ?? null,
         distanceFromStartKm,
         distanceToEndKm: Math.max(0, corridor.totalKm - distanceFromStartKm),
         offsetKm: candidate ? candidate.offsetKm : null

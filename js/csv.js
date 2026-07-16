@@ -137,10 +137,12 @@ function matchesFilter(row, filter) {
 
 /**
  * Applique un descripteur à des lignes CSV brutes : mapping des colonnes
- * logiques {pk, line, lat, lon}, filtres, décimation, tri.
+ * logiques {pk, line, lat, lon, vmax}, filtres, décimation, tri.
+ * `vmax` (vitesse limite de ligne au point, km/h) est optionnelle : une valeur
+ * non numérique (NULL littéral des CSV SNCF) omet simplement le champ.
  * @param {Array<Object<string,string>>} rows - sortie de parseCsv
  * @param {object} descriptor - contenu d'un data/datasets/*.json
- * @returns {Array<{pk:number, lat:number, lon:number, line?:string}>}
+ * @returns {Array<{pk:number, lat:number, lon:number, line?:string, vmax?:number}>}
  */
 export function applyDescriptor(rows, descriptor) {
     const cols = descriptor.columns || {};
@@ -179,6 +181,10 @@ export function applyDescriptor(rows, descriptor) {
         if (!Number.isFinite(pk) || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
         const entry = { pk, lat, lon };
         if (cols.line && cols.line in row) entry.line = String(row[cols.line]).trim();
+        if (cols.vmax && cols.vmax in row) {
+            const vmax = parseNumber(row[cols.vmax], dec);
+            if (Number.isFinite(vmax) && vmax > 0) entry.vmax = vmax;
+        }
         out.push(entry);
     }
 

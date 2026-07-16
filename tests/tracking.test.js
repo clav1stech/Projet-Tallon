@@ -6,9 +6,12 @@ import {
     medianStepSpeed,
     noiseFloorKmh,
     filterSpeedSpike,
+    trackCorridorOffset,
     MAX_ACCEPTABLE_ACCURACY_M,
     ACCURACY_OVERRIDE_MS,
-    TELEPORT_MAX_REJECTIONS
+    TELEPORT_MAX_REJECTIONS,
+    CORRIDOR_OFFSET_WARN_KM,
+    CORRIDOR_OFFSET_WARN_TICKS
 } from '../js/tracking.js';
 
 const T0 = 1_700_000_000_000;
@@ -159,5 +162,41 @@ describe('filterSpeedSpike — anti-pic (comportement historique)', () => {
 
     it('limite une chute à -2 km/h par tick', () => {
         expect(filterSpeedSpike(300, 0)).toBe(298);
+    });
+});
+
+describe('trackCorridorOffset — garde-fou de matching corridor', () => {
+    it('écart sous le seuil (ou inconnu) → streak remis à zéro, pas d\'alerte', () => {
+        expect(trackCorridorOffset(0.1, 3)).toEqual({ streak: 0, warn: false });
+        expect(trackCorridorOffset(CORRIDOR_OFFSET_WARN_KM, 3)).toEqual({ streak: 0, warn: false });
+        expect(trackCorridorOffset(null, 3)).toEqual({ streak: 0, warn: false });
+        expect(trackCorridorOffset(NaN, 3)).toEqual({ streak: 0, warn: false });
+    });
+
+    it('alerte UNE fois par épisode, au N-ième tick consécutif au-dessus du seuil', () => {
+        let streak = 0;
+        const verdicts = [];
+        for (let tick = 0; tick < CORRIDOR_OFFSET_WARN_TICKS + 3; tick++) {
+            const v = trackCorridorOffset(CORRIDOR_OFFSET_WARN_KM + 0.5, streak);
+            streak = v.streak;
+            verdicts.push(v.warn);
+        }
+        expect(verdicts.filter(Boolean)).toHaveLength(1);
+        expect(verdicts[CORRIDOR_OFFSET_WARN_TICKS - 1]).toBe(true);
+    });
+
+    it('un écart ponctuel (rebond GPS) casse la série sans alerter', () => {
+        let streak = 0;
+        for (let tick = 0; tick < CORRIDOR_OFFSET_WARN_TICKS - 1; tick++) {
+            ({ streak } = trackCorridorOffset(2.0, streak));
+        }
+        ({ streak } = trackCorridorOffset(0.05, streak)); // retour sur le corridor
+        expect(streak).toBe(0);
+        const v = trackCorridorOffset(2.0, streak);
+        expect(v).toEqual({ streak: 1, warn: false });
+    });
+
+    it('seuils surchargeables via opts', () => {
+        expect(trackCorridorOffset(1.1, 0, { warnKm: 1.0, warnTicks: 1 })).toEqual({ streak: 1, warn: true });
     });
 });
