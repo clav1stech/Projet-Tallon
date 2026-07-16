@@ -56,7 +56,7 @@ MODULE_SUMMARY = {
     'js/app.js': "Orchestration : écouteurs DOM, boucle de tracking, bascule GPS/WiFi/Scriptable.",
     'js/routes-config.js': "MAIN_ROUTES, trajets proposés dans le sélecteur (app + éditeur).",
     'js/utils.js': "Utilitaires génériques sans dépendance métier.",
-    'js/fakeGeoSim.js': "Simulateur GPS de dev (désactivé par défaut, ENABLE_FAKE_GPS).",
+    'js/fakeGeoSim.js': "Simulateur GPS de dev (inerte par défaut, activé par URL ?fakegps=…).",
     'js/master-editor.js': "Logique de l'éditeur visuel de masterRoutes.normalized.json.",
     'data/masterRoutes.normalized.json': "Source de vérité géo/horaire (schéma v3) : points + trajets.",
     'data/servicePatterns.json': "Patterns de desserte nommés (arrêts intermédiaires par trajet).",

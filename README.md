@@ -65,7 +65,10 @@ js/
   routes-config.js        MAIN_ROUTES — source unique des trajets proposés,
                           partagée entre l'app et l'éditeur
   master-editor.js        Logique de master-editor.html
-  fakeGeoSim.js           Simulateur GPS pour le développement (désactivé par défaut)
+  fakeGeoSim.js           Simulateur GPS pour le développement — inerte par
+                          défaut, activé par l'URL : ?fakegps[=N] (vitesse ×N),
+                          &fakedelay=min, &fakepace=ratio, &fakestart=point|%
+                          + contrôles console window.fakeGps (pause, seekTo…)
 
 data/
   masterRoutes.normalized.json   Schéma v3 : dictionnaire de points + trajets

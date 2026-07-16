@@ -25,7 +25,7 @@ function updateDebugBar(status) {
     else                                                                        agentLabel = 'Autre';
     const fakeGps = window.FAKE_GPS_SPEED_MULTIPLIER
         ? `⚡ FakeGPS ×${window.FAKE_GPS_SPEED_MULTIPLIER}`
-        : (typeof ENABLE_FAKE_GPS !== 'undefined' && !ENABLE_FAKE_GPS ? 'FakeGPS OFF' : '');
+        : '';
     el.innerHTML = `Agent: ${agentLabel} | Mode: ${STATE.locationMethod}${fakeGps ? ' | ' + fakeGps : ''}${status ? ' | ' + status : ''}<br><small style="opacity:0.6">${ua}</small>`;
 }
 

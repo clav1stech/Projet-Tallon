@@ -79,7 +79,7 @@
 - `js/ui.js` : tout le rendu DOM (timeline, widget de suivi, HUD paysage avec compteur/graphe/carousel).
 - `js/app.js` : orchestration — écouteurs DOM, boucle de tracking (`setInterval` 1 s), bascule GPS natif / WiFi SNCF / bridge Scriptable iOS.
 - `js/routes-config.js` : `MAIN_ROUTES`, source unique des trajets proposés dans le sélecteur — consommée à la fois par `ui.js` (app) et `master-editor.js` (éditeur), donc toute route ajoutée ici apparaît automatiquement aux deux endroits.
-- `js/fakeGeoSim.js` : simulateur GPS pour le développement (désactivé par défaut, `ENABLE_FAKE_GPS = false`). Ne jamais l'activer dans un commit poussé.
+- `js/fakeGeoSim.js` : simulateur GPS pour le développement — inerte par défaut, activé uniquement par paramètre d'URL (`?fakegps[=N]`, plus `fakedelay`/`fakepace`/`fakestart` pour les scénarios, API console `window.fakeGps` pour pause/vitesse/seek ; détail en tête du fichier). Aucune constante à éditer, donc aucun risque de committer la simulation active. Le retard affiché n'est fidèle qu'à `?fakegps=1` (le moteur compare à l'horloge réelle).
 - `js/master-editor.js` + `master-editor.html` : éditeur visuel de `data/masterRoutes.normalized.json` (ajout/réordonnancement de points, export JSON). Les modifications n'écrivent jamais le fichier directement — export manuel puis remplacement.
 - `js/car-config.js`, `js/car-route.js`, `js/car-app.js`, `js/car-ui.js` + `car.html` : mode voiture (suivi Mâcon → Combloux), page autonome miroir du mode rail — corridors PR (A406/A40/D1212) + waypoints, progression + ETA, pas de notion d'horaire/retard.
 

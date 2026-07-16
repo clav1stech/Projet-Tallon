@@ -21,7 +21,7 @@
   - Rendu / manipulation DOM → `js/ui.js` exclusivement. `app.js` ne touche le DOM que pour ses propres écouteurs d'événements (formulaire, bouton start, swipe).
   - Config de trajets partagée entre l'app et l'éditeur → `js/routes-config.js` (`MAIN_ROUTES`), jamais dupliquée localement dans `ui.js` ou `master-editor.js`.
   - Utilitaires génériques sans dépendance métier (formatage, sélecteurs DOM courts) → `js/utils.js`.
-  - Simulation/outillage de dev → fichier dédié explicitement toggé (`js/fakeGeoSim.js`, `ENABLE_FAKE_GPS`), jamais mélangé au code de prod.
+  - Simulation/outillage de dev → fichier dédié inerte par défaut, activé sans modification de code (`js/fakeGeoSim.js`, paramètre d'URL `?fakegps=…`), jamais mélangé au code de prod.
   - Script Python one-off (migration, extraction, export) → `python/`, avec docstring d'usage en tête de fichier.
 
 ## Imports et dépendances
