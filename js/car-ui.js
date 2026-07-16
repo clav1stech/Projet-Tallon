@@ -43,7 +43,8 @@ export function formatDuration(seconds) {
  * @param {string}      data.legLabel      - libellé du tronçon courant (ex: "A40")
  * @param {number|null} data.pk            - PK interpolé (null hors corridor PK)
  * @param {string|null} data.line          - identifiant de ligne/route (ex: "A40")
- * @param {string|null} data.nextName      - prochain waypoint nommé (leg 'points')
+ * @param {object|null} data.nextWaypoint  - prochain point de passage
+ *                      ({ name, type, lengthM? } — sortie/échangeur/ouvrage/étape)
  * @param {number|null} data.nextDistanceKm
  * @param {number}      data.doneKm
  * @param {number}      data.remainingKm
@@ -63,11 +64,17 @@ export function updateCarWidget(data) {
 
     if (data.pk != null) {
         setText('car-position', `PK ${formatPk(data.pk)}${data.line ? ` (${data.line})` : ''}`);
-    } else if (data.nextName) {
-        const dist = Number.isFinite(data.nextDistanceKm) ? ` — ${data.nextDistanceKm.toFixed(1)} km` : '';
-        setText('car-position', `→ ${data.nextName}${dist}`);
     } else {
         setText('car-position', '—');
+    }
+
+    if (data.nextWaypoint) {
+        const wp = data.nextWaypoint;
+        const len = Number.isFinite(wp.lengthM) ? ` (${wp.lengthM} m)` : '';
+        const dist = Number.isFinite(data.nextDistanceKm) ? ` — ${data.nextDistanceKm.toFixed(1)} km` : '';
+        setText('car-next', `${wp.name}${len}${dist}`);
+    } else {
+        setText('car-next', '—');
     }
 
     setText('car-km', `${data.doneKm.toFixed(1)} km / ${data.totalKm.toFixed(1)} km (reste ${data.remainingKm.toFixed(1)} km)`);

@@ -148,13 +148,14 @@ function onPosition(position) {
         line = a.line ?? null;
     }
 
-    // Prochain waypoint nommé (leg 'points')
-    let nextName = null;
+    // Prochain point de passage (sortie, échangeur, ouvrage d'art, étape) —
+    // liste triée par km-route fournie par buildCarRoute.
+    let nextWaypoint = null;
     let nextDistanceKm = null;
-    for (let i = segmentIndex + 1; i < route.length; i++) {
-        if (route[i].name) {
-            nextName = route[i].name;
-            nextDistanceKm = Math.max(0, cumKm[i] - doneKm);
+    for (const wp of CAR.route.waypoints) {
+        if (wp.routeKm > doneKm) {
+            nextWaypoint = wp;
+            nextDistanceKm = wp.routeKm - doneKm;
             break;
         }
     }
@@ -163,7 +164,7 @@ function onPosition(position) {
         legLabel: a?.legLabel ?? '',
         pk,
         line,
-        nextName,
+        nextWaypoint,
         nextDistanceKm,
         doneKm,
         remainingKm,

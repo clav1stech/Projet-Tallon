@@ -138,6 +138,60 @@ describe('buildCarRoute', () => {
     });
 });
 
+describe('buildCarRoute — waypoints', () => {
+    it('waypoints corridor interpolés en km-route + points nommés en étapes, triés', () => {
+        const cfg = {
+            legs: [
+                {
+                    type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40',
+                    waypoints: [
+                        { pk: 12.5, km: 13, name: 'Sortie 1 – Test', type: 'sortie' },
+                        { pk: 2.5, km: 3, name: 'Viaduc Test', type: 'viaduc', lengthM: 500 }
+                    ]
+                },
+                {
+                    type: 'points', label: 'Montée',
+                    points: [
+                        { id: 'J', name: 'Jonction', lat: 46.20, lon: 5.18 },
+                        { id: 'TOP', name: 'Sommet', lat: 46.10, lon: 5.20 }
+                    ]
+                }
+            ]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.waypoints.map(w => w.name)).toEqual(['Viaduc Test', 'Sortie 1 – Test', 'Sommet']);
+        // pk 2.5 = milieu du 1er segment (pk 0 → 5) : routeKm = cumKm[1] / 2
+        expect(route.waypoints[0].routeKm).toBeCloseTo(route.cumKm[1] / 2, 5);
+        expect(route.waypoints[0]).toMatchObject({ type: 'viaduc', lengthM: 500, legIndex: 0 });
+        // pk 12.5 = milieu du segment pk 10 → 15
+        expect(route.waypoints[1].routeKm).toBeCloseTo((route.cumKm[2] + route.cumKm[3]) / 2, 5);
+        // La jonction dédupliquée n'apparaît pas ; le point nommé restant devient une étape.
+        expect(route.waypoints[2]).toMatchObject({ type: 'etape', routeKm: route.totalKm });
+    });
+
+    it('waypoint hors du pkRange effectif du leg : ignoré', () => {
+        const cfg = {
+            legs: [{
+                type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', pkRange: [5, 10],
+                waypoints: [
+                    { pk: 2, name: 'Avant', type: 'sortie' },
+                    { pk: 7.5, name: 'Dedans', type: 'sortie' },
+                    { pk: 14, name: 'Après', type: 'sortie' }
+                ]
+            }]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.waypoints.map(w => w.name)).toEqual(['Dedans']);
+    });
+
+    it('sans waypoints déclarés : liste vide (pas d\'erreur)', () => {
+        const route = buildCarRoute(ROUTE_CFG, DATASETS);
+        // ROUTE_CFG n'a pas de waypoints corridor mais des points nommés (étapes)
+        expect(route.waypoints.every(w => w.type === 'etape')).toBe(true);
+        expect(route.waypoints.map(w => w.name)).toEqual(['Mi-pente', 'Sommet']);
+    });
+});
+
 describe('computeEtaSeconds', () => {
     const samples = (speeds, reliable = true) => speeds.map(v => ({ v, reliable }));
 

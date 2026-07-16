@@ -25,7 +25,8 @@ export const DEFAULT_LEG_SPEED_KMH = {
  * @param {Object<string, {points: Array}>} datasetsById - datasets chargés,
  *        indexés par id de descripteur (sortie de csv.js loadDataset)
  * @returns {{ points: Array, cumKm: number[], totalKm: number,
- *             legs: Array<{index:number, type:string, label:string, startIdx:number, endIdx:number, startKm:number, endKm:number}> }}
+ *             legs: Array<{index:number, type:string, label:string, startIdx:number, endIdx:number, startKm:number, endKm:number}>,
+ *             waypoints: Array<{name:string, type:string, routeKm:number, legIndex:number, pk?:number, km?:number, lengthM?:number}> }}
  *   Chaque point porte : lat, lon, legIndex, legLabel, et selon le leg :
  *   pk + line (corridor) ou id + name (waypoints). `durationEffective`
  *   (secondes vers le point suivant) est calculée depuis avgSpeedKmh — elle
@@ -116,7 +117,52 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
         };
     });
 
-    return { points, cumKm, totalKm: cumKm[cumKm.length - 1], legs };
+    // Points de passage nommés, projetés dans le référentiel km-route :
+    // - legs corridor : waypoints déclarés en pk_cum dans la config, interpolés
+    //   entre les deux points du corridor qui les bornent (un waypoint hors du
+    //   pkRange effectif du leg est ignoré) ;
+    // - legs 'points' : chaque point nommé devient un waypoint type 'etape'.
+    const waypoints = [];
+    for (const legMeta of legs) {
+        if (legMeta.startIdx < 0) continue;
+        const legCfg = routeCfg.legs[legMeta.index];
+
+        if (legCfg.type === 'pk-corridor' && Array.isArray(legCfg.waypoints)) {
+            for (const wp of legCfg.waypoints) {
+                if (!wp || !Number.isFinite(wp.pk)) continue;
+                for (let i = legMeta.startIdx; i < legMeta.endIdx; i++) {
+                    const a = points[i];
+                    const b = points[i + 1];
+                    if (!Number.isFinite(a.pk) || !Number.isFinite(b.pk)) continue;
+                    if (wp.pk < a.pk || wp.pk > b.pk) continue;
+                    const ratio = b.pk > a.pk ? (wp.pk - a.pk) / (b.pk - a.pk) : 0;
+                    waypoints.push({
+                        name: wp.name,
+                        type: wp.type ?? 'sortie',
+                        routeKm: cumKm[i] + ratio * (cumKm[i + 1] - cumKm[i]),
+                        legIndex: legMeta.index,
+                        pk: wp.pk,
+                        km: wp.km,
+                        lengthM: wp.lengthM
+                    });
+                    break;
+                }
+            }
+        } else if (legCfg.type === 'points') {
+            for (let i = legMeta.startIdx; i <= legMeta.endIdx; i++) {
+                if (!points[i].name) continue;
+                waypoints.push({
+                    name: points[i].name,
+                    type: 'etape',
+                    routeKm: cumKm[i],
+                    legIndex: legMeta.index
+                });
+            }
+        }
+    }
+    waypoints.sort((a, b) => a.routeKm - b.routeKm);
+
+    return { points, cumKm, totalKm: cumKm[cumKm.length - 1], legs, waypoints };
 }
 
 /**
