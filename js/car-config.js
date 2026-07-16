@@ -5,10 +5,10 @@
 //
 // Un itinéraire est une liste ORDONNÉE de "legs" de deux types :
 // - 'pk-corridor' : tronçon référencé par un dataset PR/PK
-//   (data/datasets/<datasetId>.json → data/csv/road_pr.csv, généré par
-//   python/extract_pr.py depuis les données IGN de data/raw/ — voir
-//   data/raw/README.md). `pkRange: [min, max]` limite le corridor à la
-//   portion réellement parcourue (jonctions, sorties).
+//   (data/datasets/<datasetId>.json → data/csv/road_trace.csv, généré par
+//   python/refine_corridors.py depuis une trace GPS réelle + les PR IGN de
+//   road_pr.csv — voir data/raw/README.md). `pkRange: [min, max]` limite le
+//   corridor à la portion réellement parcourue (jonctions, sorties).
 //   NB : le "pk" de ces corridors est un cumul de km depuis le début du
 //   corridor (colonne pk_cum), PAS le numéro de PR réel — celui-ci n'est pas
 //   monotone sur l'A40 (sections APRR puis ATMB) ; il reste disponible dans
@@ -34,27 +34,34 @@ export const CAR_ROUTES = {
     MACON_COMBLOUX: {
         label: 'Mâcon → Combloux',
         // Descripteurs de datasets à charger pour cet itinéraire.
+        // Corridors "trace" : géométrie fine issue d'une trace GPS réelle du
+        // trajet (python/refine_corridors.py), PR interpolés dans le même
+        // référentiel pk_cum que les corridors PR IGN d'origine (aXX-pr.json,
+        // conservés en repli).
         datasets: [
-            'data/datasets/a406-pr.json',
-            'data/datasets/a40-pr.json',
-            'data/datasets/d1212-pr.json'
+            'data/datasets/a406-trace.json',
+            'data/datasets/a40-trace.json',
+            'data/datasets/d1212-trace.json'
         ],
         legs: [
             {
                 type: 'pk-corridor',
-                datasetId: 'a406-pr',
+                datasetId: 'a406-trace',
                 label: 'A406',
                 avgSpeedKmh: 100
                 // Corridor complet : contournement sud de Mâcon, de l'A6 à l'A40.
             },
             {
                 type: 'pk-corridor',
-                datasetId: 'a40-pr',
+                datasetId: 'a40-trace',
                 label: 'A40',
                 avgSpeedKmh: 110,
-                // On rejoint l'A40 à la jonction A406 (pk_cum ≈ 6,0) et on la
-                // quitte à la sortie Sallanches (PR 6 ATMB, pk_cum ≈ 194,7).
-                pkRange: [5.9, 195],
+                // On rejoint l'A40 à la jonction A406 (pk_cum ≈ 6,0). La trace
+                // GPS montre que la bretelle de la sortie Sallanches quitte la
+                // chaussée vers pk_cum ≈ 191,3 (et non 194,7 comme le suggérait
+                // le PR 6 ATMB : le kilométrage officiel de la sortie ne
+                // coïncide pas avec la géométrie du corridor chaîné).
+                pkRange: [5.9, 191.3],
                 waypoints: [
                     // Sorties et échangeurs (km officiels A40 : autoroutes.fr/WikiSara).
                     { pk: 7.98,   km: 8,   name: 'Sortie 3 – Replonges',                          type: 'sortie' },
@@ -77,7 +84,9 @@ export const CAR_ROUTES = {
                     { pk: 170.80, km: 174, name: 'Sortie 17 – Bonneville est',                    type: 'sortie' },
                     { pk: 179.73, km: 183, name: 'Sortie 18 – Scionzier',                         type: 'sortie' },
                     { pk: 184.67, km: 188, name: 'Sortie 19 – Cluses',                            type: 'sortie' },
-                    { pk: 194.66, km: 198, name: 'Sortie 20 – Sallanches / Combloux / Megève',    type: 'sortie' },
+                    // pk constaté sur la trace GPS (début de bretelle), pas le
+                    // PR 6 théorique — voir le commentaire du pkRange.
+                    { pk: 190.95, km: 198, name: 'Sortie 20 – Sallanches / Combloux / Megève',    type: 'sortie' },
                     // Ouvrages d'art (km = 204 − PR ; le PR du tunnel de Chamoise
                     // est recalé sur la géométrie réelle — sortie est du tunnel
                     // juste avant le viaduc de Nantua, PR ≈ 120,5).
@@ -100,12 +109,13 @@ export const CAR_ROUTES = {
             },
             {
                 type: 'pk-corridor',
-                datasetId: 'd1212-pr',
+                datasetId: 'd1212-trace',
                 label: 'D1212',
                 avgSpeedKmh: 45,
-                // Sallanches (PR 0) → Combloux (PR 7, pk_cum ≈ 5,3) ; la D1212
-                // continue ensuite vers Megève, hors trajet.
-                pkRange: [0, 5.3]
+                // Sallanches (PR 0) → Combloux ; la trace GPS suit la D1212
+                // jusqu'à pk_cum ≈ 6,4 (et non 5,3) avant d'obliquer vers le
+                // centre. La D1212 continue ensuite vers Megève, hors trajet.
+                pkRange: [0, 6.4]
             },
             {
                 type: 'points',

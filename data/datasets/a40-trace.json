@@ -1,0 +1,16 @@
+{
+  "id": "a40-trace",
+  "kind": "pk-corridor",
+  "label": "A40 Mâcon → Le Fayet (trace GPS affinée, PR interpolés)",
+  "file": "data/csv/road_trace.csv",
+  "csv": { "delimiter": ",", "hasHeader": true, "decimalSeparator": "." },
+  "columns": { "pk": "pk", "line": "route", "lat": "lat", "lon": "lon" },
+  "pkFormat": "decimal-km",
+  "filters": [{ "column": "corridor", "equals": "a40" }],
+  "sortBy": "pk",
+  "everyNth": 1,
+  "notes": [
+    "Fichier généré par `python3 python/refine_corridors.py` : trace GPS réelle du trajet rééchantillonnée (50 m > 80 km/h, 10 m en dessous), pk recalculés par projection sur le corridor PR IGN de road_pr.csv (même référentiel pk_cum).",
+    "Les trous GPS (tunnels, pertes de signal) sont comblés par les PR IGN d'origine (colonne `source` = pr)."
+  ]
+}

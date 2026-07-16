@@ -90,6 +90,7 @@
 - `python/migrate_v2_to_v3.py` : migration ponctuelle du schéma (déjà appliquée, gardé pour référence/rollback).
 - `python/extract_pk.py` : extraction de points kilométriques SNCF depuis un CSV brut → `data/csv/rail_pk.csv`, stdlib pur (streaming, non interactif).
 - `python/extract_pr.py` : extraction des PR IGN BD TOPO pour les corridors routiers (A406/A40/D1212) → `data/csv/road_pr.csv`.
+- `python/refine_corridors.py` : géométrie fine des corridors routiers depuis une trace GPS réelle (`data/raw/gps/`, non versionnée) → `data/csv/road_trace.csv` (rééchantillonnage selon vitesse, PR interpolés dans le référentiel `pk_cum` de `road_pr.csv`, repli PR IGN dans les trous GPS). C'est ce fichier que consomme le mode voiture ; `road_pr.csv` reste la référence PR.
 - `python/export.py` : export texte du projet pour partage de contexte IA (profils "ia"/"full" + mode "lite" par diff), versionné automatiquement sur `CHANGELOG.md` — voir `docs/commands.md`.
 
 **Données brutes (`data/raw/`)** :

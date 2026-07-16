@@ -1,0 +1,16 @@
+{
+  "id": "d1212-trace",
+  "kind": "pk-corridor",
+  "label": "D1212 Sallanches → Combloux (trace GPS affinée, PR interpolés)",
+  "file": "data/csv/road_trace.csv",
+  "csv": { "delimiter": ",", "hasHeader": true, "decimalSeparator": "." },
+  "columns": { "pk": "pk", "line": "route", "lat": "lat", "lon": "lon" },
+  "pkFormat": "decimal-km",
+  "filters": [{ "column": "corridor", "equals": "d1212" }],
+  "sortBy": "pk",
+  "everyNth": 1,
+  "notes": [
+    "Voir a40-trace.json : même fichier road_trace.csv, généré par python/refine_corridors.py.",
+    "Dans les lacets de la montée, les PR IGN cordent la route : le pk y est interpolé sur la distance parcourue de la trace (voir refine_corridors.py)."
+  ]
+}

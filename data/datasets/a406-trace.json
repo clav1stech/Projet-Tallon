@@ -1,0 +1,15 @@
+{
+  "id": "a406-trace",
+  "kind": "pk-corridor",
+  "label": "A406 contournement de Mâcon (trace GPS affinée, PR interpolés)",
+  "file": "data/csv/road_trace.csv",
+  "csv": { "delimiter": ",", "hasHeader": true, "decimalSeparator": "." },
+  "columns": { "pk": "pk", "line": "route", "lat": "lat", "lon": "lon" },
+  "pkFormat": "decimal-km",
+  "filters": [{ "column": "corridor", "equals": "a406" }],
+  "sortBy": "pk",
+  "everyNth": 1,
+  "notes": [
+    "Voir a40-trace.json : même fichier road_trace.csv, généré par python/refine_corridors.py."
+  ]
+}

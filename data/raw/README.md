@@ -11,6 +11,7 @@ Les fichiers exploitables par l'app sont **générés** dans `data/csv/` (léger
 |---|---|---|
 | `python3 python/extract_pk.py` | `rail/pks 2.csv` | `data/csv/rail_pk.csv` (lignes 752000/752100/830000, toutes colonnes) |
 | `python3 python/extract_pr.py` | `road/pr-*.csv` | `data/csv/road_pr.csv` (corridors a406/a40/d1212, toutes colonnes + `pk_cum`) |
+| `python3 python/refine_corridors.py` | `gps/trajet_gps_nettoye.csv` + `data/csv/road_pr.csv` | `data/csv/road_trace.csv` (géométrie fine des corridors, PR interpolés) |
 
 Relancer ces scripts si d'autres lignes SNCF / corridors routiers sont ajoutés
 (éditer `--lines` ou la liste `CORRIDORS` en tête de script).
@@ -70,6 +71,19 @@ Relancer ces scripts si d'autres lignes SNCF / corridors routiers sont ajoutés
 - ✅ **Utilisé** : corridors `a406` (10 pts, 8,8 km) et `a40` (206 pts, 200,6 km) de
   `data/csv/road_pr.csv`.
 - 🔮 **Futur** : affichage du PR réel (`numero` conservé dans le CSV extrait), autres autoroutes.
+
+## gps/trajet_gps_nettoye.csv — ~180 Ko, 3 382 lignes
+
+- **Source** : enregistrement GPS réel du trajet Mâcon → Combloux (juillet 2026), nettoyé.
+- **Schéma** : `time;Latitude;Longitude;Vitesse (km/h)` — délimiteur point-virgule,
+  point décimal, vitesse parfois vide (interpolée par le script), fixes toutes les 1–3 s.
+- **Pièges** : trous GPS dans les tunnels et sur Châtillon→Bellegarde (~12,6 km sans fixe) —
+  la corde d'un trou n'est PAS la route, `refine_corridors.py` y replie sur les PR IGN.
+- ✅ **Utilisé** : source de `data/csv/road_trace.csv` (géométrie fine des corridors du mode
+  voiture : 1 pt/50 m > 80 km/h, 1 pt/10 m en dessous, PR interpolés sur le référentiel
+  `pk_cum` de `road_pr.csv`).
+- 🔮 **Futur** : re-tracer d'autres itinéraires en déposant une nouvelle trace au même format
+  (`python3 python/refine_corridors.py chemin/vers/trace.csv`).
 
 ## road/pr-departemental.csv — 109 Mo, 550 067 lignes
 
