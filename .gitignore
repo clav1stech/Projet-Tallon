@@ -7,3 +7,7 @@ data/raw/*
 
 # Dossier d'export généré par python/export.py (voir docs/commands.md)
 /Export/
+
+# Caches Python
+__pycache__/
+*.pyc
