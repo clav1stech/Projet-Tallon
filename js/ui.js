@@ -291,7 +291,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
     if (speedEl) {
         if (!speedReliable) {
             speedEl.style.setProperty('--speed-deg', '0deg');
-            speedEl.innerHTML = `<span class="hud-speed-value"><i class="fa-solid fa-signal-slash"></i></span>`;
+            speedEl.innerHTML = `<span class="hud-speed-value"><i class="fas fa-signal-slash"></i></span>`;
         } else {
             const displaySpeed = Math.round(speed);
             const arcSpeed = Math.min(displaySpeed, 320);

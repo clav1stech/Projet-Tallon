@@ -68,6 +68,12 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
             throw new Error(`buildCarRoute : type de leg inconnu "${leg.type}"`);
         }
 
+        // `reverse: true` — leg parcouru à rebours de son référentiel source
+        // (trajet retour sur un corridor tracé dans le sens aller). Les pk
+        // restent ceux du référentiel d'origine, seul l'ordre de parcours
+        // change ; le matching séquentiel reste monotone par construction.
+        if (leg.reverse) legPoints.reverse();
+
         if (legPoints.length === 0) return;
 
         legBounds.push({ legIndex, startIdx: points.length > 0 ? points.length : 0 });
@@ -134,8 +140,10 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
                     const a = points[i];
                     const b = points[i + 1];
                     if (!Number.isFinite(a.pk) || !Number.isFinite(b.pk)) continue;
-                    if (wp.pk < a.pk || wp.pk > b.pk) continue;
-                    const ratio = b.pk > a.pk ? (wp.pk - a.pk) / (b.pk - a.pk) : 0;
+                    // Encadrement dans les deux sens : sur un leg `reverse`,
+                    // les pk décroissent le long du parcours.
+                    if (wp.pk < Math.min(a.pk, b.pk) || wp.pk > Math.max(a.pk, b.pk)) continue;
+                    const ratio = b.pk !== a.pk ? (wp.pk - a.pk) / (b.pk - a.pk) : 0;
                     waypoints.push({
                         name: wp.name,
                         type: wp.type ?? 'sortie',
@@ -162,7 +170,41 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
     }
     waypoints.sort((a, b) => a.routeKm - b.routeKm);
 
-    return { points, cumKm, totalKm: cumKm[cumKm.length - 1], legs, waypoints };
+    // Départ/arrivée synthétiques (`origin`/`destination` dans la config) :
+    // seulement si aucun waypoint n'occupe déjà l'extrémité (ex. un leg
+    // 'points' terminal fournit déjà l'étape d'arrivée).
+    const totalKm = cumKm[cumKm.length - 1];
+    if (routeCfg.origin && !(waypoints.length && waypoints[0].routeKm < 0.2)) {
+        waypoints.unshift({ name: routeCfg.origin, type: 'depart', routeKm: 0, legIndex: points[0].legIndex });
+    }
+    if (routeCfg.destination && !(waypoints.length && totalKm - waypoints[waypoints.length - 1].routeKm < 0.2)) {
+        waypoints.push({ name: routeCfg.destination, type: 'arrivee', routeKm: totalKm, legIndex: points[points.length - 1].legIndex });
+    }
+
+    return { points, cumKm, totalKm, legs, waypoints };
+}
+
+/**
+ * Secteur géographique courant, pour l'affichage HUD.
+ * Déclaré dans la config des legs, dans le référentiel pk du corridor
+ * (indépendant du sens de parcours, donc partageable aller/retour) :
+ * - leg corridor : `sectors: [{ name, pkFrom, pkTo }]` ;
+ * - tout leg : `sector: 'Nom'` (secteur unique du leg, repli si aucune
+ *   plage ne matche).
+ * @param {object} routeCfg - une entrée de CAR_ROUTES
+ * @param {number} legIndex - legIndex du point courant
+ * @param {number|null} pk   - pk interpolé courant (null hors corridor)
+ * @returns {string|null}
+ */
+export function findSector(routeCfg, legIndex, pk) {
+    const leg = routeCfg?.legs?.[legIndex];
+    if (!leg) return null;
+    if (Array.isArray(leg.sectors) && Number.isFinite(pk)) {
+        for (const s of leg.sectors) {
+            if (pk >= s.pkFrom && pk <= s.pkTo) return s.name;
+        }
+    }
+    return leg.sector ?? null;
 }
 
 /**

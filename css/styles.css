@@ -1867,3 +1867,61 @@ body.tracking-active #hud-speed-graph {
     background: rgba(34, 197, 94, 0.18);
     color: var(--success);
 }
+
+/* ===========================
+   HUD voiture (car.html)
+   =========================== */
+
+/* Pilule secteur : même gabarit que la pilule retard du rail, mais teinte
+   primaire neutre — un secteur n'est ni bon ni mauvais. */
+#hud-sector {
+    border-radius: 50px;
+    padding: 10px 20px;
+    font-weight: 700;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 15px;
+    background: rgba(135, 44, 59, 0.12);
+    color: var(--primary);
+    transition: background 0.3s, color 0.3s;
+}
+
+#hud-sector:empty {
+    display: none;
+}
+
+/* Sous-ligne de l'ETA voiture : durée restante + km restants */
+.hud-eta-sub {
+    display: block;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+
+/* Icône de type de waypoint (sortie, échangeur, viaduc, tunnel, péage…) —
+   taille relative au texte pour suivre la hiérarchie du carousel. */
+.wp-icon {
+    font-size: 0.78em;
+    margin-right: 0.45em;
+    opacity: 0.75;
+}
+
+@media screen and (orientation: landscape) {
+    body.tracking-active #hud-sector {
+        background: var(--primary);
+        color: #fff;
+        margin-top: 12px;
+    }
+
+    body.tracking-active .hud-eta-sub {
+        color: rgba(255, 255, 255, 0.65);
+    }
+
+    body.non-iphone-device.tracking-active #hud-sector {
+        padding: 13px 24px;
+        font-size: 1.02em;
+        margin-top: 18px;
+    }
+}

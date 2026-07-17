@@ -7,9 +7,11 @@ l'avance) en direct, point de passage par point de passage.
 **Version courante (`main`) : v2.4.1** — voir [CHANGELOG.md](CHANGELOG.md)
 pour l'historique complet.
 
-> Un chantier de test actif (mode voiture, mode hors-ligne, données PK
-> réelles) existe sur la branche `dev/road-rail-route` mais n'est pas encore
-> intégré à `main` — ce README décrit l'état actuellement sur `main`.
+> Un chantier de test actif existe sur la branche `dev/road-rail-route`
+> (cible `v3.0.0`, **non encore mergée sur `main`**) : mode voiture avec HUD
+> paysage, mode hors-ligne (PWA), données PK/PR réelles et suite de tests
+> automatisés. Les sections **Mode voiture** et **Architecture** ci-dessous
+> décrivent l'état de cette branche ; le reste correspond à `main`.
 
 ## Fonctionnalités
 
@@ -44,37 +46,87 @@ pour l'historique complet.
 - **Éditeur visuel de trajets** (`master-editor.html`) pour ajouter,
   réordonner ou éditer les points d'un trajet sans toucher au JSON à la main.
 
+## Mode voiture (`car.html`, branche `dev/road-rail-route`)
+
+Page autonome, miroir routier du mode rail : suivi d'un trajet Mâcon ⇄
+Combloux le long des corridors A406 / A40 / D1212, en **progression + ETA**
+(pas de notion d'horaire théorique ni de retard). Réutilise le cœur partagé
+avec le rail (fiabilité GPS, matching position → segment) mais avec une
+géométrie de corridor issue d'une trace GPS réelle et des données propres.
+
+- **Deux sens sélectionnables** : Mâcon → Combloux et Combloux → Mâcon depuis
+  le même sélecteur. Les corridors sont tracés dans le sens aller et parcourus
+  à rebours au retour (`reverse`) ; waypoints, PK et secteurs sont partagés
+  entre les deux sens, sans duplication de données.
+- **HUD paysage** (rotation de l'écran) : compteur de vitesse circulaire
+  calibré pour la route (150 km/h), graphe de vitesse glissant, ETA (heure
+  d'arrivée + durée et distance restantes), et carousel vertical animé des
+  points de passage. À la place du badge de retard du rail, une **pilule de
+  secteur géographique** (Mâconnais, Bresse, Bugey/Titans, Bellegarde,
+  Genevois, Arve, Mont-Blanc).
+- **Points de passage typés** : sorties, échangeurs, viaducs, tunnels et
+  barrières de péage (Val de Saône, Viry, Nangy, Cluses), chacun avec une
+  **icône** distincte dans le widget et le HUD.
+- **Progression le long de la route** : PK interpolé, distance à chaque
+  waypoint mesurée le long du corridor (et non à vol d'oiseau), ETA fondée sur
+  la vitesse moyenne glissante avec plancher anti-arrêt (péage, feu).
+
+Les données d'itinéraire vivent dans `js/car-config.js` (source unique,
+comme `routes-config.js` pour le rail) ; toute route ou tout point de passage
+ajouté y apparaît automatiquement dans le sélecteur.
+
 ## Architecture
 
 Application 100 % statique, sans backend ni build (modules ES natifs
 `<script type="module">`, aucun bundler).
 
 ```
-index.html              Page principale (sélection trajet + timeline + HUD)
+index.html              Page principale rail (sélection trajet + timeline + HUD)
+car.html                 Page mode voiture (Mâcon ⇄ Combloux, HUD paysage)
 master-editor.html       Éditeur visuel des trajets (data/masterRoutes.normalized.json)
-css/styles.css           Tous les styles (dont HUD paysage, responsive)
+css/styles.css           Tous les styles (dont HUD paysage rail + voiture, responsive)
+sw.js                    Service worker : cache hors-ligne (stale-while-revalidate)
+manifest.webmanifest     Manifeste PWA (installation plein écran iPhone)
 
 js/
   state.js               État applicatif global (STATE) + persistance localStorage
   geo.js                 Géométrie pure (Haversine, projection sur segment)
   functions.js           Moteur de calcul pur : route effective, matching
                           position → segment, calcul de retard
-  ui.js                  Rendu DOM (timeline, widget, HUD paysage)
-  app.js                 Orchestration : écouteurs DOM, boucle de tracking,
+  tracking.js            Helpers purs de fiabilité GPS (précision, anti-téléportation,
+                          vitesse médiane, plancher de bruit, anti-pic)
+  position-engine.js      Pipeline de fiabilité GPS réutilisable (compose tracking.js),
+                          partagé rail / voiture
+  csv.js / linearref.js   Parseur CSV générique + corridors PK/PR (référencement linéaire)
+  ui.js                  Rendu DOM rail (timeline, widget, HUD paysage)
+  app.js                 Orchestration rail : écouteurs DOM, boucle de tracking,
                           bascule GPS / WiFi SNCF / bridge Scriptable
-  routes-config.js        MAIN_ROUTES — source unique des trajets proposés,
+  routes-config.js        MAIN_ROUTES — source unique des trajets rail proposés,
                           partagée entre l'app et l'éditeur
+  car-config.js           CAR_ROUTES — source unique des itinéraires voiture (aller/retour)
+  car-route.js            Construction de la route voiture hybride (corridor PK +
+                          waypoints), secteurs, ETA — logique pure, testable
+  car-ui.js               Rendu DOM voiture (widget, HUD paysage, icônes waypoints)
+  car-app.js              Orchestration voiture (boucle de tracking, matching)
   master-editor.js        Logique de master-editor.html
-  fakeGeoSim.js           Simulateur GPS pour le développement (désactivé par défaut)
+  fakeGeoSim.js           Simulateur GPS pour le développement (désactivé par défaut,
+                          multiplicateur de vitesse + point de départ configurables)
 
 data/
   masterRoutes.normalized.json   Schéma v3 : dictionnaire de points + trajets
   servicePatterns.json           Patterns de desserte nommés
+  datasets/*.json                Descripteurs de CSV (délimiteur, colonnes, PK) pour csv.js
+  csv/                            Fichiers légers versionnés (rail_pk, road_pr, road_trace)
+  raw/                            Sources lourdes non versionnées (catalogue : raw/README.md)
 
 python/
-  export.py               Export zip versionné du projet (partage / sauvegarde)
-  extract_pk.py            Extraction de PK SNCF depuis un CSV brut (pandas)
+  export.py               Export texte versionné du projet (partage de contexte IA)
+  extract_pk.py            Extraction de PK SNCF depuis un CSV brut (stdlib, streaming)
+  extract_pr.py            Extraction des PR IGN BD TOPO pour les corridors routiers
+  refine_corridors.py      Géométrie fine des corridors depuis une trace GPS réelle
   migrate_v2_to_v3.py      Migration ponctuelle du schéma de données (référence)
+
+tests/                    Suite Vitest (fonctions pures : moteur, corridors, route voiture)
 ```
 
 Voir [CLAUDE.md](CLAUDE.md) et [CONVENTIONS.md](CONVENTIONS.md) pour les
@@ -112,16 +164,33 @@ Ouvrir `master-editor.html` (même serveur), modifier les points d'un trajet,
 puis **Exporter JSON** pour récupérer le fichier mis à jour — les
 modifications ne sont jamais écrites automatiquement sur disque.
 
+### Tests
+
+Suite [Vitest](https://vitest.dev/) sur les fonctions pures (moteur de
+tracking, corridors PK/PR, construction de la route voiture). Nécessite les
+dépendances de dev (`npm install`) :
+
+```bash
+npm test
+```
+
 ### Scripts Python (`python/`)
 
-Nécessitent `pandas`/`tqdm` pour `extract_pk.py` (`pip install pandas tqdm`).
-Scripts exécutés manuellement, hors production :
-- `export.py` : génère un zip horodaté du projet (versionné X.Y en tête de
-  fichier, à incrémenter manuellement).
+Stdlib uniquement (aucune dépendance à installer), non interactifs, exécutés
+manuellement hors production :
+- `export.py` : export texte versionné du projet pour partage de contexte IA
+  (version lue en tête de `CHANGELOG.md`, profils `ia`/`full` + mode `lite`).
 - `extract_pk.py` : extrait les points kilométriques SNCF depuis un CSV brut
-  (script interactif, demande le chemin du fichier).
+  (streaming) → `data/csv/rail_pk.csv`.
+- `extract_pr.py` : extrait les PR IGN BD TOPO des corridors routiers →
+  `data/csv/road_pr.csv`.
+- `refine_corridors.py` : géométrie fine des corridors depuis une trace GPS
+  réelle → `data/csv/road_trace.csv` (consommé par le mode voiture).
 - `migrate_v2_to_v3.py` : migration one-off déjà appliquée, gardée pour
   référence (`--dry-run` disponible).
+
+> **Ne jamais lire les sources de `data/raw/` en entier** (30–109 Mo chacune) :
+> consulter d'abord le catalogue `data/raw/README.md`.
 
 ## État du projet / versionnage
 
@@ -137,10 +206,12 @@ Le versionnage suit [semver](https://semver.org/lang/fr/) strict (voir
 - **v2.1.0 → v2.4.1** — mode paysage (HUD), API WiFi train, éditeur revampé,
   bascule GPS/WiFi SNCF, carousel HUD, pont Scriptable iOS.
 
-Un chantier séparé (`dev/road-rail-route`, non mergé) ajoute un mode voiture,
-un mode hors-ligne (PWA), une suite de tests automatisés et un pipeline de
-données réelles (PK SNCF, corridors IGN) — voir le `CHANGELOG.md` propre à
-cette branche pour son détail.
+Un chantier séparé (`dev/road-rail-route`, cible `v3.0.0`, **non mergé sur
+`main`**) ajoute un mode voiture complet (HUD paysage, itinéraires aller/retour,
+secteurs, péages), un mode hors-ligne (PWA), une suite de tests automatisés et
+un pipeline de données réelles (PK SNCF, corridors IGN). Ses commits de travail
+ne bumpent pas le semver de `main` : la version ne sera consolidée en `v3.0.0`
+qu'à la validation/merge. Voir le `CHANGELOG.md` de cette branche pour le détail.
 
 ## Contribution
 

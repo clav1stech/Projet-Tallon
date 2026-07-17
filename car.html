@@ -62,6 +62,10 @@
                         <span id="car-leg">—</span>
                     </div>
                     <div class="car-stat-row">
+                        <span class="car-stat-label"><i class="fas fa-map"></i> Secteur</span>
+                        <span id="car-sector">—</span>
+                    </div>
+                    <div class="car-stat-row">
                         <span class="car-stat-label"><i class="fas fa-map-marker-alt"></i> Repère</span>
                         <span id="car-position">—</span>
                     </div>
@@ -86,6 +90,21 @@
             </div>
 
             <p id="car-info"></p>
+        </div>
+
+        <!-- HUD paysage : mêmes classes/ids que le HUD rail (styles.css les
+             cible de façon générique) ; la pilule retard est remplacée par la
+             pilule secteur, sans notion d'horaire. -->
+        <div id="landscape-hud" class="landscape-hud hidden">
+            <div class="hud-dashboard">
+                <div id="hud-speed"></div>
+                <canvas id="hud-speed-graph" width="160" height="40"></canvas>
+                <div id="hud-eta"></div>
+                <div id="hud-sector"></div>
+            </div>
+            <div class="hud-carousel">
+                <div id="hud-track-points"></div>
+            </div>
         </div>
     </div>
 

@@ -1,5 +1,79 @@
 # Changelog
 
+## v3.0.0 (dev) - 2026-07-17
+
+Branche : `dev/road-rail-route` (non mergée sur `main`). Travail en cours à
+consolider dans l'entrée `v3.0.0` au moment du merge/validation — pas de bump
+semver `main` tant que la branche n'est pas validée.
+
+### HUD paysage du mode voiture, itinéraires aller/retour, secteurs & péages
+
+Le mode voiture (`car.html`) gagne le tableau de bord paysage jusque-là
+réservé au rail, adapté à la route (pas d'horaire, pas de retard), et devient
+bidirectionnel. `CACHE_VERSION` bumpée (`tallon-v6`).
+
+#### Ajouts
+
+##### HUD paysage voiture (`js/car-ui.js`, `car.html`, `css/styles.css`)
+**Cas d'usage : au volant, un dashboard lisible en un coup d'œil comme le HUD TGV.**
+Réutilise le squelette visuel du HUD rail (mêmes classes/ids, mêmes styles)
+mais alimenté par les points de passage de l'itinéraire au lieu des gares :
+compteur de vitesse circulaire **calibré 150 km/h** (au lieu de 320), graphe
+de vitesse glissant, ETA (heure + durée restante + km restants), carousel
+vertical animé des sorties/échangeurs/ouvrages/péages. La pilule de retard du
+rail est remplacée par une **pilule « secteur »** (le mode voiture n'a pas
+d'horaire). Affiché automatiquement en rotation paysage (`updateCarHUD`).
+
+##### Icônes par type de point de passage (`js/car-ui.js`)
+**Cas d'usage : distinguer d'un coup d'œil une sortie d'un péage ou d'un tunnel.**
+Chaque waypoint porte une icône Font Awesome selon son type — `sortie`,
+`echangeur`, `viaduc`, `tunnel`, `peage`, `etape`, `depart`, `arrivee` — dans
+le widget portrait comme dans le carousel HUD (`waypointIconHtml`).
+
+##### Barrières de péage (`js/car-config.js`)
+**Cas d'usage : anticiper les arrêts au péage sur le trajet.**
+Ajout des péages Mâcon–Val de Saône (A406), Viry, Nangy et Cluses (A40),
+type `peage`. ⚠️ pk **interpolés entre sorties encadrantes, approximatifs** —
+à recaler sur trace GPS réelle (commenté dans la config).
+
+##### Secteurs géographiques (`js/car-config.js`, `findSector` dans `js/car-route.js`)
+**Cas d'usage : situer le trajet dans une région nommée, indépendamment du sens.**
+Secteurs A40 (Mâconnais, Bresse, Bugey/Titans, Bellegarde, Genevois, Arve,
+Mont-Blanc) déclarés en plages `pk` du corridor — donc **partagés aller/retour**
+sans duplication. `sector` (leg entier) sert de repli. Bornes indicatives à
+affiner à l'usage.
+
+##### Itinéraire retour Combloux → Mâcon (`js/car-config.js`, `js/car-route.js`)
+**Cas d'usage : suivre le trajet dans les deux sens depuis le même sélecteur.**
+Nouveau `reverse: true` par leg : un corridor tracé dans le sens aller est
+parcouru à rebours (géométrie de la chaussée aller, écart ~20 m avec la
+chaussée opposée sous la tolérance GPS). Les waypoints, pk et secteurs sont
+**partagés** entre les deux sens (aucune donnée dupliquée). Ajout de
+waypoints synthétiques de départ/arrivée (`origin`/`destination`).
+
+#### Corrections
+
+##### Icône « signal perdu » du HUD invisible (`js/ui.js`, `js/car-ui.js`)
+Le compteur affichait `fa-solid fa-signal-slash` (Font Awesome 6) alors que le
+projet charge Font Awesome **5** (`fas`) : l'icône ne s'affichait jamais quand
+la vitesse était jugée non fiable. Corrigé côté rail **et** voiture.
+
+#### Outillage
+
+##### fakeGeoSim : point de départ configurable (`js/fakeGeoSim.js`)
+**Cas d'usage : tester la fin d'un long trajet sans rejouer tout le début.**
+`START_OFFSET_KM` démarre la simulation à un kilométrage arbitraire le long de
+la route (temps simulé équivalent calculé par distance cumulée Haversine +
+interpolation dans `durationEffective`). `0` = comportement inchangé.
+Rappel : `ENABLE_FAKE_GPS`/`START_OFFSET_KM` toujours remis à `false`/`0`
+avant un commit poussé.
+
+##### Tests (`tests/carRoute.test.js`)
+Couverture ajoutée : legs `reverse` (points à rebours, pk décroissants, cumKm
+croissant, waypoints réordonnés, interaction avec `pkRange`), waypoints
+synthétiques `origin`/`destination`, et `findSector` (plages pk, repli, leg
+inconnu). Suite complète : 134 tests verts.
+
 ## v3.0.0 - 2026-07-08
 
 ### Données réelles branchées : PK SNCF, corridors A406/A40/D1212, catalogue data/raw

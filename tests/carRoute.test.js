@@ -3,7 +3,7 @@
 // waypoints manuels en une route unique, et calcul d'ETA.
 
 import { describe, it, expect } from 'vitest';
-import { buildCarRoute, computeEtaSeconds, DEFAULT_LEG_SPEED_KMH } from '../js/car-route.js';
+import { buildCarRoute, computeEtaSeconds, findSector, DEFAULT_LEG_SPEED_KMH } from '../js/car-route.js';
 
 // Mini corridor "autoroute" ouest-est + montée "points" vers le sud,
 // avec jonction confondue (dernier point corridor = premier waypoint).
@@ -189,6 +189,107 @@ describe('buildCarRoute — waypoints', () => {
         // ROUTE_CFG n'a pas de waypoints corridor mais des points nommés (étapes)
         expect(route.waypoints.every(w => w.type === 'etape')).toBe(true);
         expect(route.waypoints.map(w => w.name)).toEqual(['Mi-pente', 'Sommet']);
+    });
+});
+
+describe('buildCarRoute — reverse (trajet retour)', () => {
+    it('leg corridor reverse : points à rebours, pk décroissants, cumKm croissant', () => {
+        const cfg = {
+            legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', reverse: true }]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.points.map(p => p.pk)).toEqual([15, 10, 5, 0]);
+        for (let i = 1; i < route.cumKm.length; i++) {
+            expect(route.cumKm[i]).toBeGreaterThan(route.cumKm[i - 1]);
+        }
+    });
+
+    it('waypoints d\'un leg reverse : mêmes pk, routeKm mesuré depuis le nouveau départ', () => {
+        const cfg = {
+            legs: [{
+                type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', reverse: true,
+                waypoints: [
+                    { pk: 12.5, name: 'Sortie 1 – Test', type: 'sortie' },
+                    { pk: 2.5, name: 'Viaduc Test', type: 'viaduc' }
+                ]
+            }]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        // Ordre de parcours inversé : la sortie (pk 12.5) passe avant le viaduc (pk 2.5)
+        expect(route.waypoints.map(w => w.name)).toEqual(['Sortie 1 – Test', 'Viaduc Test']);
+        // pk 12.5 = milieu du 1er segment parcouru (pk 15 → 10)
+        expect(route.waypoints[0].routeKm).toBeCloseTo(route.cumKm[1] / 2, 5);
+        // pk 2.5 = milieu du dernier segment (pk 5 → 0)
+        expect(route.waypoints[1].routeKm).toBeCloseTo((route.cumKm[2] + route.cumKm[3]) / 2, 5);
+    });
+
+    it('reverse + pkRange : filtre appliqué avant inversion', () => {
+        const cfg = {
+            legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', pkRange: [5, 15], reverse: true }]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.points.map(p => p.pk)).toEqual([15, 10, 5]);
+    });
+});
+
+describe('buildCarRoute — origin/destination synthétiques', () => {
+    it('origin ajouté en tête quand aucun waypoint n\'occupe le départ', () => {
+        const cfg = {
+            origin: 'Départ Test',
+            legs: [{
+                type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40',
+                waypoints: [{ pk: 12.5, name: 'Sortie', type: 'sortie' }]
+            }]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.waypoints[0]).toMatchObject({ name: 'Départ Test', type: 'depart', routeKm: 0 });
+    });
+
+    it('destination ajoutée en queue ; pas de doublon si une étape existe déjà à l\'extrémité', () => {
+        const cfg = { ...ROUTE_CFG, origin: 'Départ Test', destination: 'Arrivée Test' };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.waypoints[0].type).toBe('depart');
+        // Le leg 'points' fournit déjà l'étape "Sommet" à totalKm : pas d'arrivée synthétique
+        expect(route.waypoints[route.waypoints.length - 1].name).toBe('Sommet');
+
+        const cfgDest = {
+            destination: 'Arrivée Test',
+            legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40' }]
+        };
+        const routeDest = buildCarRoute(cfgDest, DATASETS);
+        expect(routeDest.waypoints[routeDest.waypoints.length - 1])
+            .toMatchObject({ name: 'Arrivée Test', type: 'arrivee', routeKm: routeDest.totalKm });
+    });
+});
+
+describe('findSector', () => {
+    const cfg = {
+        legs: [
+            {
+                type: 'pk-corridor', label: 'A40',
+                sector: 'Repli',
+                sectors: [
+                    { name: 'Ouest', pkFrom: 0, pkTo: 7 },
+                    { name: 'Est', pkFrom: 7, pkTo: 15 }
+                ]
+            },
+            { type: 'points', label: 'Montée', sector: 'Sommital' }
+        ]
+    };
+
+    it('plage pk du leg corridor (indépendant du sens de parcours)', () => {
+        expect(findSector(cfg, 0, 3)).toBe('Ouest');
+        expect(findSector(cfg, 0, 12)).toBe('Est');
+    });
+
+    it('repli sur le secteur unique du leg : pk hors plage ou leg sans plages', () => {
+        expect(findSector(cfg, 0, 20)).toBe('Repli');
+        expect(findSector(cfg, 1, null)).toBe('Sommital');
+    });
+
+    it('leg inconnu ou sans secteur → null', () => {
+        expect(findSector(cfg, 5, 3)).toBeNull();
+        expect(findSector({ legs: [{ type: 'points' }] }, 0, null)).toBeNull();
     });
 });
 

@@ -17,7 +17,7 @@
 import { STATE } from './state.js';
 import { CAR_ROUTES } from './car-config.js';
 import { loadDataset, DatasetError } from './csv.js';
-import { buildCarRoute, computeEtaSeconds } from './car-route.js';
+import { buildCarRoute, computeEtaSeconds, findSector } from './car-route.js';
 import { createPositionEngine } from './position-engine.js';
 import {
     computeSegmentIndexAndDistance,
@@ -25,14 +25,16 @@ import {
     findNearestSegmentIndex
 } from './functions.js';
 import { geoErrorMessage } from './geo.js';
-import { populateCarRouteSelect, updateCarWidget, updateCarInfo } from './car-ui.js';
+import { populateCarRouteSelect, updateCarWidget, updateCarHUD, updateCarInfo } from './car-ui.js';
 
 const ARRIVAL_THRESHOLD_KM = 0.2;   // même seuil que le rail
 const MAX_CAR_SPEED_KMH = 150;
 const SPEED_HISTORY_MAX = 600;      // 10 min à 1 pt/s
 
 const CAR = {
-    route: null,            // { points, cumKm, totalKm, legs } (buildCarRoute)
+    route: null,            // { points, cumKm, totalKm, legs, waypoints } (buildCarRoute)
+    routeKey: null,         // clé CAR_ROUTES sélectionnée
+    routeCfg: null,         // entrée CAR_ROUTES (secteurs — findSector)
     lastSegmentIndex: null, // garde-fou séquentiel : ne recule jamais
     speedHistory: [],       // [{ v, reliable }] pour l'ETA
     arrived: false,
@@ -57,6 +59,8 @@ async function loadCarRoute(routeKey) {
     }
 
     CAR.route = buildCarRoute(cfg, datasetsById);
+    CAR.routeKey = routeKey;
+    CAR.routeCfg = cfg;
     CAR.lastSegmentIndex = null;
     CAR.speedHistory = [];
     CAR.arrived = false;
@@ -160,6 +164,9 @@ function onPosition(position) {
         }
     }
 
+    const sector = findSector(CAR.routeCfg, a?.legIndex, pk);
+    const etaSeconds = computeEtaSeconds(remainingKm, CAR.speedHistory);
+
     updateCarWidget({
         legLabel: a?.legLabel ?? '',
         pk,
@@ -171,7 +178,21 @@ function onPosition(position) {
         totalKm: CAR.route.totalKm,
         speedKmh,
         speedReliable,
-        etaSeconds: computeEtaSeconds(remainingKm, CAR.speedHistory),
+        etaSeconds,
+        sector,
+        arrived: CAR.arrived
+    });
+
+    updateCarHUD({
+        routeKey: CAR.routeKey,
+        waypoints: CAR.route.waypoints,
+        doneKm,
+        remainingKm,
+        speedKmh,
+        speedReliable,
+        speedHistory: CAR.speedHistory,
+        etaSeconds,
+        sector,
         arrived: CAR.arrived
     });
 
@@ -237,6 +258,11 @@ async function startTracking() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Le HUD paysage adapte ses tailles hors iPhone (mêmes classes que le rail).
+    const isIPhone = /iPhone/i.test(navigator.userAgent || '');
+    document.body.classList.toggle('iphone-device', isIPhone);
+    document.body.classList.toggle('non-iphone-device', !isIPhone);
+
     populateCarRouteSelect();
     const startBtn = document.getElementById('car-start-btn');
     if (startBtn) startBtn.addEventListener('click', startTracking);

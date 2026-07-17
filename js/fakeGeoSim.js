@@ -7,6 +7,7 @@ const ENABLE_FAKE_GPS = false
 // ----------------------
 
 import { STATE } from './state.js';
+import { haversineDistance } from './geo.js';
 
 (function () {
     if (!ENABLE_FAKE_GPS) {
@@ -17,16 +18,43 @@ import { STATE } from './state.js';
     console.log("🚀 Simulation GPS ACTIVÉE (ENABLE_FAKE_GPS = true).");
 
     // --- CONFIG ---
-    const SPEED_MULTIPLIER = 15;      // Facteur d'accélération global
+    const SPEED_MULTIPLIER = 10;      // Facteur d'accélération global
     const UPDATE_INTERVAL_MS = 1000; // Fréquence de mise à jour (ms)
+    // Point de départ de la simulation, en km parcourus le long de la route
+    // (STATE.currentRoute) plutôt qu'au tout début. 0 = comportement habituel.
+    const START_OFFSET_KM = 0;
 
     // Horloge de départ réinitialisable
     let START_TIME = Date.now();
 
+    // Temps simulé (secondes) équivalent à START_OFFSET_KM le long de la
+    // route courante : distance cumulée par tronçon (Haversine, comme
+    // buildEffectiveRoute/buildCarRoute), interpolé dans durationEffective.
+    function offsetKmToSeconds(route, offsetKm) {
+        if (!route || route.length < 2 || offsetKm <= 0) return 0;
+        let cumKm = 0;
+        let cumSeconds = 0;
+        for (let i = 0; i < route.length - 1; i++) {
+            const segKm = haversineDistance(route[i].lat, route[i].lon, route[i + 1].lat, route[i + 1].lon);
+            const segSeconds = Number(route[i].durationEffective ?? route[i].baseDurationToNext ?? 0);
+            if (offsetKm <= cumKm + segKm) {
+                const ratio = segKm > 0 ? (offsetKm - cumKm) / segKm : 0;
+                return cumSeconds + ratio * segSeconds;
+            }
+            cumKm += segKm;
+            cumSeconds += segSeconds;
+        }
+        return cumSeconds; // offsetKm au-delà de la route : juste avant l'arrivée
+    }
+
     // Fonction de reset appelée avant de démarrer le tracking
     function resetFakeGpsStartTime() {
-        START_TIME = Date.now();
-        console.log("⏱ Réinitialisation de l'horloge de simulation GPS (START_TIME remis à maintenant).");
+        const offsetSeconds = offsetKmToSeconds(STATE.currentRoute, START_OFFSET_KM);
+        START_TIME = Date.now() - (offsetSeconds / SPEED_MULTIPLIER) * 1000;
+        console.log(
+            `⏱ Réinitialisation de l'horloge de simulation GPS ` +
+            `(START_OFFSET_KM=${START_OFFSET_KM} → ${offsetSeconds.toFixed(0)}s de route simulée déjà écoulées).`
+        );
     }
 
     // On expose les paramètres au scope global pour app.js
