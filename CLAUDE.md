@@ -70,7 +70,7 @@
 
 ## Spécifique au projet : Projet-Tallon
 
-**Quoi** : suivi de trajet TGV en temps réel (position GPS ou WiFi SNCF) contre un horaire théorique, avec calcul de retard/avance (+ mode voiture : progression/ETA sans horaire). Application 100 % statique en vanilla JS (modules ES, aucun bundler), aucun backend.
+**Quoi** : suivi de trajet TGV en temps réel (position GPS ou WiFi SNCF) contre un horaire théorique, avec calcul de retard/avance (+ mode voiture : progression et distance restante sans horaire). Application 100 % statique en vanilla JS (modules ES, aucun bundler), aucun backend.
 
 **Architecture front** (voir aussi `CONVENTIONS.md`) :
 - `js/state.js` : état global unique (`STATE`), persistance `localStorage` des réglages utilisateur.
@@ -81,7 +81,7 @@
 - `js/routes-config.js` : `MAIN_ROUTES`, source unique des trajets proposés dans le sélecteur — consommée à la fois par `ui.js` (app) et `master-editor.js` (éditeur), donc toute route ajoutée ici apparaît automatiquement aux deux endroits.
 - `js/fakeGeoSim.js` : simulateur GPS pour le développement (désactivé par défaut, `ENABLE_FAKE_GPS = false`). Ne jamais l'activer dans un commit poussé.
 - `js/master-editor.js` + `master-editor.html` : éditeur visuel de `data/masterRoutes.normalized.json` (ajout/réordonnancement de points, export JSON). Les modifications n'écrivent jamais le fichier directement — export manuel puis remplacement.
-- `js/car-config.js`, `js/car-route.js`, `js/car-app.js`, `js/car-ui.js` + `car.html` : mode voiture (suivi Mâcon → Combloux), page autonome miroir du mode rail — corridors PR (A406/A40/D1212) + waypoints, progression + ETA, pas de notion d'horaire/retard.
+- `js/car-config.js`, `js/car-route.js`, `js/car-app.js`, `js/car-ui.js` + `car.html` : mode voiture (suivi Mâcon → Combloux), page autonome miroir du mode rail — corridors PR (A406/A40/D1212) + waypoints, progression + distance restante, pas de notion d'horaire/retard.
 
 **Données** :
 - `data/masterRoutes.normalized.json` (schéma v3) : dictionnaire global de points (`points`) + tableau de trajets (`trajets`), chaque trajet référence des points par id avec durée jusqu'au suivant et une `voie` (1 = Paris→Province, 2 = Province→Paris) qui détermine les coordonnées à utiliser aux bifurcations.

@@ -1,9 +1,9 @@
 // tests/carRoute.test.js
 // Route voiture hybride (js/car-route.js) : aplatissement corridor PK +
-// waypoints manuels en une route unique, et calcul d'ETA.
+// waypoints manuels en une route unique.
 
 import { describe, it, expect } from 'vitest';
-import { buildCarRoute, computeEtaSeconds, findSector, DEFAULT_LEG_SPEED_KMH } from '../js/car-route.js';
+import { buildCarRoute, findSector, DEFAULT_LEG_SPEED_KMH } from '../js/car-route.js';
 
 // Mini corridor "autoroute" ouest-est + montée "points" vers le sud,
 // avec jonction confondue (dernier point corridor = premier waypoint).
@@ -93,7 +93,7 @@ describe('buildCarRoute', () => {
         expect(route.points[5]).toMatchObject({ legIndex: 1, legLabel: 'Montée' });
     });
 
-    it('durationEffective dérivée de avgSpeedKmh (compat fakeGeoSim + ETA théorique)', () => {
+    it('durationEffective dérivée de avgSpeedKmh (compat fakeGeoSim)', () => {
         const segKm = route.cumKm[1] - route.cumKm[0];
         expect(route.points[0].durationEffective).toBeCloseTo((segKm / 120) * 3600, 1);
         expect(route.points[route.points.length - 1].durationEffective).toBe(0);
@@ -164,7 +164,7 @@ describe('buildCarRoute — waypoints', () => {
         expect(route.waypoints[0].routeKm).toBeCloseTo(route.cumKm[1] / 2, 5);
         expect(route.waypoints[0]).toMatchObject({
             type: 'viaduc', lengthM: 500, legIndex: 0,
-            sourceKey: 'corridor:mini-a40:Viaduc Test'
+            sourceKey: 'corridor:mini-a40:Viaduc Test:forward'
         });
         expect(route.waypoints[0].lat).toBeCloseTo(46.20);
         expect(route.waypoints[0].lon).toBeCloseTo(5.03);
@@ -209,7 +209,7 @@ describe('buildCarRoute — reverse (trajet retour)', () => {
         }
     });
 
-    it('waypoints d\'un leg reverse : mêmes pk, routeKm mesuré depuis le nouveau départ', () => {
+    it('waypoints d\'un leg reverse : PK commun par défaut, routeKm mesuré depuis le nouveau départ', () => {
         const cfg = {
             legs: [{
                 type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', reverse: true,
@@ -226,6 +226,27 @@ describe('buildCarRoute — reverse (trajet retour)', () => {
         expect(route.waypoints[0].routeKm).toBeCloseTo(route.cumKm[1] / 2, 5);
         // pk 2.5 = milieu du dernier segment (pk 5 → 0)
         expect(route.waypoints[1].routeKm).toBeCloseTo((route.cumKm[2] + route.cumKm[3]) / 2, 5);
+    });
+
+    it('utilise reversePk et les coordonnées retour quand ils sont fournis', () => {
+        const cfg = {
+            legs: [{
+                type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', reverse: true,
+                waypoints: [{
+                    pk: 2.5, reversePk: 12.5,
+                    lat: 46.2, lon: 5.03,
+                    reverseLat: 46.21, reverseLon: 5.15,
+                    name: 'Échangeur directionnel', type: 'echangeur'
+                }]
+            }]
+        };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(route.waypoints[0]).toMatchObject({
+            pk: 12.5,
+            lat: 46.21,
+            lon: 5.15,
+            sourceKey: 'corridor:mini-a40:Échangeur directionnel:reverse'
+        });
     });
 
     it('reverse + pkRange : filtre appliqué avant inversion', () => {
@@ -295,39 +316,5 @@ describe('findSector', () => {
     it('leg inconnu ou sans secteur → null', () => {
         expect(findSector(cfg, 5, 3)).toBeNull();
         expect(findSector({ legs: [{ type: 'points' }] }, 0, null)).toBeNull();
-    });
-});
-
-describe('computeEtaSeconds', () => {
-    const samples = (speeds, reliable = true) => speeds.map(v => ({ v, reliable }));
-
-    it('ETA = distance restante ÷ vitesse moyenne fiable', () => {
-        expect(computeEtaSeconds(60, samples([120, 120, 120]))).toBeCloseTo(1800);
-    });
-
-    it('plancher de vitesse (20 km/h) : pas d\'ETA infinie à l\'arrêt', () => {
-        expect(computeEtaSeconds(10, samples([0, 0, 5]))).toBeCloseTo((10 / 20) * 3600);
-    });
-
-    it('ignore les échantillons non fiables', () => {
-        const mixed = [...samples([100], true), ...samples([0, 0, 0], false)];
-        expect(computeEtaSeconds(100, mixed)).toBeCloseTo(3600);
-    });
-
-    it('aucun échantillon fiable → null (ETA inconnue, pas de mensonge)', () => {
-        expect(computeEtaSeconds(50, samples([100, 100], false))).toBeNull();
-        expect(computeEtaSeconds(50, [])).toBeNull();
-    });
-
-    it('ne considère que les maxSamples derniers échantillons (fenêtre glissante)', () => {
-        const old = samples(Array(200).fill(20));
-        const recent = samples(Array(120).fill(120));
-        expect(computeEtaSeconds(120, [...old, ...recent], { maxSamples: 120 })).toBeCloseTo(3600);
-    });
-
-    it('distance nulle → 0 ; distance invalide → null', () => {
-        expect(computeEtaSeconds(0, samples([100]))).toBe(0);
-        expect(computeEtaSeconds(NaN, samples([100]))).toBeNull();
-        expect(computeEtaSeconds(-5, samples([100]))).toBeNull();
     });
 });

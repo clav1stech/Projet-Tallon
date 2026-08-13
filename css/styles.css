@@ -1817,7 +1817,7 @@ body.tracking-active #hud-speed-graph {
     display: block;
 }
 
-/* ETA */
+/* Information principale du HUD (ETA rail, distance restante voiture) */
 #hud-eta {
     border-top: 1px solid var(--border);
     padding-top: 20px;
@@ -1891,15 +1891,6 @@ body.tracking-active #hud-speed-graph {
     display: none;
 }
 
-/* Sous-ligne de l'ETA voiture : durée restante + km restants */
-.hud-eta-sub {
-    display: block;
-    font-size: 0.85em;
-    font-weight: 600;
-    color: var(--text-muted);
-    margin-top: 3px;
-}
-
 /* Icône de type de waypoint (sortie, échangeur, viaduc, tunnel, péage…) —
    taille relative au texte pour suivre la hiérarchie du carousel. */
 .wp-icon {
@@ -1922,10 +1913,6 @@ body.tracking-active #hud-speed-graph {
         background: var(--primary);
         color: #fff;
         margin-top: 12px;
-    }
-
-    body.tracking-active .hud-eta-sub {
-        color: rgba(255, 255, 255, 0.65);
     }
 
     body.non-iphone-device.tracking-active #hud-sector {

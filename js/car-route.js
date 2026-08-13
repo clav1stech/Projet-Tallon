@@ -1,6 +1,6 @@
 // js/car-route.js
 // Construction de la route voiture hybride (corridor PK + waypoints manuels)
-// et calcul d'ETA. Logique PURE (pas de DOM, pas de fetch) → testable Vitest.
+// et calcul des distances. Logique PURE (pas de DOM, pas de fetch) → testable Vitest.
 //
 // Principe : les legs hétérogènes sont aplatis en UN SEUL tableau de points
 // {lat, lon, pk?, name?, legIndex} — le matching réutilise ensuite les
@@ -30,8 +30,8 @@ export const DEFAULT_LEG_SPEED_KMH = {
  *             waypoints: Array<{name:string, type:string, routeKm:number, legIndex:number, pk?:number, km?:number, lengthM?:number}> }}
  *   Chaque point porte : lat, lon, legIndex, legLabel, et selon le leg :
  *   pk + line (corridor) ou id + name (waypoints). `durationEffective`
- *   (secondes vers le point suivant) est calculée depuis avgSpeedKmh — elle
- *   alimente la simulation fakeGeoSim et l'ETA théorique de secours.
+ *   (secondes vers le point suivant) est calculée depuis avgSpeedKmh pour
+ *   alimenter la simulation fakeGeoSim.
  */
 export function buildCarRoute(routeCfg, datasetsById = {}) {
     if (!routeCfg || !Array.isArray(routeCfg.legs) || routeCfg.legs.length === 0) {
@@ -136,24 +136,30 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
 
         if (legCfg.type === 'pk-corridor' && Array.isArray(legCfg.waypoints)) {
             for (const wp of legCfg.waypoints) {
-                if (!wp || !Number.isFinite(wp.pk)) continue;
+                if (!wp) continue;
+                const waypointPk = legCfg.reverse && Number.isFinite(wp.reversePk)
+                    ? wp.reversePk
+                    : wp.pk;
+                if (!Number.isFinite(waypointPk)) continue;
                 for (let i = legMeta.startIdx; i < legMeta.endIdx; i++) {
                     const a = points[i];
                     const b = points[i + 1];
                     if (!Number.isFinite(a.pk) || !Number.isFinite(b.pk)) continue;
                     // Encadrement dans les deux sens : sur un leg `reverse`,
                     // les pk décroissent le long du parcours.
-                    if (wp.pk < Math.min(a.pk, b.pk) || wp.pk > Math.max(a.pk, b.pk)) continue;
-                    const ratio = b.pk !== a.pk ? (wp.pk - a.pk) / (b.pk - a.pk) : 0;
+                    if (waypointPk < Math.min(a.pk, b.pk) || waypointPk > Math.max(a.pk, b.pk)) continue;
+                    const ratio = b.pk !== a.pk ? (waypointPk - a.pk) / (b.pk - a.pk) : 0;
+                    const explicitLat = legCfg.reverse ? wp.reverseLat : wp.lat;
+                    const explicitLon = legCfg.reverse ? wp.reverseLon : wp.lon;
                     waypoints.push({
                         name: wp.name,
                         type: wp.type ?? 'sortie',
                         routeKm: cumKm[i] + ratio * (cumKm[i + 1] - cumKm[i]),
-                        lat: a.lat + ratio * (b.lat - a.lat),
-                        lon: a.lon + ratio * (b.lon - a.lon),
+                        lat: Number.isFinite(explicitLat) ? explicitLat : a.lat + ratio * (b.lat - a.lat),
+                        lon: Number.isFinite(explicitLon) ? explicitLon : a.lon + ratio * (b.lon - a.lon),
                         legIndex: legMeta.index,
                         sourceKey: waypointOverrideKey(legCfg, wp),
-                        pk: wp.pk,
+                        pk: waypointPk,
                         km: wp.km,
                         lengthM: wp.lengthM
                     });
@@ -226,27 +232,4 @@ export function findSector(routeCfg, legIndex, pk) {
         }
     }
     return leg.sector ?? null;
-}
-
-/**
- * ETA en secondes : distance restante ÷ vitesse moyenne glissante des
- * derniers échantillons fiables, avec un plancher pour éviter une ETA
- * infinie à l'arrêt (péage, feu rouge).
- * @param {number} remainingKm
- * @param {Array<{v:number, reliable:boolean}>} speedSamples - type STATE.speedHistory
- * @param {object} [opts] - { minSpeedKmh=20, maxSamples=120 }
- * @returns {number|null} secondes, ou null si aucun échantillon fiable
- */
-export function computeEtaSeconds(remainingKm, speedSamples, { minSpeedKmh = 20, maxSamples = 120 } = {}) {
-    if (!Number.isFinite(remainingKm) || remainingKm < 0) return null;
-    if (remainingKm === 0) return 0;
-
-    const reliable = (speedSamples || [])
-        .filter(s => s && s.reliable && Number.isFinite(s.v))
-        .slice(-maxSamples);
-    if (reliable.length === 0) return null;
-
-    const avg = reliable.reduce((sum, s) => sum + s.v, 0) / reliable.length;
-    const effectiveSpeed = Math.max(avg, minSpeedKmh);
-    return (remainingKm / effectiveSpeed) * 3600;
 }

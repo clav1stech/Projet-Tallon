@@ -21,21 +21,25 @@
 // la trace est celle de la chaussée aller — l'écart avec la chaussée opposée
 // (~20 m sur autoroute) reste largement sous la tolérance de matching GPS.
 //
-// `avgSpeedKmh` : vitesse indicative du leg, utilisée pour l'ETA théorique
-// de secours et pour la simulation fakeGeoSim (durées de segments).
+// `avgSpeedKmh` : vitesse indicative du leg utilisée par la simulation
+// fakeGeoSim pour calculer les durées de segments.
 //
 // `waypoints` (legs 'pk-corridor') : points de passage nommés le long du
 // corridor — sorties/échangeurs, ouvrages d'art (viaducs, tunnels) et
-// barrières de péage. Chaque entrée : { pk, km, name, type, lengthM? } où
+// barrières de péage. Chaque entrée contient `pk`, `name`, `type` et peut
+// contenir `reversePk`, `lat`/`lon`, `reverseLat`/`reverseLon`, `km` et
+// `lengthM` :
 // - `pk` est exprimé dans le référentiel pk_cum du corridor (comme pkRange) ;
+// - `reversePk` et les coordonnées `reverse*` décrivent la chaussée retour ;
 // - `km` est le kilométrage officiel de l'autoroute (= 204 − PR réel pour
 //   l'A40, la colonne `numero` de road_pr.csv), conservé pour documentation ;
-// - `type` ∈ 'sortie' | 'echangeur' | 'viaduc' | 'tunnel' | 'peage'.
+// - `type` ∈ 'sortie' | 'echangeur' | 'aire' | 'viaduc' | 'tunnel' | 'peage'.
 // Les pk sont interpolés entre les PR IGN du corridor (PR réel → pk_cum) et
 // ont été validés contre une trace GPS réelle du trajet (< 40 m d'écart hors
 // zones sans signal). Un waypoint hors du pkRange du leg est ignoré au build.
-// Les listes sont partagées entre l'aller et le retour (mêmes pk, mêmes
-// noms) — le sens de parcours est porté par `reverse`, pas par les données.
+// Les listes sont partagées entre l'aller et le retour. `reversePk` permet de
+// placer un repère différemment sur la chaussée retour lorsque les bretelles ou
+// les ouvrages ne sont pas au même niveau dans les deux sens.
 //
 // `sectors` / `sector` : secteurs géographiques affichés dans le HUD,
 // déclarés dans le référentiel pk du corridor (donc indépendants du sens de
@@ -66,52 +70,59 @@ export const CAR_TRACKING_CONFIG = Object.freeze({
 
 const A40_WAYPOINTS = [
     // Sorties et échangeurs (km officiels A40 : autoroutes.fr/WikiSara).
-    { pk: 7.98,   km: 8,   name: 'Sortie 3 – Replonges',                          type: 'sortie' },
-    { pk: 17.94,  km: 18,  name: 'Sortie 4 – St-Cyr / St-Genis-sur-Menthon',      type: 'sortie' },
-    { pk: 29.90,  km: 30,  name: 'Sortie 5 – Bourg-en-Bresse nord',               type: 'sortie' },
-    { pk: 36.93,  km: 37,  name: 'Échangeur A39 (Dijon)',                         type: 'echangeur' },
-    { pk: 39.94,  km: 40,  name: 'Sortie 6 – Viriat / Bourg centre',              type: 'sortie' },
-    { pk: 49.91,  km: 50,  name: 'Sortie 7 – Bourg-en-Bresse sud / Ceyzériat',    type: 'sortie' },
-    { pk: 59.21,  km: 60,  name: "Échangeur A42 (Pont-d'Ain, Lyon)",              type: 'echangeur' },
-    { pk: 79.54,  km: 81,  name: 'Sortie 8 – St-Martin-du-Fresne / A404 (Oyonnax)', type: 'sortie' },
-    { pk: 88.50,  km: 90,  name: 'Sortie 9 – Sylans / Nantua',                    type: 'sortie' },
-    { pk: 106.14, km: 108, name: 'Sortie 10 – Bellegarde-sur-Valserine',          type: 'sortie' },
-    { pk: 114.87, km: 117, name: 'Sortie 11 – Éloise / Frangy',                   type: 'sortie' },
-    { pk: 135.50, km: 138, name: 'Sortie 13 – Saint-Julien-en-Genevois',          type: 'sortie' },
-    { pk: 137.45, km: 140, name: 'Échangeur A41 (Annecy / Genève)',               type: 'echangeur' },
-    { pk: 140.38, km: 143, name: 'Sortie 13.1 – Archamps',                        type: 'sortie' },
-    { pk: 147.87, km: 151, name: 'Sortie 14 – Annemasse / A411 (Genève)',         type: 'sortie' },
-    { pk: 157.85, km: 161, name: 'Sortie 15 – La Vallée Verte',                   type: 'sortie' },
-    { pk: 166.81, km: 170, name: 'Sortie 16 – Bonneville ouest',                  type: 'sortie' },
-    { pk: 170.80, km: 174, name: 'Sortie 17 – Bonneville est',                    type: 'sortie' },
-    { pk: 179.73, km: 183, name: 'Sortie 18 – Scionzier',                         type: 'sortie' },
-    { pk: 184.67, km: 188, name: 'Sortie 19 – Cluses',                            type: 'sortie' },
+    { pk: 12.683879, name: 'Aire du Musée de la Bresse',                          type: 'aire' },
+    { pk: 26.67536,  km: 30,  name: 'Sortie 5 – Bourg-en-Bresse nord',             type: 'sortie' },
+    { pk: 33.353851, km: 37,  name: 'Échangeur A39 (Dijon)',                       type: 'echangeur' },
+    { pk: 36.792972, km: 40,  name: 'Sortie 6 – Viriat / Bourg centre',            type: 'sortie' },
+    { pk: 47.082784, km: 50,  name: 'Sortie 7 – Bourg-en-Bresse sud / Ceyzériat',  type: 'sortie' },
+    { pk: 57.08379,  km: 60,  name: "Échangeur A42 (Pont-d'Ain, Lyon)",            type: 'echangeur' },
+    { pk: 76.428129, km: 81,  name: 'Sortie 8 – St-Martin-du-Fresne / A404 (Oyonnax)', type: 'sortie' },
+    { pk: 86.338617, km: 90,  name: 'Sortie 9 – Sylans / Nantua',                  type: 'sortie' },
+    { pk: 102.812187, reversePk: 103.132725, km: 108, name: 'Sortie 10 – Bellegarde-sur-Valserine', type: 'sortie' },
+    { pk: 111.436518, reversePk: 111.777118, km: 117, name: 'Sortie 11 – Éloise / Frangy', type: 'sortie' },
+    { pk: 133.26425, reversePk: 133.628303, km: 138, name: 'Sortie 13 – Saint-Julien-en-Genevois', type: 'sortie' },
+    { pk: 134.037982, km: 140, name: 'Échangeur A41 (Annecy / Genève)',            type: 'echangeur' },
+    { pk: 135.394829, reversePk: 136.215904, km: 143, name: 'Sortie 13.1 – Archamps', type: 'sortie' },
+    { pk: 145.054929, reversePk: 145.946866, km: 151, name: 'Sortie 14 – Annemasse / A411 (Genève)', type: 'sortie' },
+    { pk: 153.583018, reversePk: 154.418716, km: 161, name: 'Sortie 15 – La Vallée Verte', type: 'sortie' },
+    {
+        pk: 156.095255,
+        reversePk: 156.954016,
+        lat: 46.12427410248318,
+        lon: 6.327460572775609,
+        reverseLat: 46.117774551373486,
+        reverseLon: 6.33344726330194,
+        name: 'Échangeur A40 / A410',
+        type: 'echangeur'
+    },
+    { pk: 162.959534, reversePk: 163.522618, km: 170, name: 'Sortie 16 – Bonneville ouest', type: 'sortie' },
+    { pk: 166.56239, reversePk: 167.633486, km: 174, name: 'Sortie 17 – Bonneville est', type: 'sortie' },
+    { pk: 180.210039, reversePk: 181.364191, km: 188, name: 'Sortie 19 – Cluses', type: 'sortie' },
     // pk constaté sur la trace GPS (début de bretelle), pas le
     // PR 6 théorique — voir le commentaire du pkRange.
-    { pk: 190.95, km: 198, name: 'Sortie 20 – Sallanches / Combloux / Megève',    type: 'sortie' },
-    // Barrières de péage pleine voie. pk interpolés entre les sorties
-    // encadrantes — positions approximatives, à recaler sur trace GPS.
-    { pk: 130.6,  km: 133, name: 'Péage de Viry',                     type: 'peage' },
-    { pk: 152.9,  km: 156, name: 'Péage de Nangy',                    type: 'peage' },
-    { pk: 182.7,  km: 186, name: 'Péage de Cluses',                   type: 'peage' },
+    { pk: 190.95, reversePk: 191.29068, km: 198, name: 'Sortie 20 – Sallanches / Combloux / Megève', type: 'sortie' },
+    // Barrières de péage pleine voie, recalées sur la carte.
+    { pk: 126.482059, km: 133, name: 'Péage de Viry',                  type: 'peage' },
+    { pk: 151.82457,  km: 156, name: 'Péage de Nangy',                 type: 'peage' },
+    { pk: 181.075832, reversePk: 181.048822, km: 186, name: 'Péage de Cluses', type: 'peage' },
     // Ouvrages d'art (km = 204 − PR ; le PR du tunnel de Chamoise
     // est recalé sur la géométrie réelle — sortie est du tunnel
     // juste avant le viaduc de Nantua, PR ≈ 120,5).
-    { pk: 64.07,  km: 65,  name: 'Viaduc de Poncin',                type: 'viaduc', lengthM: 566 },
-    { pk: 82.08,  km: 83.5, name: 'Tunnel de Chamoise',             type: 'tunnel', lengthM: 3300 },
-    { pk: 84.56,  km: 86,  name: 'Viaduc de Nantua',                type: 'viaduc', lengthM: 1003 },
-    { pk: 85.53,  km: 87,  name: 'Viaduc des Neyrolles',            type: 'viaduc', lengthM: 782 },
-    { pk: 88.50,  km: 90,  name: 'Viaduc des Glacières',            type: 'viaduc', lengthM: 214 },
-    { pk: 90.36,  km: 92,  name: 'Viaduc de Sylans',                type: 'viaduc', lengthM: 1266 },
-    { pk: 91.35,  km: 93,  name: 'Viaduc de Charix',                type: 'viaduc', lengthM: 542 },
-    { pk: 92.33,  km: 94,  name: 'Viaduc de Lalleyriat',            type: 'viaduc', lengthM: 194 },
-    { pk: 93.33,  km: 95,  name: 'Viaduc de Frébuge',               type: 'viaduc', lengthM: 439 },
-    { pk: 94.32,  km: 96,  name: 'Tunnel de Saint-Germain-de-Joux', type: 'tunnel', lengthM: 1196 },
-    { pk: 95.30,  km: 97,  name: 'Viaduc du Tacon',                 type: 'viaduc', lengthM: 322 },
-    { pk: 97.28,  km: 99,  name: 'Tunnel de Châtillon',             type: 'tunnel', lengthM: 720 },
-    { pk: 98.22,  km: 100, name: 'Viaduc de Châtillon',             type: 'viaduc', lengthM: 222 },
-    { pk: 105.14, km: 107, name: 'Viaduc de Bellegarde-sur-Valserine', type: 'viaduc', lengthM: 1040 },
-    { pk: 117.85, km: 120, name: 'Tunnel du Vuache',                type: 'tunnel', lengthM: 1400 }
+    { pk: 64.520013, km: 65,  name: 'Viaduc de Poncin',             type: 'viaduc', lengthM: 566 },
+    { pk: 80.137326, km: 83.5, name: 'Tunnel de Chamoise',          type: 'tunnel', lengthM: 3300 },
+    { pk: 83.407304, km: 86,  name: 'Viaduc de Nantua',             type: 'viaduc', lengthM: 1003 },
+    { pk: 84.106513, km: 87,  name: 'Viaduc des Neyrolles',         type: 'viaduc', lengthM: 782 },
+    { pk: 85.686236, km: 90,  name: 'Viaduc des Glacières',         type: 'viaduc', lengthM: 214 },
+    { pk: 87.587796, km: 92,  name: 'Viaduc de Sylans',             type: 'viaduc', lengthM: 1266 },
+    { pk: 89.402165, km: 93,  name: 'Viaduc de Charix',             type: 'viaduc', lengthM: 542 },
+    { pk: 92.33, reversePk: 92.618128, km: 94, name: 'Viaduc de Lalleyriat', type: 'viaduc', lengthM: 194 },
+    { pk: 92.728217, reversePk: 93.110861, km: 95, name: 'Viaduc de Frébuge', type: 'viaduc', lengthM: 439 },
+    { pk: 93.796719, reversePk: 95.088182, km: 96, name: 'Tunnel de Saint-Germain-de-Joux', type: 'tunnel', lengthM: 1196 },
+    { pk: 95.93598, reversePk: 96.196631, km: 97, name: 'Viaduc du Tacon', type: 'viaduc', lengthM: 322 },
+    { pk: 97.28, reversePk: 97.950133, km: 99, name: 'Tunnel de Châtillon', type: 'tunnel', lengthM: 720 },
+    { pk: 97.999383, reversePk: 98.430013, km: 100, name: 'Viaduc de Châtillon', type: 'viaduc', lengthM: 222 },
+    { pk: 105.14, reversePk: 106.229365, km: 107, name: 'Viaduc de Bellegarde-sur-Valserine', type: 'viaduc', lengthM: 1040 },
+    { pk: 117.142304, reversePk: 118.519803, km: 120, name: 'Tunnel du Vuache', type: 'tunnel', lengthM: 1400 }
 ];
 
 // Secteurs A40 (bornes pk_cum indicatives, à affiner à l'usage) :
@@ -129,9 +140,7 @@ const A40_SECTORS = [
 ];
 
 const A406_WAYPOINTS = [
-    // Barrière pleine voie du contournement sud de Mâcon. pk approximatif
-    // (mi-corridor), à recaler sur trace GPS.
-    { pk: 3.0, name: 'Péage Mâcon – Val de Saône', type: 'peage' }
+    { pk: 8.109835, name: 'Péage Mâcon – Val de Saône', type: 'peage' }
 ];
 
 // Descripteurs de datasets à charger (communs aux deux sens).
@@ -146,7 +155,7 @@ const MACON_COMBLOUX_DATASETS = [
 ];
 
 const COMBLOUX_POINTS = [
-    { id: 'COMBLOUX', name: 'Combloux (centre)', lat: 45.8968, lon: 6.6392 }
+    { id: 'COMBLOUX', name: 'Combloux (centre)', lat: 45.8903069, lon: 6.6419649 }
 ];
 
 export const CAR_ROUTES = {

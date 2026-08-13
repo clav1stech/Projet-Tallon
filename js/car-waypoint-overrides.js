@@ -2,13 +2,20 @@
 // la source de vérité ; l'éditeur cartographique produit une surcouche explicite,
 // partageable par export JSON et appliquée au chargement du mode voiture.
 
-export const CAR_WAYPOINT_OVERRIDES_STORAGE_KEY = 'tallon.carWaypointOverrides.v1';
+export const CAR_WAYPOINT_OVERRIDES_STORAGE_KEY = 'tallon.carWaypointOverrides.v2';
 
-export function waypointOverrideKey(leg, point) {
+function waypointBaseKey(leg, point) {
     if (leg?.type === 'pk-corridor') {
         return `corridor:${leg.datasetId || leg.label || 'route'}:${point?.name || 'sans-nom'}`;
     }
     return `point:${point?.id || point?.name || 'sans-id'}`;
+}
+
+export function waypointOverrideKey(leg, point) {
+    const base = waypointBaseKey(leg, point);
+    return leg?.type === 'pk-corridor'
+        ? `${base}:${leg.reverse ? 'reverse' : 'forward'}`
+        : base;
 }
 
 export function normalizeCarWaypointOverrides(value) {
@@ -31,6 +38,27 @@ export function normalizeCarWaypointOverrides(value) {
     return normalized;
 }
 
+/**
+ * Les exports v1 ne distinguaient pas les chaussées. Lors d'un import, leur
+ * sens est déduit de l'itinéraire actuellement sélectionné dans l'éditeur.
+ */
+export function migrateCarWaypointOverrides(value, routeCfg) {
+    const normalized = normalizeCarWaypointOverrides(value);
+    if (Number(value?.version) >= 2) return normalized;
+
+    const migrated = {};
+    for (const [key, correction] of Object.entries(normalized)) {
+        if (!key.startsWith('corridor:') || /:(forward|reverse)$/.test(key)) {
+            migrated[key] = correction;
+            continue;
+        }
+        const datasetId = key.split(':')[1];
+        const leg = routeCfg?.legs?.find(item => item.type === 'pk-corridor' && item.datasetId === datasetId);
+        migrated[`${key}:${leg?.reverse ? 'reverse' : 'forward'}`] = correction;
+    }
+    return migrated;
+}
+
 export function loadCarWaypointOverrides(storage = globalThis.localStorage) {
     try {
         const raw = storage?.getItem(CAR_WAYPOINT_OVERRIDES_STORAGE_KEY);
@@ -44,7 +72,7 @@ export function loadCarWaypointOverrides(storage = globalThis.localStorage) {
 export function saveCarWaypointOverrides(overrides, storage = globalThis.localStorage) {
     const normalized = normalizeCarWaypointOverrides(overrides);
     storage?.setItem(CAR_WAYPOINT_OVERRIDES_STORAGE_KEY, JSON.stringify({
-        version: 1,
+        version: 2,
         updatedAt: new Date().toISOString(),
         overrides: normalized
     }));
@@ -63,9 +91,22 @@ export function applyCarWaypointOverrides(routeCfg, overrides) {
                     ...leg,
                     waypoints: (leg.waypoints || []).map(wp => {
                         const correction = normalized[waypointOverrideKey(leg, wp)];
-                        return correction && Number.isFinite(correction.pk)
-                            ? { ...wp, pk: correction.pk }
-                            : { ...wp };
+                        if (!correction) return { ...wp };
+                        const corrected = { ...wp };
+                        if (Number.isFinite(correction.pk)) {
+                            if (leg.reverse) corrected.reversePk = correction.pk;
+                            else corrected.pk = correction.pk;
+                        }
+                        if (Number.isFinite(correction.lat) && Number.isFinite(correction.lon)) {
+                            if (leg.reverse) {
+                                corrected.reverseLat = correction.lat;
+                                corrected.reverseLon = correction.lon;
+                            } else {
+                                corrected.lat = correction.lat;
+                                corrected.lon = correction.lon;
+                            }
+                        }
+                        return corrected;
                     })
                 };
             }

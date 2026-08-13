@@ -49,27 +49,27 @@ pour l'historique complet.
 ## Mode voiture (`car.html`, branche `dev/road-rail-route`)
 
 Page autonome, miroir routier du mode rail : suivi d'un trajet Mâcon ⇄
-Combloux le long des corridors A406 / A40 / D1212, en **progression + ETA**
+Combloux le long des corridors A406 / A40 / D1212, en **progression + distance restante**
 (pas de notion d'horaire théorique ni de retard). Réutilise le cœur partagé
 avec le rail (fiabilité GPS, matching position → segment) mais avec une
 géométrie de corridor issue d'une trace GPS réelle et des données propres.
 
 - **Deux sens sélectionnables** : Mâcon → Combloux et Combloux → Mâcon depuis
   le même sélecteur. Les corridors sont tracés dans le sens aller et parcourus
-  à rebours au retour (`reverse`) ; waypoints, PK et secteurs sont partagés
-  entre les deux sens, sans duplication de données.
+  à rebours au retour (`reverse`) ; les repères et secteurs sont partagés sans
+  duplication, avec un PK retour distinct lorsque les deux chaussées divergent.
 - **HUD paysage** (rotation de l'écran) : compteur de vitesse circulaire
-  calibré pour la route (150 km/h), graphe de vitesse glissant, ETA (heure
-  d'arrivée + durée et distance restantes), et carousel vertical animé des
+  calibré pour la route (150 km/h), graphe de vitesse glissant, distance
+  restante, et carousel vertical animé des
   points de passage. À la place du badge de retard du rail, une **pilule de
   secteur géographique** (Mâconnais, Bresse, Bugey/Titans, Bellegarde,
   Genevois, Arve, Mont-Blanc).
-- **Points de passage typés** : sorties, échangeurs, viaducs, tunnels et
+- **Points de passage typés** : sorties, échangeurs, aires, viaducs, tunnels et
   barrières de péage (Val de Saône, Viry, Nangy, Cluses), chacun avec une
-  **icône** distincte dans le widget et le HUD.
-- **Progression le long de la route** : PK interpolé, distance à chaque
-  waypoint mesurée le long du corridor (et non à vol d'oiseau), ETA fondée sur
-  la vitesse moyenne glissante avec plancher anti-arrêt (péage, feu).
+  **icône** distincte dans le widget et le HUD. La longueur des ponts et tunnels
+  est visible dans la projection du trajet et dans l'éditeur cartographique.
+- **Progression le long de la route** : PK interpolé et distances restantes
+  mesurées le long du corridor (et non à vol d'oiseau).
 - **GPS routier réactif** : flux continu, vitesse native du téléphone quand
   elle est disponible et bascule rapide sur une icône tunnel. Pendant la perte
   de signal, le graphe prolonge la dernière vitesse connue en pointillés.
@@ -112,7 +112,7 @@ js/
                           partagée entre l'app et l'éditeur
   car-config.js           CAR_ROUTES — source unique des itinéraires voiture (aller/retour)
   car-route.js            Construction de la route voiture hybride (corridor PK +
-                          waypoints), secteurs, ETA — logique pure, testable
+                          waypoints), secteurs et distances — logique pure, testable
   car-ui.js               Rendu DOM voiture (widget, HUD paysage, icônes waypoints)
   car-app.js              Orchestration voiture (boucle de tracking, matching)
   car-waypoint-overrides.js Surcouche locale/exportable des corrections cartographiques

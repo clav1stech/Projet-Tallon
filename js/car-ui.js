@@ -1,7 +1,7 @@
 // js/car-ui.js
 // Rendu DOM du mode voiture (car.html). Volontairement séparé de ui.js :
 // la timeline/HUD du rail est centrée sur l'horaire théorique et le retard,
-// alors que le mode voiture affiche progression + ETA. Les styles CSS
+// alors que le mode voiture affiche progression + distance restante. Les styles CSS
 // (container, settings-panel, form-row, start-btn, tracking-widget) sont
 // réutilisés depuis css/styles.css.
 
@@ -12,6 +12,7 @@ import { formatPk } from './linearref.js';
 const WAYPOINT_ICONS = {
     sortie:    'fas fa-sign-out-alt',
     echangeur: 'fas fa-random',
+    aire:      'fas fa-parking',
     viaduc:    'fas fa-archway',
     tunnel:    'fas fa-mountain',
     peage:     'fas fa-euro-sign',
@@ -41,17 +42,9 @@ export function updateCarInfo(html) {
     if (el) el.innerHTML = html;
 }
 
-/**
- * Formate une durée en secondes : "1 h 05 min" / "12 min" / "< 1 min".
- */
-export function formatDuration(seconds) {
-    if (!Number.isFinite(seconds) || seconds < 0) return '—';
-    const totalMin = Math.round(seconds / 60);
-    if (totalMin < 1) return '< 1 min';
-    const h = Math.floor(totalMin / 60);
-    const min = totalMin % 60;
-    if (h === 0) return `${min} min`;
-    return `${h} h ${String(min).padStart(2, '0')} min`;
+export function formatRemainingDistance(km) {
+    if (!Number.isFinite(km) || km < 0) return '—';
+    return `${km.toFixed(1)} km`;
 }
 
 /**
@@ -69,7 +62,6 @@ export function formatDuration(seconds) {
  * @param {number}      data.speedKmh
  * @param {boolean}     data.speedReliable
  * @param {boolean}     data.gpsLost
- * @param {number|null} data.etaSeconds
  * @param {string|null} data.sector        - secteur géographique courant
  * @param {boolean}     data.arrived
  */
@@ -99,7 +91,7 @@ export function updateCarWidget(data) {
 
     setText('car-sector', data.sector || '—');
 
-    setText('car-km', `${data.doneKm.toFixed(1)} km / ${data.totalKm.toFixed(1)} km (reste ${data.remainingKm.toFixed(1)} km)`);
+    setText('car-km', `${data.doneKm.toFixed(1)} km / ${data.totalKm.toFixed(1)} km`);
     const speed = document.getElementById('car-speed');
     if (speed) {
         if (data.gpsLost) {
@@ -109,16 +101,7 @@ export function updateCarWidget(data) {
         }
     }
 
-    if (data.arrived) {
-        setText('car-eta', 'Arrivé');
-    } else if (data.etaSeconds != null) {
-        const etaDate = new Date(Date.now() + data.etaSeconds * 1000);
-        const hh = String(etaDate.getHours()).padStart(2, '0');
-        const mm = String(etaDate.getMinutes()).padStart(2, '0');
-        setText('car-eta', `${formatDuration(data.etaSeconds)} (${hh}:${mm})`);
-    } else {
-        setText('car-eta', '—');
-    }
+    setText('car-remaining', formatRemainingDistance(data.remainingKm));
 
     const bar = document.getElementById('car-progress-bar');
     if (bar && data.totalKm > 0) {
@@ -169,7 +152,7 @@ function carHudPointClass(i, currentIdx, wp) {
     else                           cls = 'hud-point future';
     // Bullseye pour les points "forts" (départ/arrivée, étapes, péages),
     // petit nœud plein pour le fil de la route (sorties, ouvrages).
-    if (wp && ['depart', 'arrivee', 'etape', 'peage'].includes(wp.type)) cls += ' stop';
+    if (wp && ['depart', 'arrivee', 'etape', 'peage', 'aire'].includes(wp.type)) cls += ' stop';
     return cls;
 }
 
@@ -184,7 +167,6 @@ function carHudPointClass(i, currentIdx, wp) {
  * @param {boolean}  data.speedReliable
  * @param {boolean}  data.gpsLost
  * @param {Array<{v:number, reliable:boolean}>} data.speedHistory
- * @param {number|null} data.etaSeconds
  * @param {string|null} data.sector
  * @param {boolean}  data.arrived
  */
@@ -266,29 +248,13 @@ export function updateCarHUD(data) {
         }
     }
 
-    // --- Dashboard : ETA + distance restante ---
-    const etaEl = document.getElementById('hud-eta');
-    if (etaEl) {
-        if (data.arrived) {
-            etaEl.innerHTML = `
-                <span class="hud-eta-label">ETA</span>
-                <span class="hud-eta-time">Arrivé</span>
-            `;
-        } else if (data.etaSeconds != null) {
-            const etaDate = new Date(Date.now() + data.etaSeconds * 1000);
-            const hh = String(etaDate.getHours()).padStart(2, '0');
-            const mm = String(etaDate.getMinutes()).padStart(2, '0');
-            etaEl.innerHTML = `
-                <span class="hud-eta-label">ETA</span>
-                <span class="hud-eta-time">${hh}:${mm}</span>
-                <span class="hud-eta-sub">${formatDuration(data.etaSeconds)} · reste ${data.remainingKm.toFixed(0)} km</span>
-            `;
-        } else {
-            etaEl.innerHTML = `
-                <span class="hud-eta-label">ETA</span>
-                <span class="hud-eta-time">—</span>
-            `;
-        }
+    // --- Dashboard : distance restante ---
+    const remainingEl = document.getElementById('hud-eta');
+    if (remainingEl) {
+        remainingEl.innerHTML = `
+            <span class="hud-eta-label">Restant</span>
+            <span class="hud-eta-time">${formatRemainingDistance(data.remainingKm)}</span>
+        `;
     }
 
     // --- Dashboard : pilule secteur ---
@@ -337,9 +303,10 @@ export function updateCarHUD(data) {
             div.className = carHudPointClass(i, currentIdx, wp);
             div.dataset.idx = i;
 
-            // Sous-ligne : km officiel de l'axe et/ou longueur de l'ouvrage.
+            // Sous-ligne : longueur de l'ouvrage uniquement. Le kilométrage
+            // officiel est hétérogène selon les concessions et ferait doublon
+            // avec la distance restante calculée le long du trajet.
             const meta = [];
-            if (Number.isFinite(wp.km)) meta.push(`km ${wp.km}`);
             if (Number.isFinite(wp.lengthM)) meta.push(`${wp.lengthM} m`);
 
             div.innerHTML = `

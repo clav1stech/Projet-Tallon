@@ -5,6 +5,7 @@ import { buildSegmentCandidate } from './functions.js';
 import {
     applyCarWaypointOverrides,
     loadCarWaypointOverrides,
+    migrateCarWaypointOverrides,
     normalizeCarWaypointOverrides,
     saveCarWaypointOverrides
 } from './car-waypoint-overrides.js';
@@ -29,7 +30,7 @@ function showStatus(message, type = '') {
 function markerIcon(wp) {
     const modified = wp.sourceKey && overrides[wp.sourceKey] ? ' modified' : '';
     const active = wp.sourceKey === activeKey ? ' active' : '';
-    const glyph = wp.type === 'tunnel' ? '🏔' : wp.type === 'viaduc' ? '⌢' : wp.type === 'peage' ? '€' : '●';
+    const glyph = wp.type === 'tunnel' ? '🏔' : wp.type === 'viaduc' ? '⌢' : wp.type === 'peage' ? '€' : wp.type === 'aire' ? 'P' : '●';
     return L.divIcon({
         className: `car-map-marker${modified}${active}`,
         html: `<span>${glyph}</span>`,
@@ -85,7 +86,8 @@ function drawRoute(fit = true) {
 
     for (const wp of currentRoute.waypoints.filter(item => item.sourceKey)) {
         const marker = L.marker([wp.lat, wp.lon], { draggable: true, icon: markerIcon(wp), title: wp.name }).addTo(map);
-        marker.bindPopup(`<strong>${wp.name}</strong><br>${wp.type}${Number.isFinite(wp.pk) ? `<br>PK ${wp.pk.toFixed(3)}` : ''}<br><small>Glissez pour corriger</small>`);
+        const length = Number.isFinite(wp.lengthM) ? `<br>Longueur : ${Math.round(wp.lengthM).toLocaleString('fr-FR')} m` : '';
+        marker.bindPopup(`<strong>${wp.name}</strong><br>${wp.type}${length}${Number.isFinite(wp.pk) ? `<br>PK ${wp.pk.toFixed(3)}` : ''}<br><small>Glissez pour corriger</small>`);
         marker.on('click', () => selectWaypoint(wp.sourceKey, false));
         marker.on('dragend', event => {
             moveWaypoint(wp, event.target).catch(error => showStatus(error.message, 'error'));
@@ -101,7 +103,11 @@ async function moveWaypoint(wp, marker) {
         const projection = nearestRouteProjection(dropped.lat, dropped.lng, currentRoute, wp.legIndex);
         if (!projection || !Number.isFinite(projection.pk)) return;
         marker.setLatLng([projection.lat, projection.lon]);
-        overrides[wp.sourceKey] = { pk: Number(projection.pk.toFixed(6)) };
+        overrides[wp.sourceKey] = {
+            pk: Number(projection.pk.toFixed(6)),
+            lat: Number(projection.lat.toFixed(7)),
+            lon: Number(projection.lon.toFixed(7))
+        };
     } else {
         overrides[wp.sourceKey] = {
             lat: Number(dropped.lat.toFixed(7)),
@@ -135,14 +141,17 @@ function renderList() {
         const isModified = Boolean(overrides[wp.sourceKey]);
         button.type = 'button';
         button.className = `car-point-item${wp.sourceKey === activeKey ? ' active' : ''}${isModified ? ' modified' : ''}`;
-        button.innerHTML = `<strong>${wp.name}</strong><span class="car-point-meta">${wp.type}${Number.isFinite(wp.pk) ? ` · PK ${wp.pk.toFixed(3)}` : ''}</span>`;
+        const length = Number.isFinite(wp.lengthM)
+            ? ` · ${Math.round(wp.lengthM).toLocaleString('fr-FR')} m`
+            : '';
+        button.innerHTML = `<strong>${wp.name}</strong><span class="car-point-meta">${wp.type}${length}${Number.isFinite(wp.pk) ? ` · PK ${wp.pk.toFixed(3)}` : ''}</span>`;
         button.addEventListener('click', () => selectWaypoint(wp.sourceKey));
         listEl.appendChild(button);
     }
 }
 
 function downloadOverrides() {
-    const payload = JSON.stringify({ version: 1, overrides: normalizeCarWaypointOverrides(overrides) }, null, 2);
+    const payload = JSON.stringify({ version: 2, overrides: normalizeCarWaypointOverrides(overrides) }, null, 2);
     const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -153,7 +162,7 @@ function downloadOverrides() {
 
 async function importOverrides(file) {
     const parsed = JSON.parse(await file.text());
-    overrides = normalizeCarWaypointOverrides(parsed);
+    overrides = migrateCarWaypointOverrides(parsed, CAR_ROUTES[routeSelect.value]);
     saveCarWaypointOverrides(overrides);
     await loadRoute(routeSelect.value, false);
     showStatus('Corrections importées et appliquées.', 'success');

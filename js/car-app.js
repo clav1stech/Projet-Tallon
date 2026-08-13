@@ -11,13 +11,13 @@
 //   un fallback cardinal serait faux par construction. Le repli en cas d'échec
 //   de matching est purement séquentiel : on reste sur le dernier index validé.
 //
-// Pas de notion d'horaire/retard : affichage progression + ETA (vitesse
-// moyenne glissante, plancher 20 km/h).
+// Pas de notion d'horaire/retard : affichage de la progression et de la
+// distance restante.
 
 import { STATE } from './state.js';
 import { CAR_ROUTES, CAR_TRACKING_CONFIG } from './car-config.js';
 import { loadDataset, DatasetError } from './csv.js';
-import { buildCarRoute, computeEtaSeconds, findSector } from './car-route.js';
+import { buildCarRoute, findSector } from './car-route.js';
 import { applyCarWaypointOverrides, loadCarWaypointOverrides } from './car-waypoint-overrides.js';
 import { createPositionEngine } from './position-engine.js';
 import { isGpsSignalStale } from './tracking.js';
@@ -34,7 +34,7 @@ const CAR = {
     routeKey: null,         // clé CAR_ROUTES sélectionnée
     routeCfg: null,         // entrée CAR_ROUTES (secteurs — findSector)
     lastSegmentIndex: null, // garde-fou séquentiel : ne recule jamais
-    speedHistory: [],       // [{ v, reliable }] pour l'ETA
+    speedHistory: [],       // [{ v, reliable }] pour le graphe du HUD
     arrived: false,
     watchId: null,
     freshnessInterval: null,
@@ -230,8 +230,6 @@ function onPosition(position) {
     }
 
     const sector = findSector(CAR.routeCfg, a?.legIndex, pk);
-    const etaSeconds = computeEtaSeconds(remainingKm, CAR.speedHistory);
-
     const renderData = {
         routeKey: CAR.routeKey,
         waypoints: CAR.route.waypoints,
@@ -247,7 +245,6 @@ function onPosition(position) {
         speedReliable,
         speedHistory: CAR.speedHistory,
         gpsLost: false,
-        etaSeconds,
         sector,
         arrived: CAR.arrived
     };

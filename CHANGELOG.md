@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.0.3 - 2026-08-14
+
+### Recalage des points de passage voiture
+
+- Intégration permanente des positions corrigées des exports cartographiques
+  A40/A406, avec des PK distincts pour les chaussées aller et retour.
+- Suppression du point Replonges, absent du trajet réel.
+- Suppression de la sortie 18 Scionzier, absente du trajet réel.
+- Remplacement de la sortie 4 par l'Aire du Musée de la Bresse, positionnée
+  au PK corrigé `12.683879` fourni par l'export.
+- Ajout de l'échangeur A40/A410 avec les coordonnées propres à chaque sens.
+- Ajout du type et de l'icône d'aire dans le widget, le HUD et la carte.
+- Affichage de la longueur des viaducs et tunnels dans la liste et les bulles
+  de l'éditeur, ainsi que dans la projection du trajet du HUD.
+- Les corrections de l'éditeur passent au format v2 et distinguent désormais
+  les deux sens de circulation ; un export v1 est affecté au sens sélectionné.
+- Remplacement de l'ETA voiture par la distance restante, seule valeur stable
+  et utile pendant le trajet.
+- Retrait du kilométrage officiel sous les points du carousel, incohérent entre
+  les sections autoroutières et redondant avec la distance restante.
+
 ## v3.0.2 - 2026-08-14
 
 ### Correctif de chargement de la carte
