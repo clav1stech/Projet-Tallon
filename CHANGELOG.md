@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.0.2 - 2026-08-14
+
+### Correctif de chargement de la carte
+
+- Correction de la signature d'intégrité du CSS Leaflet : Safari refusait
+  la feuille de style et affichait les tuiles sans positionnement.
+- Incrémentation du cache PWA pour forcer le rechargement de la page corrigée.
+
 ## v3.0.1 - 2026-08-14
 
 ### Mode voiture : GPS réactif, tunnels et éditeur cartographique
