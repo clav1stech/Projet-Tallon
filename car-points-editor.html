@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éditeur cartographique — points voiture</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIINfQ3ynhtnJy9KjMZb6oYaPBCM80aJQnM=" crossorigin="">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body { overflow: hidden; }
+        .car-map-editor {
+            display: grid;
+            grid-template-columns: minmax(310px, 390px) 1fr;
+            height: 100vh;
+            background: #111418;
+        }
+        .car-map-sidebar {
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--surface, #fff);
+            color: var(--text-main, #222);
+            box-shadow: 3px 0 18px rgba(0, 0, 0, 0.2);
+            z-index: 500;
+        }
+        .car-map-sidebar h1 { margin: 0 0 8px; font-size: 1.45rem; }
+        .car-map-sidebar .editor-hint { margin: 0 0 16px; color: var(--text-muted, #666); line-height: 1.45; }
+        .car-map-toolbar { display: grid; gap: 10px; margin-bottom: 14px; }
+        .car-map-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .car-map-actions .btn { flex: 1 1 120px; }
+        #car-map { min-height: 100vh; width: 100%; }
+        #car-editor-status { min-height: 1.4em; margin: 8px 0 14px; color: var(--text-muted, #666); }
+        #car-editor-status.success { color: #228b4b; }
+        #car-editor-status.error { color: #c43d3d; }
+        .car-point-list { display: grid; gap: 7px; }
+        .car-point-item {
+            border: 1px solid rgba(120, 120, 120, 0.25);
+            border-radius: 9px;
+            padding: 9px 10px;
+            background: rgba(120, 120, 120, 0.06);
+            cursor: pointer;
+            text-align: left;
+        }
+        .car-point-item:hover, .car-point-item.active { border-color: #b84e61; background: rgba(184, 78, 97, 0.12); }
+        .car-point-item strong { display: block; }
+        .car-point-meta { display: block; margin-top: 3px; font-size: 0.8em; color: var(--text-muted, #666); }
+        .car-point-item.modified .car-point-meta::after { content: ' · modifié'; color: #b84e61; font-weight: 700; }
+        .car-map-marker { background: transparent; border: 0; }
+        .car-map-marker span {
+            display: grid; place-items: center; width: 28px; height: 28px;
+            border: 3px solid #fff; border-radius: 50%; background: #b84e61; color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .4); font-size: 12px;
+        }
+        .car-map-marker.modified span { background: #f0a13c; }
+        .car-map-marker.active span { width: 34px; height: 34px; margin: -3px; background: #2c7be5; }
+        .leaflet-popup-content { line-height: 1.4; }
+        @media (max-width: 760px) {
+            body { overflow: auto; }
+            .car-map-editor { display: flex; flex-direction: column; height: auto; }
+            .car-map-sidebar { max-height: 48vh; order: 2; }
+            #car-map { min-height: 52vh; order: 1; }
+        }
+    </style>
+</head>
+<body>
+    <main class="car-map-editor">
+        <aside class="car-map-sidebar">
+            <h1>Points du mode voiture</h1>
+            <p class="editor-hint">Faites glisser un repère. Les sorties, tunnels et ouvrages sont automatiquement recollés au point le plus proche du tracé.</p>
+
+            <div class="car-map-toolbar">
+                <label for="car-editor-route"><i class="fas fa-route"></i> Itinéraire</label>
+                <select id="car-editor-route"></select>
+                <div class="car-map-actions">
+                    <button id="car-editor-save" class="btn primary">Appliquer</button>
+                    <button id="car-editor-export" class="btn">Exporter JSON</button>
+                    <button id="car-editor-import" class="btn">Importer JSON</button>
+                    <button id="car-editor-reset" class="btn secondary">Annuler les corrections</button>
+                </div>
+                <input id="car-editor-import-file" type="file" accept="application/json,.json" hidden>
+            </div>
+
+            <div id="car-editor-status" role="status"></div>
+            <div id="car-point-list" class="car-point-list"></div>
+        </aside>
+        <div id="car-map" aria-label="Carte des points de passage voiture"></div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script type="module" src="js/car-points-editor.js"></script>
+</body>
+</html>

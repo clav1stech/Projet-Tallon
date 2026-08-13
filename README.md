@@ -70,6 +70,12 @@ géométrie de corridor issue d'une trace GPS réelle et des données propres.
 - **Progression le long de la route** : PK interpolé, distance à chaque
   waypoint mesurée le long du corridor (et non à vol d'oiseau), ETA fondée sur
   la vitesse moyenne glissante avec plancher anti-arrêt (péage, feu).
+- **GPS routier réactif** : flux continu, vitesse native du téléphone quand
+  elle est disponible et bascule rapide sur une icône tunnel. Pendant la perte
+  de signal, le graphe prolonge la dernière vitesse connue en pointillés.
+- **Éditeur cartographique** (`car-points-editor.html`) : visualisation du
+  tracé et des points de passage sur OpenStreetMap, déplacement par glisser,
+  recalage automatique sur la route, application locale et export/import JSON.
 
 Les données d'itinéraire vivent dans `js/car-config.js` (source unique,
 comme `routes-config.js` pour le rail) ; toute route ou tout point de passage
@@ -83,6 +89,7 @@ Application 100 % statique, sans backend ni build (modules ES natifs
 ```
 index.html              Page principale rail (sélection trajet + timeline + HUD)
 car.html                 Page mode voiture (Mâcon ⇄ Combloux, HUD paysage)
+car-points-editor.html   Carte de contrôle et correction des points voiture
 master-editor.html       Éditeur visuel des trajets (data/masterRoutes.normalized.json)
 css/styles.css           Tous les styles (dont HUD paysage rail + voiture, responsive)
 sw.js                    Service worker : cache hors-ligne (stale-while-revalidate)
@@ -108,6 +115,8 @@ js/
                           waypoints), secteurs, ETA — logique pure, testable
   car-ui.js               Rendu DOM voiture (widget, HUD paysage, icônes waypoints)
   car-app.js              Orchestration voiture (boucle de tracking, matching)
+  car-waypoint-overrides.js Surcouche locale/exportable des corrections cartographiques
+  car-points-editor.js    Carte interactive et recalage des repères sur le corridor
   master-editor.js        Logique de master-editor.html
   fakeGeoSim.js           Simulateur GPS pour le développement (désactivé par défaut,
                           multiplicateur de vitesse + point de départ configurables)

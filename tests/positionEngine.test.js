@@ -113,4 +113,41 @@ describe('createPositionEngine — vitesse', () => {
         const r = engine.process(fix(46.0, 5.0, { speed: 150 }), T0);
         expect(r.speedKmh).toBeCloseTo(10);
     });
+
+    it('profil voiture : convertit les m/s et suit immédiatement la vitesse GPS native', () => {
+        const engine = createPositionEngine({
+            trustReportedSpeed: true,
+            reportedSpeedMultiplier: 3.6,
+            filterReportedSpeed: false,
+            maxSpeedKmh: 160
+        });
+        engine.process(fix(46.0, 5.0, { speed: 5 }), T0);
+        const r = engine.process(fix(46.0002, 5.0, { speed: 30 }), T0 + 1000);
+        expect(r.speedKmh).toBeCloseTo(108);
+    });
+
+    it('peut exclure la vitesse native du diviseur de simulation', () => {
+        const engine = createPositionEngine({
+            trustReportedSpeed: true,
+            reportedSpeedMultiplier: 3.6,
+            divideReportedSpeed: false,
+            speedDivisor: () => 10
+        });
+        const r = engine.process(fix(46.0, 5.0, { speed: 30 }), T0);
+        expect(r.speedKmh).toBeCloseTo(108);
+    });
+
+    it('retombe sur les positions quand coords.speed vaut null', () => {
+        const engine = createPositionEngine({
+            trustReportedSpeed: true,
+            reportedSpeedMultiplier: 3.6,
+            historySize: 3,
+            speedSpikeStepKmh: 35,
+            speedSpikeThresholdKmh: 20
+        });
+        engine.process(fix(46.0, 5.0, { speed: null }), T0);
+        const r = engine.process(fix(46.0 + STEP_108_KMH, 5.0, { speed: null }), T0 + 1000);
+        expect(r.speedReliable).toBe(true);
+        expect(r.speedKmh).toBeGreaterThan(30);
+    });
 });

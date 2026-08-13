@@ -12,6 +12,7 @@
 
 import { haversineDistance } from './geo.js';
 import { buildCorridor } from './linearref.js';
+import { waypointOverrideKey } from './car-waypoint-overrides.js';
 
 // Vitesses indicatives par type de leg si `avgSpeedKmh` absent de la config.
 export const DEFAULT_LEG_SPEED_KMH = {
@@ -148,7 +149,10 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
                         name: wp.name,
                         type: wp.type ?? 'sortie',
                         routeKm: cumKm[i] + ratio * (cumKm[i + 1] - cumKm[i]),
+                        lat: a.lat + ratio * (b.lat - a.lat),
+                        lon: a.lon + ratio * (b.lon - a.lon),
                         legIndex: legMeta.index,
+                        sourceKey: waypointOverrideKey(legCfg, wp),
                         pk: wp.pk,
                         km: wp.km,
                         lengthM: wp.lengthM
@@ -163,7 +167,10 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
                     name: points[i].name,
                     type: 'etape',
                     routeKm: cumKm[i],
-                    legIndex: legMeta.index
+                    lat: points[i].lat,
+                    lon: points[i].lon,
+                    legIndex: legMeta.index,
+                    sourceKey: waypointOverrideKey(legCfg, points[i])
                 });
             }
         }
@@ -175,10 +182,24 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
     // 'points' terminal fournit déjà l'étape d'arrivée).
     const totalKm = cumKm[cumKm.length - 1];
     if (routeCfg.origin && !(waypoints.length && waypoints[0].routeKm < 0.2)) {
-        waypoints.unshift({ name: routeCfg.origin, type: 'depart', routeKm: 0, legIndex: points[0].legIndex });
+        waypoints.unshift({
+            name: routeCfg.origin,
+            type: 'depart',
+            routeKm: 0,
+            lat: points[0].lat,
+            lon: points[0].lon,
+            legIndex: points[0].legIndex
+        });
     }
     if (routeCfg.destination && !(waypoints.length && totalKm - waypoints[waypoints.length - 1].routeKm < 0.2)) {
-        waypoints.push({ name: routeCfg.destination, type: 'arrivee', routeKm: totalKm, legIndex: points[points.length - 1].legIndex });
+        waypoints.push({
+            name: routeCfg.destination,
+            type: 'arrivee',
+            routeKm: totalKm,
+            lat: points[points.length - 1].lat,
+            lon: points[points.length - 1].lon,
+            legIndex: points[points.length - 1].legIndex
+        });
     }
 
     return { points, cumKm, totalKm, legs, waypoints };

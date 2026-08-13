@@ -68,6 +68,7 @@ export function formatDuration(seconds) {
  * @param {number}      data.totalKm
  * @param {number}      data.speedKmh
  * @param {boolean}     data.speedReliable
+ * @param {boolean}     data.gpsLost
  * @param {number|null} data.etaSeconds
  * @param {string|null} data.sector        - secteur géographique courant
  * @param {boolean}     data.arrived
@@ -99,7 +100,14 @@ export function updateCarWidget(data) {
     setText('car-sector', data.sector || '—');
 
     setText('car-km', `${data.doneKm.toFixed(1)} km / ${data.totalKm.toFixed(1)} km (reste ${data.remainingKm.toFixed(1)} km)`);
-    setText('car-speed', `${Math.round(data.speedKmh)} km/h${data.speedReliable ? '' : ' (?)'}`);
+    const speed = document.getElementById('car-speed');
+    if (speed) {
+        if (data.gpsLost) {
+            speed.innerHTML = '<span class="car-tunnel-status"><i class="fas fa-mountain" aria-hidden="true"></i> Tunnel</span>';
+        } else {
+            speed.textContent = `${Math.round(data.speedKmh)} km/h${data.speedReliable ? '' : ' (?)'}`;
+        }
+    }
 
     if (data.arrived) {
         setText('car-eta', 'Arrivé');
@@ -174,6 +182,7 @@ function carHudPointClass(i, currentIdx, wp) {
  * @param {number}   data.remainingKm
  * @param {number}   data.speedKmh
  * @param {boolean}  data.speedReliable
+ * @param {boolean}  data.gpsLost
  * @param {Array<{v:number, reliable:boolean}>} data.speedHistory
  * @param {number|null} data.etaSeconds
  * @param {string|null} data.sector
@@ -185,7 +194,15 @@ export function updateCarHUD(data) {
     // --- Dashboard : compteur ---
     const speedEl = document.getElementById('hud-speed');
     if (speedEl) {
-        if (!data.speedReliable) {
+        if (data.gpsLost) {
+            speedEl.style.setProperty('--speed-deg', '0deg');
+            speedEl.innerHTML = `
+                <span class="hud-speed-value hud-tunnel-icon" title="Signal GPS perdu — tunnel probable">
+                    <i class="fas fa-mountain" aria-hidden="true"></i>
+                </span>
+                <span class="hud-speed-unit">tunnel</span>
+            `;
+        } else if (!data.speedReliable) {
             speedEl.style.setProperty('--speed-deg', '0deg');
             speedEl.innerHTML = `<span class="hud-speed-value"><i class="fas fa-signal-slash"></i></span>`;
         } else {

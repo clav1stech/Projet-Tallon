@@ -6,12 +6,25 @@ import {
     medianStepSpeed,
     noiseFloorKmh,
     filterSpeedSpike,
+    isGpsSignalStale,
     MAX_ACCEPTABLE_ACCURACY_M,
     ACCURACY_OVERRIDE_MS,
     TELEPORT_MAX_REJECTIONS
 } from '../js/tracking.js';
 
 const T0 = 1_700_000_000_000;
+
+describe('isGpsSignalStale — fraîcheur du flux', () => {
+    it('bascule à la limite configurée depuis le dernier fix', () => {
+        expect(isGpsSignalStale(T0, T0 - 10_000, T0 + 2499, 2500)).toBe(false);
+        expect(isGpsSignalStale(T0, T0 - 10_000, T0 + 2500, 2500)).toBe(true);
+    });
+
+    it("surveille aussi l'attente du tout premier fix", () => {
+        expect(isGpsSignalStale(0, T0, T0 + 3000, 2500)).toBe(true);
+        expect(isGpsSignalStale(0, 0, T0 + 3000, 2500)).toBe(false);
+    });
+});
 
 describe('shouldAcceptAccuracy — filtre de précision', () => {
     it('accepte un fix précis (GPS natif en plaine)', () => {
@@ -159,5 +172,9 @@ describe('filterSpeedSpike — anti-pic (comportement historique)', () => {
 
     it('limite une chute à -2 km/h par tick', () => {
         expect(filterSpeedSpike(300, 0)).toBe(298);
+    });
+
+    it('accepte un profil de réponse plus rapide', () => {
+        expect(filterSpeedSpike(50, 120, { thresholdKmh: 20, stepKmh: 35 })).toBe(85);
     });
 });

@@ -47,6 +47,23 @@
 
 // --- Données partagées aller/retour ---
 
+// Le GPS routier fournit normalement un flux continu et une vitesse native.
+// Le profil voiture privilégie donc la fraîcheur ; le lissage long reste
+// réservé au rail, où les sources sont plus irrégulières.
+export const CAR_TRACKING_CONFIG = Object.freeze({
+    maxSpeedKmh: 160,
+    positionHistorySize: 3,
+    speedSpikeThresholdKmh: 20,
+    speedSpikeStepKmh: 35,
+    gpsLostAfterMs: 2500,
+    freshnessCheckMs: 500,
+    lostGraphSampleMs: 1000,
+    geolocationTimeoutMs: 5000,
+    geolocationMaximumAgeMs: 500,
+    speedHistoryMax: 600,
+    arrivalThresholdKm: 0.2
+});
+
 const A40_WAYPOINTS = [
     // Sorties et échangeurs (km officiels A40 : autoroutes.fr/WikiSara).
     { pk: 7.98,   km: 8,   name: 'Sortie 3 – Replonges',                          type: 'sortie' },

@@ -20,6 +20,17 @@ export const TELEPORT_THRESHOLD_KMH = 2000;
 export const TELEPORT_MAX_REJECTIONS = 3;
 
 /**
+ * Signale qu'aucun fix n'est arrivé dans la fenêtre attendue. Le timestamp
+ * de démarrage couvre l'attente du tout premier fix.
+ */
+export function isGpsSignalStale(lastFixAt, trackingStartedAt, nowTs, thresholdMs) {
+    const reference = Number(lastFixAt) || Number(trackingStartedAt);
+    if (!Number.isFinite(reference) || reference <= 0) return false;
+    if (!Number.isFinite(nowTs) || !Number.isFinite(thresholdMs) || thresholdMs < 0) return false;
+    return nowTs - reference >= thresholdMs;
+}
+
+/**
  * Décide si un fix GPS doit être accepté au vu de sa précision.
  * - Une précision non renseignée (WiFi SNCF, bridge) est acceptée.
  * - Un fix imprécis est rejeté, SAUF si aucun fix n'a été accepté depuis
@@ -126,12 +137,15 @@ export function noiseFloorKmh(accuracyMeters, windowSeconds) {
  * ticks, la vitesse évolue par pas de 2 km/h dans la direction du delta.
  * @param {number} prevSpeed
  * @param {number} nextSpeed
+ * @param {object} [opts] - { thresholdKmh=5, stepKmh=2 }
  * @returns {number}
  */
-export function filterSpeedSpike(prevSpeed, nextSpeed) {
+export function filterSpeedSpike(prevSpeed, nextSpeed, opts = {}) {
+    const thresholdKmh = opts.thresholdKmh ?? 5;
+    const stepKmh = opts.stepKmh ?? 2;
     const delta = nextSpeed - prevSpeed;
-    if (Math.abs(delta) > 5) {
-        return prevSpeed + Math.sign(delta) * 2;
+    if (Math.abs(delta) > thresholdKmh) {
+        return prevSpeed + Math.sign(delta) * stepKmh;
     }
     return nextSpeed;
 }

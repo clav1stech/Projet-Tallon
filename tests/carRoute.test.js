@@ -162,7 +162,12 @@ describe('buildCarRoute — waypoints', () => {
         expect(route.waypoints.map(w => w.name)).toEqual(['Viaduc Test', 'Sortie 1 – Test', 'Sommet']);
         // pk 2.5 = milieu du 1er segment (pk 0 → 5) : routeKm = cumKm[1] / 2
         expect(route.waypoints[0].routeKm).toBeCloseTo(route.cumKm[1] / 2, 5);
-        expect(route.waypoints[0]).toMatchObject({ type: 'viaduc', lengthM: 500, legIndex: 0 });
+        expect(route.waypoints[0]).toMatchObject({
+            type: 'viaduc', lengthM: 500, legIndex: 0,
+            sourceKey: 'corridor:mini-a40:Viaduc Test'
+        });
+        expect(route.waypoints[0].lat).toBeCloseTo(46.20);
+        expect(route.waypoints[0].lon).toBeCloseTo(5.03);
         // pk 12.5 = milieu du segment pk 10 → 15
         expect(route.waypoints[1].routeKm).toBeCloseTo((route.cumKm[2] + route.cumKm[3]) / 2, 5);
         // La jonction dédupliquée n'apparaît pas ; le point nommé restant devient une étape.

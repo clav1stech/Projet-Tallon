@@ -26,6 +26,9 @@ import {
  * @param {object} [opts]
  * @param {number}   [opts.maxSpeedKmh=350]        - clamp de vitesse (350 rail, ~150 voiture)
  * @param {boolean}  [opts.trustReportedSpeed=false] - utiliser coords.speed si fourni (WiFi SNCF)
+ * @param {number}   [opts.reportedSpeedMultiplier=1] - conversion de coords.speed vers km/h
+ * @param {boolean}  [opts.filterReportedSpeed=true]  - appliquer l'anti-pic à la vitesse fournie
+ * @param {boolean}  [opts.divideReportedSpeed=true]  - appliquer speedDivisor à la vitesse fournie
  * @param {Function} [opts.speedDivisor]           - () => facteur de division de la vitesse
  *                                                   (simulation fakeGeoSim : positions accélérées ×N)
  * @param {number}   [opts.historySize=10]         - taille de l'historique de positions (s à 1 pt/s)
@@ -33,11 +36,16 @@ import {
  * @param {number}   [opts.overrideMs]             - override du mode dégradé (tracking.js)
  * @param {number}   [opts.teleportThresholdKmh]   - override du seuil anti-téléportation
  * @param {number}   [opts.teleportMaxRejections]  - override du nb de rejets avant ré-ancrage
+ * @param {number}   [opts.speedSpikeThresholdKmh] - écart toléré avant limitation de variation
+ * @param {number}   [opts.speedSpikeStepKmh]      - variation maximale par fix au-delà du seuil
  * @returns {{ process: Function, reset: Function }}
  */
 export function createPositionEngine(opts = {}) {
     const maxSpeedKmh = opts.maxSpeedKmh ?? 350;
     const trustReportedSpeed = opts.trustReportedSpeed ?? false;
+    const reportedSpeedMultiplier = opts.reportedSpeedMultiplier ?? 1;
+    const filterReportedSpeed = opts.filterReportedSpeed ?? true;
+    const divideReportedSpeed = opts.divideReportedSpeed ?? true;
     const speedDivisor = opts.speedDivisor ?? (() => 1);
     const historySize = opts.historySize ?? 10;
     const accuracyOpts = { maxAccuracyM: opts.maxAccuracyM, overrideMs: opts.overrideMs };
@@ -100,10 +108,12 @@ export function createPositionEngine(opts = {}) {
         }
 
         // 4. Vitesse : directe (si source de confiance) ou médiane + plancher de bruit
-        const reportedSpeed = Number(position.coords.speed);
-        const hasDirectSpeed = trustReportedSpeed && Number.isFinite(reportedSpeed) && reportedSpeed >= 0;
+        const rawReportedSpeed = position.coords.speed;
+        const reportedSpeed = Number(rawReportedSpeed);
+        const hasDirectSpeed = trustReportedSpeed && rawReportedSpeed != null && rawReportedSpeed !== '' &&
+            Number.isFinite(reportedSpeed) && reportedSpeed >= 0;
 
-        let speedKmh = hasDirectSpeed ? reportedSpeed : 0;
+        let speedKmh = hasDirectSpeed ? reportedSpeed * reportedSpeedMultiplier : 0;
         let speedReliable = hasDirectSpeed;
         if (!hasDirectSpeed && positions.length >= 2) {
             speedKmh = medianStepSpeed(positions);
@@ -118,13 +128,18 @@ export function createPositionEngine(opts = {}) {
 
         // 5. Correction simulation (positions accélérées ×N par fakeGeoSim)
         const divisor = Number(speedDivisor()) || 1;
-        if (divisor !== 1) {
+        if (divisor !== 1 && (!hasDirectSpeed || divideReportedSpeed)) {
             speedKmh = speedKmh / divisor;
         }
 
         // 6. Anti-pic + clamp physique
         const base = prevSpeed == null ? speedKmh : prevSpeed;
-        speedKmh = filterSpeedSpike(base, speedKmh);
+        if (!hasDirectSpeed || filterReportedSpeed) {
+            speedKmh = filterSpeedSpike(base, speedKmh, {
+                thresholdKmh: opts.speedSpikeThresholdKmh,
+                stepKmh: opts.speedSpikeStepKmh
+            });
+        }
         speedKmh = Math.max(0, Math.min(maxSpeedKmh, speedKmh));
         prevSpeed = speedKmh;
 

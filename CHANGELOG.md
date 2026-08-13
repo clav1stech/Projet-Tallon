@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.0.1 - 2026-08-14
+
+### Mode voiture : GPS réactif, tunnels et éditeur cartographique
+
+- Le suivi voiture utilise le flux GPS continu et la vitesse native du
+  navigateur (m/s convertis en km/h), avec un petit historique de secours et
+  un profil anti-pic beaucoup plus rapide que celui du train.
+- Après 2,5 secondes sans position, le compteur affiche un tunnel et le graphe
+  prolonge la dernière vitesse connue en pointillés jusqu'au retour du signal.
+- `car-points-editor.html` affiche le tracé et tous les repères sur une carte
+  OpenStreetMap. Les marqueurs se déplacent par glisser et sont recalés sur le
+  corridor ; les corrections sont appliquées localement ou exportées en JSON.
+
 ## v3.0.0 (dev) - 2026-07-17
 
 Branche : `dev/road-rail-route` (non mergée sur `main`). Travail en cours à

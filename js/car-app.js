@@ -4,8 +4,8 @@
 // Réutilise le cœur partagé avec le rail :
 // - csv.js / linearref.js : datasets PK-PR décrits par JSON (aucun recodage
 //   quand le CSV réel arrive) ;
-// - position-engine.js : chaîne de filtres GPS (précision, anti-téléportation,
-//   vitesse médiane, plancher de bruit, anti-pic) identique au rail ;
+// - position-engine.js : fiabilité GPS partagée, avec un profil voiture plus
+//   réactif et priorité à la vitesse native de Geolocation ;
 // - functions.js : matching de segment (fenêtre glissante, tolérance GPS),
 //   AVEC fallback latitude DÉSACTIVÉ — l'itinéraire est globalement ouest-est,
 //   un fallback cardinal serait faux par construction. Le repli en cas d'échec
@@ -15,10 +15,12 @@
 // moyenne glissante, plancher 20 km/h).
 
 import { STATE } from './state.js';
-import { CAR_ROUTES } from './car-config.js';
+import { CAR_ROUTES, CAR_TRACKING_CONFIG } from './car-config.js';
 import { loadDataset, DatasetError } from './csv.js';
 import { buildCarRoute, computeEtaSeconds, findSector } from './car-route.js';
+import { applyCarWaypointOverrides, loadCarWaypointOverrides } from './car-waypoint-overrides.js';
 import { createPositionEngine } from './position-engine.js';
+import { isGpsSignalStale } from './tracking.js';
 import {
     computeSegmentIndexAndDistance,
     projectPositionOnRouteSegment,
@@ -27,10 +29,6 @@ import {
 import { geoErrorMessage } from './geo.js';
 import { populateCarRouteSelect, updateCarWidget, updateCarHUD, updateCarInfo } from './car-ui.js';
 
-const ARRIVAL_THRESHOLD_KM = 0.2;   // même seuil que le rail
-const MAX_CAR_SPEED_KMH = 150;
-const SPEED_HISTORY_MAX = 600;      // 10 min à 1 pt/s
-
 const CAR = {
     route: null,            // { points, cumKm, totalKm, legs, waypoints } (buildCarRoute)
     routeKey: null,         // clé CAR_ROUTES sélectionnée
@@ -38,14 +36,70 @@ const CAR = {
     lastSegmentIndex: null, // garde-fou séquentiel : ne recule jamais
     speedHistory: [],       // [{ v, reliable }] pour l'ETA
     arrived: false,
-    trackingInterval: null
+    watchId: null,
+    freshnessInterval: null,
+    trackingStartedAt: 0,
+    lastFixAt: 0,
+    lastKnownSpeedKmh: 0,
+    lastLostSampleAt: 0,
+    gpsLost: false,
+    lastRenderData: null
 };
 
 const engine = createPositionEngine({
-    maxSpeedKmh: MAX_CAR_SPEED_KMH,
-    // fakeGeoSim accélère les positions ×N : la vitesse doit être re-divisée.
+    maxSpeedKmh: CAR_TRACKING_CONFIG.maxSpeedKmh,
+    historySize: CAR_TRACKING_CONFIG.positionHistorySize,
+    trustReportedSpeed: true,
+    reportedSpeedMultiplier: 3.6, // GeolocationCoordinates.speed est en m/s.
+    filterReportedSpeed: false,
+    divideReportedSpeed: false,
+    speedSpikeThresholdKmh: CAR_TRACKING_CONFIG.speedSpikeThresholdKmh,
+    speedSpikeStepKmh: CAR_TRACKING_CONFIG.speedSpikeStepKmh,
+    // fakeGeoSim accélère les positions ×N : seule la vitesse recalculée
+    // depuis la géométrie doit être re-divisée, pas coords.speed.
     speedDivisor: () => window.FAKE_GPS_SPEED_MULTIPLIER || 1
 });
+
+function appendSpeedSample(speedKmh, reliable, timestamp = Date.now()) {
+    CAR.speedHistory.push({ v: speedKmh, reliable, ts: timestamp });
+    if (CAR.speedHistory.length > CAR_TRACKING_CONFIG.speedHistoryMax) {
+        CAR.speedHistory.shift();
+    }
+}
+
+function renderGpsLoss(now = Date.now(), force = false) {
+    if (!CAR.route) return;
+    if (!force && !isGpsSignalStale(
+        CAR.lastFixAt,
+        CAR.trackingStartedAt,
+        now,
+        CAR_TRACKING_CONFIG.gpsLostAfterMs
+    )) return;
+
+    const firstLostRender = !CAR.gpsLost;
+    CAR.gpsLost = true;
+    if (firstLostRender || now - CAR.lastLostSampleAt >= CAR_TRACKING_CONFIG.lostGraphSampleMs) {
+        appendSpeedSample(CAR.lastKnownSpeedKmh, false, now);
+        CAR.lastLostSampleAt = now;
+    }
+
+    if (CAR.lastRenderData) {
+        const staleData = {
+            ...CAR.lastRenderData,
+            speedKmh: CAR.lastKnownSpeedKmh,
+            speedReliable: false,
+            speedHistory: CAR.speedHistory,
+            gpsLost: true
+        };
+        updateCarWidget(staleData);
+        updateCarHUD(staleData);
+        CAR.lastRenderData = staleData;
+    }
+
+    if (firstLostRender) {
+        updateCarInfo('<i class="fas fa-mountain" aria-hidden="true"></i> Signal GPS perdu — tunnel probable.');
+    }
+}
 
 async function loadCarRoute(routeKey) {
     const cfg = CAR_ROUTES[routeKey];
@@ -58,12 +112,19 @@ async function loadCarRoute(routeKey) {
         datasetsById[ds.descriptor.id] = ds;
     }
 
-    CAR.route = buildCarRoute(cfg, datasetsById);
+    const effectiveCfg = applyCarWaypointOverrides(cfg, loadCarWaypointOverrides());
+    CAR.route = buildCarRoute(effectiveCfg, datasetsById);
     CAR.routeKey = routeKey;
-    CAR.routeCfg = cfg;
+    CAR.routeCfg = effectiveCfg;
     CAR.lastSegmentIndex = null;
     CAR.speedHistory = [];
     CAR.arrived = false;
+    CAR.trackingStartedAt = Date.now();
+    CAR.lastFixAt = 0;
+    CAR.lastKnownSpeedKmh = 0;
+    CAR.lastLostSampleAt = 0;
+    CAR.gpsLost = false;
+    CAR.lastRenderData = null;
     engine.reset();
 
     // Compat fakeGeoSim (dev) : la simulation lit STATE.currentRoute et les
@@ -86,8 +147,12 @@ function onPosition(position) {
 
     const { lat, lon, accuracyMeters, speedKmh, speedReliable, reseeded } = result;
 
-    CAR.speedHistory.push({ v: speedKmh, reliable: speedReliable });
-    if (CAR.speedHistory.length > SPEED_HISTORY_MAX) CAR.speedHistory.shift();
+    const fixTimestamp = Date.now();
+    CAR.lastFixAt = fixTimestamp;
+    CAR.gpsLost = false;
+    CAR.lastLostSampleAt = 0;
+    if (speedReliable) CAR.lastKnownSpeedKmh = speedKmh;
+    appendSpeedSample(speedKmh, speedReliable, fixTimestamp);
 
     const route = CAR.route.points;
 
@@ -136,7 +201,7 @@ function onPosition(position) {
     const doneKm = cumKm[segmentIndex] + Math.max(0, distanceFromSegmentStart);
     const remainingKm = Math.max(0, CAR.route.totalKm - doneKm);
 
-    if (segmentIndex >= route.length - 2 && distanceToNextPointKm < ARRIVAL_THRESHOLD_KM) {
+    if (segmentIndex >= route.length - 2 && distanceToNextPointKm < CAR_TRACKING_CONFIG.arrivalThresholdKm) {
         CAR.arrived = true;
     }
 
@@ -167,7 +232,9 @@ function onPosition(position) {
     const sector = findSector(CAR.routeCfg, a?.legIndex, pk);
     const etaSeconds = computeEtaSeconds(remainingKm, CAR.speedHistory);
 
-    updateCarWidget({
+    const renderData = {
+        routeKey: CAR.routeKey,
+        waypoints: CAR.route.waypoints,
         legLabel: a?.legLabel ?? '',
         pk,
         line,
@@ -178,23 +245,15 @@ function onPosition(position) {
         totalKm: CAR.route.totalKm,
         speedKmh,
         speedReliable,
-        etaSeconds,
-        sector,
-        arrived: CAR.arrived
-    });
-
-    updateCarHUD({
-        routeKey: CAR.routeKey,
-        waypoints: CAR.route.waypoints,
-        doneKm,
-        remainingKm,
-        speedKmh,
-        speedReliable,
         speedHistory: CAR.speedHistory,
+        gpsLost: false,
         etaSeconds,
         sector,
         arrived: CAR.arrived
-    });
+    };
+    CAR.lastRenderData = renderData;
+    updateCarWidget(renderData);
+    updateCarHUD(renderData);
 
     let infoHtml = `<strong>Position :</strong> ${lat.toFixed(5)}, ${lon.toFixed(5)}.`;
     if (Number.isFinite(accuracyMeters)) {
@@ -207,19 +266,10 @@ function onPosition(position) {
 }
 
 function onGeoError(error) {
+    // Un refus de permission n'est pas un tunnel ; TIMEOUT et
+    // POSITION_UNAVAILABLE correspondent bien à une disette de signal.
+    if (error?.code !== 1) renderGpsLoss(Date.now(), true);
     updateCarInfo(geoErrorMessage(error));
-}
-
-function requestPosition() {
-    if (!navigator.geolocation) {
-        updateCarInfo("La géolocalisation n'est pas supportée par ce navigateur.");
-        return;
-    }
-    navigator.geolocation.getCurrentPosition(onPosition, onGeoError, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000
-    });
 }
 
 async function startTracking() {
@@ -248,12 +298,26 @@ async function startTracking() {
     document.body.classList.add('tracking-active');
     updateCarInfo(`Itinéraire chargé : ${CAR.route.points.length} points, ${CAR.route.totalKm.toFixed(1)} km. En attente du GPS…`);
 
+    if (!navigator.geolocation) {
+        updateCarInfo("La géolocalisation n'est pas supportée par ce navigateur.");
+        return;
+    }
+
     if (typeof window.resetFakeGpsStartTime === 'function') {
         window.resetFakeGpsStartTime();
     }
-    if (!CAR.trackingInterval) {
-        CAR.trackingInterval = setInterval(requestPosition, 1000);
-        requestPosition();
+    if (CAR.watchId === null) {
+        CAR.watchId = navigator.geolocation.watchPosition(onPosition, onGeoError, {
+            enableHighAccuracy: true,
+            maximumAge: CAR_TRACKING_CONFIG.geolocationMaximumAgeMs,
+            timeout: CAR_TRACKING_CONFIG.geolocationTimeoutMs
+        });
+    }
+    if (!CAR.freshnessInterval) {
+        CAR.freshnessInterval = setInterval(
+            () => renderGpsLoss(),
+            CAR_TRACKING_CONFIG.freshnessCheckMs
+        );
     }
 }
 
