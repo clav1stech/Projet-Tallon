@@ -198,23 +198,36 @@ describe('buildCarRoute — waypoints', () => {
 });
 
 describe('projectRouteLength', () => {
-    it("projette la longueur d'un ouvrage de part et d'autre de son repère", () => {
+    it("projette la longueur d'un ouvrage à partir de son repère dans le sens du trajet", () => {
         const route = buildCarRoute(ROUTE_CFG, DATASETS);
-        const centerKm = route.cumKm[1];
-        const projected = projectRouteLength(route, centerKm, 1000, 0);
+        const entryKm = route.cumKm[1];
+        const projected = projectRouteLength(route, entryKm, 1000, 0);
 
-        expect(projected[0].routeKm).toBeCloseTo(centerKm - 0.5, 6);
-        expect(projected.at(-1).routeKm).toBeCloseTo(centerKm + 0.5, 6);
+        expect(projected[0].routeKm).toBeCloseTo(entryKm, 6);
+        expect(projected.at(-1).routeKm).toBeCloseTo(entryKm + 1, 6);
         expect(projected.at(-1).routeKm - projected[0].routeKm).toBeCloseTo(1, 6);
-        expect(projected.some(point => point.routeKm === centerKm)).toBe(true);
     });
 
-    it('limite la projection aux bornes du leg et rejette une longueur invalide', () => {
+    it('limite la fin de la projection à la borne du leg et rejette une longueur invalide', () => {
         const route = buildCarRoute(ROUTE_CFG, DATASETS);
-        const projected = projectRouteLength(route, 0.2, 1000, 0);
+        const legEndKm = route.legs[0].endKm;
+        const projected = projectRouteLength(route, legEndKm - 0.2, 1000, 0);
 
-        expect(projected[0].routeKm).toBe(0);
+        expect(projected[0].routeKm).toBeCloseTo(legEndKm - 0.2, 6);
+        expect(projected.at(-1).routeKm).toBeCloseTo(legEndKm, 6);
         expect(projectRouteLength(route, 1, 0, 0)).toEqual([]);
+    });
+
+    it('suit le sens retour à partir du PK retour', () => {
+        const reverseRoute = buildCarRoute({
+            legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', reverse: true }]
+        }, DATASETS);
+        const entryKm = reverseRoute.cumKm[1];
+        const projected = projectRouteLength(reverseRoute, entryKm, 1000, 0);
+
+        expect(projected[0].routeKm).toBeCloseTo(entryKm, 6);
+        expect(projected.at(-1).routeKm).toBeCloseTo(entryKm + 1, 6);
+        expect(projected.at(-1).lon).toBeLessThan(projected[0].lon);
     });
 });
 

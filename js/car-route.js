@@ -233,20 +233,20 @@ function interpolateRoutePoint(route, routeKm) {
 }
 
 /**
- * Extrait la portion du tracé correspondant à la longueur d'un ouvrage,
- * centrée sur son repère. Les bornes suivent la distance cumulée réelle du
- * corridor et restent limitées au leg de l'ouvrage.
+ * Extrait la portion du tracé correspondant à la longueur d'un ouvrage à
+ * partir de son repère d'entrée, dans le sens du trajet construit. Comme les
+ * legs retour sont inversés avant le calcul des distances cumulées, avancer
+ * dans `routeKm` suit automatiquement le bon sens de circulation.
  * @returns {Array<{lat:number, lon:number, routeKm:number}>}
  */
-export function projectRouteLength(route, centerKm, lengthM, legIndex = null) {
-    if (!route || !Number.isFinite(centerKm) || !Number.isFinite(lengthM) || lengthM <= 0) return [];
+export function projectRouteLength(route, startRouteKm, lengthM, legIndex = null) {
+    if (!route || !Number.isFinite(startRouteKm) || !Number.isFinite(lengthM) || lengthM <= 0) return [];
 
     const leg = legIndex == null ? null : route.legs?.find(item => item.index === legIndex);
     const minKm = Number.isFinite(leg?.startKm) ? leg.startKm : 0;
     const maxKm = Number.isFinite(leg?.endKm) ? leg.endKm : route.totalKm;
-    const halfLengthKm = lengthM / 2000;
-    const startKm = Math.max(minKm, centerKm - halfLengthKm);
-    const endKm = Math.min(maxKm, centerKm + halfLengthKm);
+    const startKm = Math.max(minKm, Math.min(maxKm, startRouteKm));
+    const endKm = Math.min(maxKm, startKm + lengthM / 1000);
     if (!(endKm > startKm)) return [];
 
     const start = interpolateRoutePoint(route, startKm);

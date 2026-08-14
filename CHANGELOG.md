@@ -1,5 +1,14 @@
 # Changelog
 
+## Non publié
+
+### Sens de projection des ouvrages d'art
+
+- La longueur d'un tunnel ou viaduc est désormais projetée à partir de son
+  repère d'entrée et uniquement dans le sens de circulation sélectionné.
+- Les positions aller et retour produisent donc chacune la portée correcte de
+  l'ouvrage, au lieu d'une projection répartie de part et d'autre du repère.
+
 ## v3.0.4 - 2026-08-14
 
 ### Projection cartographique des ouvrages d'art
