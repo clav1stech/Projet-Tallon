@@ -31,7 +31,7 @@ function showStatus(message, type = '') {
 function markerIcon(wp) {
     const modified = wp.sourceKey && overrides[wp.sourceKey] ? ' modified' : '';
     const active = wp.sourceKey === activeKey ? ' active' : '';
-    const glyph = wp.type === 'tunnel' ? '🏔' : wp.type === 'viaduc' ? '⌢' : wp.type === 'peage' ? '€' : wp.type === 'aire' ? 'P' : '●';
+    const glyph = wp.type === 'tunnel' ? '🏔' : wp.type === 'col' ? '▲' : wp.type === 'viaduc' ? '⌢' : wp.type === 'peage' ? '€' : wp.type === 'aire' ? 'P' : '●';
     return L.divIcon({
         className: `car-map-marker${modified}${active}`,
         html: `<span>${glyph}</span>`,
@@ -101,6 +101,7 @@ function drawRoute(fit = true) {
     for (const wp of currentRoute.waypoints.filter(item => item.sourceKey && Number.isFinite(item.lengthM))) {
         const projected = projectRouteLength(currentRoute, wp.routeKm, wp.lengthM, wp.legIndex);
         if (projected.length < 2) continue;
+        projected[0] = { ...projected[0], lat: wp.lat, lon: wp.lon };
         const lengthLabel = `${Math.round(wp.lengthM).toLocaleString('fr-FR')} m`;
         const layer = L.polyline(
             projected.map(point => [point.lat, point.lon]),

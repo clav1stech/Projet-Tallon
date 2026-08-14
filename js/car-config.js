@@ -33,7 +33,7 @@
 // - `reversePk` et les coordonnées `reverse*` décrivent la chaussée retour ;
 // - `km` est le kilométrage officiel de l'autoroute (= 204 − PR réel pour
 //   l'A40, la colonne `numero` de road_pr.csv), conservé pour documentation ;
-// - `type` ∈ 'sortie' | 'echangeur' | 'aire' | 'viaduc' | 'tunnel' | 'peage'.
+// - `type` ∈ 'sortie' | 'echangeur' | 'aire' | 'col' | 'viaduc' | 'tunnel' | 'peage'.
 // Les pk sont interpolés entre les PR IGN du corridor (PR réel → pk_cum) et
 // ont été validés contre une trace GPS réelle du trajet (< 40 m d'écart hors
 // zones sans signal). Un waypoint hors du pkRange du leg est ignoré au build.
@@ -76,6 +76,15 @@ const A40_WAYPOINTS = [
     { pk: 36.792972, km: 40,  name: 'Sortie 6 – Viriat / Bourg centre',            type: 'sortie' },
     { pk: 47.082784, km: 50,  name: 'Sortie 7 – Bourg-en-Bresse sud / Ceyzériat',  type: 'sortie' },
     { pk: 57.08379,  km: 60,  name: "Échangeur A42 (Pont-d'Ain, Lyon)",            type: 'echangeur' },
+    {
+        pk: 74.067078,
+        lat: 46.12972222222222,
+        lon: 5.5055555555555555,
+        reverseLat: 46.12972222222222,
+        reverseLon: 5.5055555555555555,
+        name: 'Col de Ceignes',
+        type: 'col'
+    },
     { pk: 76.428129, km: 81,  name: 'Sortie 8 – St-Martin-du-Fresne / A404 (Oyonnax)', type: 'sortie' },
     { pk: 86.338617, km: 90,  name: 'Sortie 9 – Sylans / Nantua',                  type: 'sortie' },
     { pk: 102.812187, reversePk: 103.132725, km: 108, name: 'Sortie 10 – Bellegarde-sur-Valserine', type: 'sortie' },
@@ -108,21 +117,21 @@ const A40_WAYPOINTS = [
     // Ouvrages d'art (km = 204 − PR ; le PR du tunnel de Chamoise
     // est recalé sur la géométrie réelle — sortie est du tunnel
     // juste avant le viaduc de Nantua, PR ≈ 120,5).
-    { pk: 64.520013, km: 65,  name: 'Viaduc de Poncin',             type: 'viaduc', lengthM: 566 },
-    { pk: 80.137326, km: 83.5, name: 'Tunnel de Chamoise',          type: 'tunnel', lengthM: 3300 },
-    { pk: 83.407304, km: 86,  name: 'Viaduc de Nantua',             type: 'viaduc', lengthM: 1003 },
-    { pk: 84.106513, km: 87,  name: 'Viaduc des Neyrolles',         type: 'viaduc', lengthM: 782 },
-    { pk: 85.686236, km: 90,  name: 'Viaduc des Glacières',         type: 'viaduc', lengthM: 214 },
-    { pk: 87.587796, km: 92,  name: 'Viaduc de Sylans',             type: 'viaduc', lengthM: 1266 },
-    { pk: 89.402165, km: 93,  name: 'Viaduc de Charix',             type: 'viaduc', lengthM: 542 },
-    { pk: 92.33, reversePk: 92.618128, km: 94, name: 'Viaduc de Lalleyriat', type: 'viaduc', lengthM: 194 },
-    { pk: 92.728217, reversePk: 93.110861, km: 95, name: 'Viaduc de Frébuge', type: 'viaduc', lengthM: 439 },
-    { pk: 93.796719, reversePk: 95.088182, km: 96, name: 'Tunnel de Saint-Germain-de-Joux', type: 'tunnel', lengthM: 1196 },
-    { pk: 95.93598, reversePk: 96.196631, km: 97, name: 'Viaduc du Tacon', type: 'viaduc', lengthM: 322 },
-    { pk: 97.28, reversePk: 97.950133, km: 99, name: 'Tunnel de Châtillon', type: 'tunnel', lengthM: 720 },
-    { pk: 97.999383, reversePk: 98.430013, km: 100, name: 'Viaduc de Châtillon', type: 'viaduc', lengthM: 222 },
-    { pk: 105.14, reversePk: 106.229365, km: 107, name: 'Viaduc de Bellegarde-sur-Valserine', type: 'viaduc', lengthM: 1040 },
-    { pk: 117.142304, reversePk: 118.519803, km: 120, name: 'Tunnel du Vuache', type: 'tunnel', lengthM: 1400 }
+    { pk: 63.977217, reversePk: 64.520013, km: 65, name: 'Viaduc de Poncin', type: 'viaduc', lengthM: 566 },
+    { pk: 76.884273, reversePk: 80.137326, km: 83.5, name: 'Tunnel de Chamoise', type: 'tunnel', lengthM: 3300 },
+    { pk: 82.414162, reversePk: 83.407304, km: 86, name: 'Viaduc de Nantua', type: 'viaduc', lengthM: 1003 },
+    { pk: 83.333311, reversePk: 84.106513, km: 87, name: 'Viaduc des Neyrolles', type: 'viaduc', lengthM: 782 },
+    { pk: 85.472698, reversePk: 85.686236, km: 90, name: 'Viaduc des Glacières', type: 'viaduc', lengthM: 214 },
+    { pk: 86.337383, reversePk: 87.587796, km: 92, name: 'Viaduc de Sylans', type: 'viaduc', lengthM: 1266 },
+    { pk: 88.884677, reversePk: 89.402165, km: 93, name: 'Viaduc de Charix', type: 'viaduc', lengthM: 542 },
+    { pk: 92.425082, reversePk: 92.618128, km: 94, name: 'Viaduc de Lalleyriat', type: 'viaduc', lengthM: 194 },
+    { pk: 92.679094, reversePk: 93.110861, km: 95, name: 'Viaduc de Frébuge', type: 'viaduc', lengthM: 439 },
+    { pk: 93.866461, reversePk: 95.088182, km: 96, name: 'Tunnel de Saint-Germain-de-Joux', type: 'tunnel', lengthM: 1196 },
+    { pk: 95.874189, reversePk: 96.196631, km: 97, name: 'Viaduc du Tacon', type: 'viaduc', lengthM: 322 },
+    { pk: 97.229832, reversePk: 97.950133, km: 99, name: 'Tunnel de Châtillon', type: 'tunnel', lengthM: 720 },
+    { pk: 98.207746, reversePk: 98.430013, km: 100, name: 'Viaduc de Châtillon', type: 'viaduc', lengthM: 222 },
+    { pk: 105.188732, reversePk: 106.229365, km: 107, name: 'Viaduc de Bellegarde-sur-Valserine', type: 'viaduc', lengthM: 1040 },
+    { pk: 117.13946, reversePk: 118.519803, km: 120, name: 'Tunnel du Vuache', type: 'tunnel', lengthM: 1400 }
 ];
 
 // Secteurs A40 (bornes pk_cum indicatives, à affiner à l'usage) :
@@ -158,12 +167,28 @@ const COMBLOUX_POINTS = [
     { id: 'COMBLOUX', name: 'Combloux (centre)', lat: 45.8903069, lon: 6.6419649 }
 ];
 
+const MACON_LOCHE_POINTS = [
+    {
+        id: 'MACON_LOCHE_TGV',
+        name: 'Mâcon-Loché TGV',
+        lat: 46.283055555555556,
+        lon: 4.777777777777778
+    }
+];
+
 export const CAR_ROUTES = {
     MACON_COMBLOUX: {
         label: 'Mâcon → Combloux',
         origin: 'Mâcon (A406)',
         datasets: MACON_COMBLOUX_DATASETS,
         legs: [
+            {
+                type: 'points',
+                label: 'Mâcon-Loché TGV',
+                avgSpeedKmh: 50,
+                sector: 'Mâconnais',
+                points: MACON_LOCHE_POINTS
+            },
             {
                 type: 'pk-corridor',
                 datasetId: 'a406-trace',
@@ -249,6 +274,13 @@ export const CAR_ROUTES = {
                 sector: 'Mâconnais',
                 waypoints: A406_WAYPOINTS,
                 reverse: true
+            },
+            {
+                type: 'points',
+                label: 'Mâcon-Loché TGV',
+                avgSpeedKmh: 50,
+                sector: 'Mâconnais',
+                points: MACON_LOCHE_POINTS
             }
         ]
     }

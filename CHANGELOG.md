@@ -1,13 +1,16 @@
 # Changelog
 
-## Non publié
+## v3.0.5 - 2026-08-14
 
 ### Sens de projection des ouvrages d'art
 
-- La longueur d'un tunnel ou viaduc est désormais projetée à partir de son
-  repère d'entrée et uniquement dans le sens de circulation sélectionné.
-- Les positions aller et retour produisent donc chacune la portée correcte de
-  l'ouvrage, au lieu d'une projection répartie de part et d'autre du repère.
+- La longueur d'un tunnel ou viaduc est projetée depuis son repère directionnel
+  vers l'est sur le trajet retour, conformément aux positions retour fournies.
+- Ajout du col de Ceignes au PK A40 `74.067078`, aux coordonnées indiquées dans
+  les deux sens.
+- Ajout de Mâcon-Loché TGV comme véritable terminus ouest des deux trajets.
+- Les 15 repères aller des tunnels et viaducs sont recalculés vers l'ouest à
+  partir des points retour déjà corrigés, sur la longueur réelle de l'ouvrage.
 
 ## v3.0.4 - 2026-08-14
 

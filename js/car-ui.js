@@ -13,6 +13,7 @@ const WAYPOINT_ICONS = {
     sortie:    'fas fa-sign-out-alt',
     echangeur: 'fas fa-random',
     aire:      'fas fa-parking',
+    col:       'fas fa-mountain',
     viaduc:    'fas fa-archway',
     tunnel:    'fas fa-mountain',
     peage:     'fas fa-euro-sign',

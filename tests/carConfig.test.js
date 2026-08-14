@@ -21,7 +21,10 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
 
     it('intègre les recalages du fichier sur A40 et A406', () => {
         expect(a40.waypoints.find(wp => wp.name === 'Sortie 19 – Cluses')?.pk).toBe(180.210039);
-        expect(a40.waypoints.find(wp => wp.name === 'Tunnel de Chamoise')?.pk).toBe(80.137326);
+        expect(a40.waypoints.find(wp => wp.name === 'Tunnel de Chamoise')).toMatchObject({
+            pk: 76.884273,
+            reversePk: 80.137326
+        });
         expect(a40.waypoints.find(wp => wp.name === 'Péage de Viry')?.pk).toBe(126.482059);
         expect(a406.waypoints.find(wp => wp.name === 'Péage Mâcon – Val de Saône')?.pk).toBe(8.109835);
     });
@@ -48,5 +51,44 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
         expect(a40.waypoints.find(wp => wp.name === 'Tunnel du Vuache')?.reversePk).toBe(118.519803);
         const combloux = CAR_ROUTES.COMBLOUX_MACON.legs[0].points[0];
         expect(combloux).toMatchObject({ lat: 45.8903069, lon: 6.6419649 });
+    });
+
+    it('ajoute le col de Ceignes aux mêmes coordonnées dans les deux sens', () => {
+        expect(a40.waypoints.find(wp => wp.name === 'Col de Ceignes')).toMatchObject({
+            pk: 74.067078,
+            lat: 46.12972222222222,
+            lon: 5.5055555555555555,
+            reverseLat: 46.12972222222222,
+            reverseLon: 5.5055555555555555,
+            type: 'col'
+        });
+    });
+
+    it('utilise Mâcon-Loché TGV comme terminus ouest dans les deux sens', () => {
+        const forward = CAR_ROUTES.MACON_COMBLOUX.legs[0].points[0];
+        const reverseLegs = CAR_ROUTES.COMBLOUX_MACON.legs;
+        const reverse = reverseLegs[reverseLegs.length - 1].points[0];
+        expect(forward).toMatchObject({
+            id: 'MACON_LOCHE_TGV',
+            lat: 46.283055555555556,
+            lon: 4.777777777777778
+        });
+        expect(reverse).toBe(forward);
+    });
+
+    it('décale les entrées aller des ouvrages vers l’ouest depuis les points retour', () => {
+        const structures = a40.waypoints.filter(wp => Number.isFinite(wp.lengthM));
+        expect(structures).toHaveLength(15);
+        expect(structures.every(wp => Number.isFinite(wp.reversePk) && wp.pk < wp.reversePk)).toBe(true);
+        expect(structures.find(wp => wp.name === 'Tunnel de Chamoise')).toMatchObject({
+            pk: 76.884273,
+            reversePk: 80.137326,
+            lengthM: 3300
+        });
+        expect(structures.find(wp => wp.name === 'Tunnel du Vuache')).toMatchObject({
+            pk: 117.13946,
+            reversePk: 118.519803,
+            lengthM: 1400
+        });
     });
 });

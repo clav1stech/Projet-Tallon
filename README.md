@@ -64,7 +64,7 @@ géométrie de corridor issue d'une trace GPS réelle et des données propres.
   points de passage. À la place du badge de retard du rail, une **pilule de
   secteur géographique** (Mâconnais, Bresse, Bugey/Titans, Bellegarde,
   Genevois, Arve, Mont-Blanc).
-- **Points de passage typés** : sorties, échangeurs, aires, viaducs, tunnels et
+- **Points de passage typés** : sorties, échangeurs, aires, cols, viaducs, tunnels et
   barrières de péage (Val de Saône, Viry, Nangy, Cluses), chacun avec une
   **icône** distincte dans le widget et le HUD. La longueur des ponts et tunnels
   est visible dans la projection du trajet et dans l'éditeur cartographique.
@@ -76,8 +76,10 @@ géométrie de corridor issue d'une trace GPS réelle et des données propres.
 - **Éditeur cartographique** (`car-points-editor.html`) : visualisation du
   tracé et des points de passage sur OpenStreetMap, déplacement par glisser,
   recalage automatique sur la route, projection spatiale de la longueur des
-  tunnels et viaducs à partir de leur entrée dans le sens sélectionné,
+  tunnels et viaducs à partir de leur repère propre au sens sélectionné,
   application locale et export/import JSON.
+  Les repères aller des ouvrages sont dérivés des points retour validés en les
+  décalant vers l'ouest de leur longueur réelle le long du corridor.
 
 Les données d'itinéraire vivent dans `js/car-config.js` (source unique,
 comme `routes-config.js` pour le rail) ; toute route ou tout point de passage
