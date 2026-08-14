@@ -1,15 +1,11 @@
 # Changelog
 
-## v3.1.0 - 2026-08-14
+## v3.1.1 - 2026-08-14
 
-### Éditeur cartographique des points rail
+### Projection ferroviaire et ouvrages directionnels
 
-- Ajout de `train-points-editor.html`, accessible depuis la page principale,
-  avec fond OpenStreetMap et overlay ferroviaire OpenRailwayMap.
-- Les trajets peuvent être affichés voie par voie ou simultanément ; les
-  bifurcations, tunnels et ouvrages d'art distinguent leurs coordonnées V1
-  (Paris → Province) et V2 (Province → Paris), tandis que les autres points
-  restent communs.
+- Les tunnels et ouvrages d'art disposent désormais de deux extrémités V1
+  (Paris → Province) et V2 (Province → Paris), comme les bifurcations.
 - Lorsque la longueur d'un ouvrage est disponible, son entrée V2 est calculée
   depuis l'entrée V1 en suivant la polyline ferroviaire dense. L'emprise
   affichée épouse elle aussi la polyline au lieu de couper les courbes.
@@ -26,6 +22,18 @@
   sur la `752330`, sa longueur de 1 188 m et son PK 390,209.
 - Les corrections manuelles des ouvrages sont recollées à la polyline, et le
   moteur de suivi utilise désormais leur entrée propre au sens de circulation.
+- Mise à jour du cache hors ligne (`tallon-v22`) et ajout de tests de
+  non-régression sur les tracés réels dans les deux sens.
+
+## v3.1.0 - 2026-08-14
+
+### Éditeur cartographique des points rail
+
+- Ajout de `train-points-editor.html`, accessible depuis la page principale,
+  avec fond OpenStreetMap et overlay ferroviaire OpenRailwayMap.
+- Les trajets peuvent être affichés voie par voie ou simultanément ; les
+  bifurcations distinguent leurs coordonnées V1 (Paris → Province) et V2
+  (Province → Paris), tandis que les autres points restent communs.
 - Les repères sont déplaçables sur la carte et éditables par saisie directe,
   avec annulation par point ou pour toute la session.
 - Le chargement, la validation et l'export du schéma v3 sont désormais
@@ -33,7 +41,7 @@
   exporté silencieusement.
 - Ajout de tests de non-régression sur les coordonnées directionnelles et sur
   la source de vérité `data/masterRoutes.normalized.json`.
-- Mise à jour du cache hors ligne (`tallon-v22`) pour précacher le nouvel
+- Mise à jour du cache hors ligne (`tallon-v19`) pour précacher le nouvel
   éditeur et ses modules locaux.
 
 ## v3.0.8 - 2026-08-14
