@@ -7,8 +7,18 @@
 - Ajout de `train-points-editor.html`, accessible depuis la page principale,
   avec fond OpenStreetMap et overlay ferroviaire OpenRailwayMap.
 - Les trajets peuvent être affichés voie par voie ou simultanément ; les
-  bifurcations distinguent leurs coordonnées V1 (Paris → Province) et V2
-  (Province → Paris), tandis que les autres points restent communs.
+  bifurcations, tunnels et ouvrages d'art distinguent leurs coordonnées V1
+  (Paris → Province) et V2 (Province → Paris), tandis que les autres points
+  restent communs.
+- Lorsque la longueur d'un ouvrage est disponible, son entrée V2 est calculée
+  depuis l'entrée V1 en suivant la polyline ferroviaire dense. L'emprise
+  affichée épouse elle aussi la polyline au lieu de couper les courbes.
+- Douze extrémités V2 sont proposées automatiquement. Les longueurs inscrites
+  dans le nom de quatre ouvrages sont normalisées ; les huit ouvrages restants
+  sont signalés pour placement manuel et bloquent l'export tant que leurs deux
+  entrées ne sont pas distinctes.
+- Les corrections manuelles des ouvrages sont recollées à la polyline, et le
+  moteur de suivi utilise désormais leur entrée propre au sens de circulation.
 - Les repères sont déplaçables sur la carte et éditables par saisie directe,
   avec annulation par point ou pour toute la session.
 - Le chargement, la validation et l'export du schéma v3 sont désormais
@@ -16,7 +26,7 @@
   exporté silencieusement.
 - Ajout de tests de non-régression sur les coordonnées directionnelles et sur
   la source de vérité `data/masterRoutes.normalized.json`.
-- Mise à jour du cache hors ligne (`tallon-v19`) pour précacher le nouvel
+- Mise à jour du cache hors ligne (`tallon-v20`) pour précacher le nouvel
   éditeur et ses modules locaux.
 
 ## v3.0.8 - 2026-08-14

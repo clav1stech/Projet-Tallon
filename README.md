@@ -48,7 +48,9 @@ pour l'historique complet.
 - **Éditeur cartographique rail** (`train-points-editor.html`) pour déplacer
   les points sur un fond OpenRailwayMap. Les bifurcations distinguent les
   coordonnées V1 (Paris → Province) et V2 (Province → Paris), avec une vue
-  simultanée des deux voies et un export du schéma v3 validé.
+  simultanée des deux voies et un export du schéma v3 validé. Les tunnels et
+  ouvrages d'art ont eux aussi une entrée par sens ; lorsque leur longueur est
+  connue, leur seconde extrémité et leur emprise suivent la polyline ferroviaire.
 
 ## Mode voiture (`car.html`, branche `dev/road-rail-route`)
 
@@ -137,6 +139,7 @@ js/
   car-points-editor.js    Carte interactive et recalage des repères sur le corridor
   master-routes-data.js   Chargement, validation et export partagés du schéma v3
   train-points-model.js   Lecture/écriture des coordonnées communes et V1/V2
+  train-structure-endpoints.js Projection des ouvrages sur la polyline ferroviaire
   train-points-editor.js  Carte rail, repères déplaçables et vue des deux voies
   master-editor.js        Logique de master-editor.html
   fakeGeoSim.js           Simulateur GPS pour le développement (désactivé par défaut,
@@ -197,8 +200,12 @@ modifications ne sont jamais écrites automatiquement sur disque.
 Pour corriger uniquement leur placement géographique, ouvrir
 `train-points-editor.html`. Le fond OpenRailwayMap est superposé à
 OpenStreetMap et nécessite une connexion réseau. Une bifurcation déplacée sur
-V1 ou V2 conserve une coordonnée propre à ce sens ; les autres points gardent
-une position commune. L'export est refusé si le schéma v3 n'est plus valide.
+V1 ou V2 conserve une coordonnée propre à ce sens. Il en va de même pour les
+tunnels et ouvrages d'art, dont l'extrémité V2 est proposée à partir de la
+longueur connue et de la polyline ferroviaire dense. Les autres points gardent
+une position commune. Les ouvrages sans longueur sont signalés et leur entrée
+V2 doit être placée manuellement ; l'export est refusé tant que les deux
+extrémités ne sont pas distinctes ou si le schéma v3 n'est plus valide.
 
 ### Tests
 

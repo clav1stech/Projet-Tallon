@@ -19,7 +19,7 @@ const GLOBAL_FIELDS = new Set([
     'name', 'lat', 'lon', 'type',
     // non-bifurcation
     'code_ligne', 'PK', 'longueur',
-    // bifurcation : code_ligne/code_ligne_2 partagés, PK et coordonnées différents par voie
+    // points directionnels : coordonnées différentes par voie
     'code_ligne_2', 'PK_V1', 'PK_2_V1', 'PK_V2', 'PK_2_V2',
     'lat_V1', 'lon_V1', 'lat_V2', 'lon_V2',
     // commun
@@ -328,6 +328,23 @@ function renderTypeFields(container, point, idx) {
     container.appendChild(labeledInput('PK', 'text', point.PK, val => { updatePoint(idx, 'PK', val); renderTable(); }));
     if (type === 'ouvrage_art') {
         container.appendChild(labeledInput('Longueur (m)', 'number', point.longueur, val => updatePoint(idx, 'longueur', val), '1'));
+        for (const voie of [1, 2]) {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'point-field-group';
+            const title = document.createElement('span');
+            title.className = 'point-field-group-title';
+            title.textContent = `Entrée voie ${voie}`;
+            groupDiv.appendChild(title);
+            groupDiv.appendChild(labeledInput(
+                'Lat', 'number', point[`lat_V${voie}`],
+                val => updatePoint(idx, `lat_V${voie}`, val), '0.00001'
+            ));
+            groupDiv.appendChild(labeledInput(
+                'Lon', 'number', point[`lon_V${voie}`],
+                val => updatePoint(idx, `lon_V${voie}`, val), '0.00001'
+            ));
+            container.appendChild(groupDiv);
+        }
     }
 }
 
@@ -369,6 +386,8 @@ function changePointType(idx, newType) {
         gp.longueur = null;
     } else if (oldType === 'ouvrage_art' && newType !== 'ouvrage_art') {
         gp.longueur = null;
+        delete gp.lat_V1; delete gp.lon_V1;
+        delete gp.lat_V2; delete gp.lon_V2;
     }
 
     gp.type = newType;

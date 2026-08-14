@@ -8,9 +8,22 @@ import {
 import {
     getTrainPointCoordinates,
     resetTrainPointCoordinates,
-    setTrainPointCoordinates
+    setTrainPointCoordinates,
+    usesTrainVoieCoordinates
 } from './train-points-model.js';
-import { TRAIN_EDITOR_MAP_CONFIG, TRAIN_EDITOR_VOIES } from './train-points-editor-config.js';
+import {
+    TRAIN_EDITOR_MAP_CONFIG,
+    TRAIN_EDITOR_STRUCTURE_STYLE,
+    TRAIN_EDITOR_VOIES
+} from './train-points-editor-config.js';
+import {
+    applyStructureEndpointSuggestions,
+    loadRailCorridors,
+    snapToRailCorridor,
+    structureLengthMeters,
+    structurePathOnCorridor,
+    validateStructureEndpoints
+} from './train-structure-endpoints.js';
 import { getVoieForRoute } from './utils.js';
 
 const routeSelect = document.getElementById('train-editor-route');
@@ -29,11 +42,14 @@ const state = {
     entries: [],
     selections: new Map(),
     modifiedKeys: new Set(),
+    derivedEndpointKeys: new Set(),
+    railCorridors: new Map(),
     activeEntryKey: null
 };
 
 let map = null;
 let routeLayers = [];
+let structureLayers = [];
 let markers = new Map();
 
 function cloneData(value) {
@@ -106,7 +122,7 @@ function buildContexts(selectionKey) {
 }
 
 function entryKey(pointId, point, voie) {
-    return point.type === 'bifurcation' ? `${pointId}::V${voie}` : pointId;
+    return usesTrainVoieCoordinates(point) ? `${pointId}::V${voie}` : pointId;
 }
 
 function buildEntries() {
@@ -124,7 +140,7 @@ function buildEntries() {
                     key,
                     pointId: routePoint.id,
                     point,
-                    voie: point.type === 'bifurcation' ? context.voie : null,
+                    voie: usesTrainVoieCoordinates(point) ? context.voie : null,
                     voies: new Set(),
                     routeIndex,
                     contexts: []
@@ -155,24 +171,32 @@ function entryCssVoie(entry) {
 function markerGlyph(point) {
     if (point.type === 'gare') return 'G';
     if (point.type === 'bifurcation') return '⑂';
-    if (point.type === 'ouvrage_art') return '⌢';
+    if (point.type === 'ouvrage_art') return /tunnel|tranchée/i.test(point.name) ? 'T' : '⌢';
     if (point.type === 'poste_aiguillage') return 'S';
     return '●';
 }
 
 function markerIcon(entry) {
     const modified = state.modifiedKeys.has(entry.key) ? ' modified' : '';
+    const suggested = state.derivedEndpointKeys.has(entry.key) ? ' suggested' : '';
+    const needsPositioning = entryNeedsPositioning(entry) ? ' needs-positioning' : '';
     const active = state.activeEntryKey === entry.key ? ' active' : '';
     return L.divIcon({
-        className: `train-map-marker${entryCssVoie(entry)}${modified}${active}`,
+        className: `train-map-marker${entryCssVoie(entry)}${modified}${suggested}${needsPositioning}${active}`,
         html: `<span>${markerGlyph(entry.point)}</span>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14]
     });
 }
 
+function entryNeedsPositioning(entry) {
+    return entry.point.type === 'ouvrage_art'
+        && entry.voie === 2
+        && !getTrainPointCoordinates(entry.point, 2).dedicatedToVoie;
+}
+
 function siblingEntry(entry) {
-    if (entry.point.type !== 'bifurcation' || state.contexts.length < 2) return null;
+    if (!usesTrainVoieCoordinates(entry.point) || state.contexts.length < 2) return null;
     return state.entries.find(candidate => candidate.pointId === entry.pointId && candidate.voie !== entry.voie) || null;
 }
 
@@ -221,9 +245,22 @@ function voieDescription(entry) {
     return TRAIN_EDITOR_VOIES[[...entry.voies][0] || 1].label;
 }
 
+function corridorForPoint(point) {
+    const declared = state.railCorridors.get(String(point.code_ligne || ''));
+    if (declared) return declared;
+    let best = null;
+    for (const corridor of state.railCorridors.values()) {
+        const snapped = snapToRailCorridor(corridor, point.lat_V1 ?? point.lat, point.lon_V1 ?? point.lon);
+        if (snapped && (!best || snapped.offsetKm < best.offsetKm)) best = { corridor, offsetKm: snapped.offsetKm };
+    }
+    return best?.corridor || null;
+}
+
 function drawSelection(fit = true) {
     for (const layer of routeLayers) layer.remove();
     routeLayers = [];
+    for (const layer of structureLayers) layer.remove();
+    structureLayers = [];
     for (const marker of markers.values()) marker.remove();
     markers = new Map();
 
@@ -240,6 +277,32 @@ function drawSelection(fit = true) {
         routeLayers.push(layer);
     }
 
+    const structures = new Map(
+        state.entries
+            .filter(entry => entry.point.type === 'ouvrage_art')
+            .map(entry => [entry.pointId, entry.point])
+    );
+    for (const [pointId, point] of structures) {
+        const voie1 = getTrainPointCoordinates(point, 1);
+        const voie2 = getTrainPointCoordinates(point, 2);
+        if (!voie2.dedicatedToVoie) continue;
+        const corridor = corridorForPoint(point);
+        const path = structurePathOnCorridor(point, corridor)
+            || [{ lat: voie1.lat, lon: voie1.lon }, { lat: voie2.lat, lon: voie2.lon }];
+        const lengthM = structureLengthMeters(point);
+        const layer = L.polyline(path.map(coordinate => [coordinate.lat, coordinate.lon]), {
+            ...TRAIN_EDITOR_STRUCTURE_STYLE,
+            dashArray: /tunnel|tranchée/i.test(point.name) ? '10 7' : null
+        }).addTo(map);
+        layer.bindTooltip(
+            `${escapeHtml(point.name)}${lengthM ? ` · ${Math.round(lengthM).toLocaleString('fr-FR')} m` : ''}`,
+            { sticky: true }
+        );
+        const selectableKey = state.entries.find(entry => entry.pointId === pointId)?.key;
+        if (selectableKey) layer.on('click', () => selectEntry(selectableKey, false));
+        structureLayers.push(layer);
+    }
+
     if (fit) {
         const bounds = routeBounds();
         if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24] });
@@ -252,7 +315,11 @@ function drawSelection(fit = true) {
             icon: markerIcon(entry),
             title: `${entry.point.name} — ${voieDescription(entry)}`
         }).addTo(map);
-        const source = coordinates.dedicatedToVoie ? 'Coordonnées dédiées à cette voie' : 'Coordonnées communes lat/lon';
+        const source = entryNeedsPositioning(entry)
+            ? 'Entrée V2 à positionner sur la polyline'
+            : state.derivedEndpointKeys.has(entry.key)
+            ? 'Extrémité calculée sur la polyline selon la longueur'
+            : (coordinates.dedicatedToVoie ? 'Coordonnées dédiées à cette voie' : 'Coordonnées communes lat/lon');
         marker.bindPopup(
             `<strong>${escapeHtml(entry.point.name)}</strong><br>${escapeHtml(voieDescription(entry))}`
             + `<br>${escapeHtml(entry.point.type || 'passage')}<br><small>${source} · glissez pour corriger</small>`
@@ -286,7 +353,9 @@ function renderList() {
         button.type = 'button';
         button.className = `train-point-item${entryCssVoie(entry)}`
             + `${entry.key === state.activeEntryKey ? ' active' : ''}`
-            + `${state.modifiedKeys.has(entry.key) ? ' modified' : ''}`;
+            + `${state.modifiedKeys.has(entry.key) ? ' modified' : ''}`
+            + `${state.derivedEndpointKeys.has(entry.key) ? ' suggested' : ''}`
+            + `${entryNeedsPositioning(entry) ? ' needs-positioning' : ''}`;
 
         const title = document.createElement('strong');
         title.textContent = `${index + 1}. ${entry.point.name}`;
@@ -324,9 +393,9 @@ function renderCoordinateEditor() {
     const coordinates = coordinatesForEntry(entry);
     coordinateTitle.textContent = entry.point.name;
     const coordinateSource = coordinates.dedicatedToVoie
-        ? 'position V dédiée'
-        : 'repli actuel sur lat/lon communes';
-    coordinateMeta.textContent = entry.point.type === 'bifurcation'
+        ? (state.derivedEndpointKeys.has(entry.key) ? 'position calculée sur la polyline' : 'position V dédiée')
+        : (entryNeedsPositioning(entry) ? 'entrée V2 à positionner' : 'repli actuel sur lat/lon communes');
+    coordinateMeta.textContent = usesTrainVoieCoordinates(entry.point)
         ? `${TRAIN_EDITOR_VOIES[entry.voie].label} · ${coordinateSource}`
         : `${voieDescription(entry)} · position commune`;
     latitudeInput.value = coordinates.lat;
@@ -343,9 +412,18 @@ function validateCoordinates(lat, lon) {
 function updateEntryCoordinates(entry, lat, lon, actionLabel) {
     try {
         validateCoordinates(lat, lon);
+        if (entry.point.type === 'ouvrage_art') {
+            const corridor = corridorForPoint(entry.point);
+            const snapped = snapToRailCorridor(corridor, lat, lon);
+            if (snapped) ({ lat, lon } = snapped);
+        }
         setTrainPointCoordinates(entry.point, entry.voie || [...entry.voies][0] || 1,
             Number(lat.toFixed(7)), Number(lon.toFixed(7)));
         state.modifiedKeys.add(entry.key);
+        state.derivedEndpointKeys.delete(entry.key);
+        if (entry.point.type === 'ouvrage_art' && entry.voie === 1) {
+            refreshDerivedStructureEndpoint(entry.pointId);
+        }
         state.activeEntryKey = entry.key;
         refreshSelection(false);
         showStatus(`${actionLabel} pour ${entry.point.name}. ${selectionSummary()}`, 'success');
@@ -353,6 +431,22 @@ function updateEntryCoordinates(entry, lat, lon, actionLabel) {
         showStatus(error.message, 'error');
         refreshSelection(false);
     }
+}
+
+function applyAutomaticStructureEndpoints() {
+    const suggestions = applyStructureEndpointSuggestions(state.data.points, state.railCorridors);
+    for (const pointId of suggestions.keys()) state.derivedEndpointKeys.add(`${pointId}::V2`);
+}
+
+function refreshDerivedStructureEndpoint(pointId) {
+    const key = `${pointId}::V2`;
+    if (!state.derivedEndpointKeys.has(key)) return;
+    const point = state.data.points[pointId];
+    delete point.lat_V2;
+    delete point.lon_V2;
+    state.derivedEndpointKeys.delete(key);
+    const suggestions = applyStructureEndpointSuggestions({ [pointId]: point }, state.railCorridors);
+    if (suggestions.has(pointId)) state.derivedEndpointKeys.add(key);
 }
 
 function resetActiveEntry() {
@@ -364,6 +458,21 @@ function resetActiveEntry() {
         entry.voie || [...entry.voies][0] || 1
     );
     state.modifiedKeys.delete(entry.key);
+    state.derivedEndpointKeys.delete(entry.key);
+    if (entry.point.type === 'ouvrage_art') {
+        const v2Key = `${entry.pointId}::V2`;
+        const shouldRefreshV2 = entry.voie === 2 || state.derivedEndpointKeys.has(v2Key);
+        if (shouldRefreshV2) {
+            delete entry.point.lat_V2;
+            delete entry.point.lon_V2;
+            state.derivedEndpointKeys.delete(v2Key);
+        }
+        const suggestions = applyStructureEndpointSuggestions(
+            { [entry.pointId]: entry.point },
+            state.railCorridors
+        );
+        if (suggestions.has(entry.pointId)) state.derivedEndpointKeys.add(v2Key);
+    }
     refreshSelection(false);
     showStatus(`${entry.point.name} a retrouvé sa position d’origine. ${selectionSummary()}`, 'success');
 }
@@ -371,7 +480,12 @@ function resetActiveEntry() {
 function selectionSummary() {
     const voies = [...new Set(state.contexts.map(context => `V${context.voie}`))].join(' + ');
     const modified = state.modifiedKeys.size;
-    return `${state.entries.length} repères · ${voies} · ${modified} correction${modified > 1 ? 's' : ''}.`;
+    const derived = state.derivedEndpointKeys.size;
+    const missing = Object.values(state.data.points).filter(point => point.type === 'ouvrage_art'
+        && (!Number.isFinite(point.lat_V2) || !Number.isFinite(point.lon_V2))).length;
+    return `${state.entries.length} repères · ${voies} · ${modified} correction${modified > 1 ? 's' : ''}`
+        + ` · ${derived} extrémité${derived > 1 ? 's' : ''} calculée${derived > 1 ? 's' : ''}`
+        + ` · ${missing} à positionner.`;
 }
 
 function refreshSelection(fit = true) {
@@ -388,6 +502,8 @@ async function init() {
     }
     state.data = await loadMasterRoutes();
     state.originalData = cloneData(state.data);
+    state.railCorridors = await loadRailCorridors(TRAIN_EDITOR_MAP_CONFIG.railDatasetDescriptorUrl);
+    applyAutomaticStructureEndpoints();
 
     map = L.map('train-map', { preferCanvas: true });
     const baseLayer = L.tileLayer(
@@ -413,6 +529,13 @@ async function init() {
     });
     document.getElementById('train-editor-export').addEventListener('click', () => {
         try {
+            const endpointValidation = validateStructureEndpoints(
+                state.data.points,
+                TRAIN_EDITOR_MAP_CONFIG.minStructureEndpointDistanceM
+            );
+            if (!endpointValidation.valid) {
+                throw new Error(`Export refusé : ${endpointValidation.errors.join(' ')}`);
+            }
             const data = buildMasterRoutesDocument(state.data.points, state.data.trajets);
             downloadMasterRoutesDocument(data);
             showStatus(`Export JSON validé. ${selectionSummary()}`, 'success');
@@ -425,6 +548,8 @@ async function init() {
         if (!confirm('Annuler toutes les corrections cartographiques de cette session ?')) return;
         state.data = cloneData(state.originalData);
         state.modifiedKeys.clear();
+        state.derivedEndpointKeys.clear();
+        applyAutomaticStructureEndpoints();
         state.activeEntryKey = null;
         refreshSelection(false);
         showStatus(`Toutes les corrections ont été annulées. ${selectionSummary()}`, 'success');

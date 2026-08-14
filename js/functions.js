@@ -39,13 +39,12 @@ export function buildEffectiveRoute(patternId, globalDeltaSeconds, pointsGlobal,
     // Croisement dictionnaire points + séquence du trajet
     const voie = trajet.voie || 1;
     const points = denormalizePoints(pointsGlobal, trajet.points).map(p => {
-        // Pour les bifurcations, substituer lat/lon par les coordonnées de la voie courante
-        if (p.type === 'bifurcation') {
-            const latV = p[`lat_V${voie}`];
-            const lonV = p[`lon_V${voie}`];
-            if (typeof latV === 'number' && typeof lonV === 'number') {
-                return { ...p, lat: latV, lon: lonV };
-            }
+        // Les points directionnels (bifurcations, ouvrages) utilisent l'entrée
+        // propre au sens de circulation quand elle est renseignée.
+        const latV = p[`lat_V${voie}`];
+        const lonV = p[`lon_V${voie}`];
+        if (typeof latV === 'number' && typeof lonV === 'number') {
+            return { ...p, lat: latV, lon: lonV };
         }
         return p;
     });

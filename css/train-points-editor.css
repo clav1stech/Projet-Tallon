@@ -54,6 +54,11 @@ body {
     border-color: #2563b8;
 }
 
+.train-structure-swatch {
+    width: 30px;
+    border-top: 6px solid #7c3aed;
+}
+
 .train-map-toolbar {
     display: grid;
     gap: 10px;
@@ -191,6 +196,18 @@ body {
     font-weight: 700;
 }
 
+.train-point-item.suggested .train-point-meta::after {
+    content: ' · calculé sur la polyline';
+    color: #7c3aed;
+    font-weight: 700;
+}
+
+.train-point-item.needs-positioning .train-point-meta::after {
+    content: ' · entrée V2 à positionner';
+    color: #c2410c;
+    font-weight: 700;
+}
+
 .train-map-marker {
     border: 0;
     background: transparent;
@@ -219,6 +236,14 @@ body {
 
 .train-map-marker.modified span {
     box-shadow: 0 0 0 4px #f0a13c, 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.train-map-marker.suggested span {
+    box-shadow: 0 0 0 4px #a78bfa, 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.train-map-marker.needs-positioning span {
+    box-shadow: 0 0 0 4px #fb923c, 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .train-map-marker.active span {

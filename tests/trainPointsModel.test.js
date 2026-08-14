@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
     getTrainPointCoordinates,
     resetTrainPointCoordinates,
-    setTrainPointCoordinates
+    setTrainPointCoordinates,
+    usesTrainVoieCoordinates
 } from '../js/train-points-model.js';
 
 describe('coordonnées directionnelles des points rail', () => {
@@ -30,6 +31,14 @@ describe('coordonnées directionnelles des points rail', () => {
         const point = { type: 'gare', lat: 48, lon: 2 };
         setTrainPointCoordinates(point, 2, 47, 3);
         expect(point).toEqual({ type: 'gare', lat: 47, lon: 3 });
+    });
+
+    it('traite aussi les tunnels et ouvrages d’art comme des points directionnels', () => {
+        const point = { type: 'ouvrage_art', lat: 48, lon: 2 };
+        expect(usesTrainVoieCoordinates(point)).toBe(true);
+        setTrainPointCoordinates(point, 2, 47.9, 2.1);
+        expect(getTrainPointCoordinates(point, 1)).toEqual({ lat: 48, lon: 2, dedicatedToVoie: false });
+        expect(getTrainPointCoordinates(point, 2)).toEqual({ lat: 47.9, lon: 2.1, dedicatedToVoie: true });
     });
 
     it('supprime une position par voie absente du document initial lors du reset', () => {

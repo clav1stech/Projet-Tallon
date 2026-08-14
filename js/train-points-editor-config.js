@@ -1,4 +1,6 @@
 export const TRAIN_EDITOR_MAP_CONFIG = {
+    railDatasetDescriptorUrl: 'data/datasets/rail-pk.json',
+    minStructureEndpointDistanceM: 5,
     markerOffsetPx: 13,
     markerCollisionThresholdKm: 0.03,
     baseTiles: {
@@ -16,6 +18,12 @@ export const TRAIN_EDITOR_MAP_CONFIG = {
             attribution: 'Style &copy; <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>'
         }
     }
+};
+
+export const TRAIN_EDITOR_STRUCTURE_STYLE = {
+    color: '#7c3aed',
+    weight: 7,
+    opacity: 0.8
 };
 
 export const TRAIN_EDITOR_VOIES = {

@@ -13,8 +13,8 @@ function isValidCoordinate(lat, lon) {
 
 /**
  * Valide les invariants nécessaires aux consommateurs du schéma v3.
- * Les coordonnées par voie restent optionnelles pour les anciennes
- * bifurcations, mais doivent toujours être fournies par paire.
+ * Les coordonnées par voie restent optionnelles pour les points directionnels
+ * historiques, mais doivent toujours être fournies par paire.
  */
 export function validateMasterRoutes(data) {
     const errors = [];

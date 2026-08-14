@@ -54,6 +54,22 @@ describe('buildEffectiveRoute — construction de base', () => {
         expect(bif.lon).toBe(2.499);
     });
 
+    it('utilise aussi l’entrée directionnelle d’un ouvrage d’art', () => {
+        const pointsWithStructure = {
+            ...POINTS,
+            C: {
+                ...POINTS.C,
+                type: 'ouvrage_art',
+                lat_V1: 48.501,
+                lon_V1: 2.401,
+                lat_V2: 48.499,
+                lon_V2: 2.399
+            }
+        };
+        const route = buildEffectiveRoute('P1', 0, pointsWithStructure, TRAJETS, pattern());
+        expect(route.points.find(point => point.id === 'C')).toMatchObject({ lat: 48.499, lon: 2.399 });
+    });
+
     it('sens inverse : les durées sont lues sur le point d\'arrivée du segment', () => {
         const r = buildEffectiveRoute('P1', 0, POINTS, TRAJETS, pattern({ startPointId: 'D', endPointId: 'A' }));
         expect(r.points.map(p => p.id)).toEqual(['D', 'C', 'BIF', 'B', 'A']);
