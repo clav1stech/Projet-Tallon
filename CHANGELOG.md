@@ -2,6 +2,13 @@
 
 ## v3.0.6 - 2026-08-14
 
+### Inversion des repères directionnels des ouvrages
+
+- Permutation des positions Mâcon → Combloux et Combloux → Mâcon pour les
+  15 tunnels et viaducs, sans modifier leurs longueurs.
+- Les coordonnées précises de Charix et Neyrolles suivent également leur
+  nouvelle affectation au trajet retour.
+
 ### Nouveaux recalages du trajet retour
 
 - Intégration des cinq corrections `reverse` de l'export cartographique pour

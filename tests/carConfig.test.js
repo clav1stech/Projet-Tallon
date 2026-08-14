@@ -22,8 +22,8 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
     it('intègre les recalages du fichier sur A40 et A406', () => {
         expect(a40.waypoints.find(wp => wp.name === 'Sortie 19 – Cluses')?.pk).toBe(180.210039);
         expect(a40.waypoints.find(wp => wp.name === 'Tunnel de Chamoise')).toMatchObject({
-            pk: 83.461586,
-            reversePk: 80.137326
+            pk: 80.137326,
+            reversePk: 83.461586
         });
         expect(a40.waypoints.find(wp => wp.name === 'Péage de Viry')?.pk).toBe(126.482059);
         expect(a406.waypoints.find(wp => wp.name === 'Péage Mâcon – Val de Saône')?.pk).toBe(8.109835);
@@ -48,7 +48,7 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
 
     it('intègre les corrections spécifiques au trajet retour', () => {
         expect(a40.waypoints.find(wp => wp.name === 'Sortie 19 – Cluses')?.reversePk).toBe(181.364191);
-        expect(a40.waypoints.find(wp => wp.name === 'Tunnel du Vuache')?.reversePk).toBe(118.519803);
+        expect(a40.waypoints.find(wp => wp.name === 'Tunnel du Vuache')?.reversePk).toBe(119.860696);
         const combloux = CAR_ROUTES.COMBLOUX_MACON.legs[0].points[0];
         expect(combloux).toMatchObject({ lat: 45.8903069, lon: 6.6419649 });
     });
@@ -76,18 +76,18 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
         expect(reverse).toBe(forward);
     });
 
-    it('place les repères aller du côté est par rapport aux points retour', () => {
+    it('permute les positions aller et retour des ouvrages', () => {
         const structures = a40.waypoints.filter(wp => Number.isFinite(wp.lengthM));
         expect(structures).toHaveLength(15);
-        expect(structures.every(wp => Number.isFinite(wp.reversePk) && wp.pk > wp.reversePk)).toBe(true);
+        expect(structures.every(wp => Number.isFinite(wp.reversePk) && wp.pk < wp.reversePk)).toBe(true);
         expect(structures.find(wp => wp.name === 'Tunnel de Chamoise')).toMatchObject({
-            pk: 83.461586,
-            reversePk: 80.137326,
+            pk: 80.137326,
+            reversePk: 83.461586,
             lengthM: 3300
         });
         expect(structures.find(wp => wp.name === 'Tunnel du Vuache')).toMatchObject({
-            pk: 119.860696,
-            reversePk: 118.519803,
+            pk: 118.519803,
+            reversePk: 119.860696,
             lengthM: 1400
         });
     });
@@ -110,14 +110,16 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
         expect(a40.waypoints.find(wp => wp.name === "Échangeur A42 (Pont-d'Ain, Lyon)")?.reversePk).toBe(58.465484);
 
         expect(a40.waypoints.find(wp => wp.name === 'Viaduc de Charix')).toMatchObject({
-            pk: 89.546651,
-            lat: 46.1702943,
-            lon: 5.6773125
+            pk: 89.402165,
+            reversePk: 89.546651,
+            reverseLat: 46.1702943,
+            reverseLon: 5.6773125
         });
         expect(a40.waypoints.find(wp => wp.name === 'Viaduc des Neyrolles')).toMatchObject({
-            pk: 84.694631,
-            lat: 46.1428893,
-            lon: 5.630018
+            pk: 84.106513,
+            reversePk: 84.694631,
+            reverseLat: 46.1428893,
+            reverseLon: 5.630018
         });
     });
 });
