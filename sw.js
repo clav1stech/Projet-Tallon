@@ -4,7 +4,7 @@
 // immédiatement (zéro latence même sans réseau), puis rafraîchie en arrière-plan
 // pour la prochaine visite. Incrémenter CACHE_VERSION pour forcer une purge.
 
-const CACHE_VERSION = 'tallon-v18';
+const CACHE_VERSION = 'tallon-v19';
 
 // Coquille applicative pré-cachée à l'installation.
 const PRECACHE_URLS = [
@@ -12,8 +12,10 @@ const PRECACHE_URLS = [
     './index.html',
     './car.html',
     './car-points-editor.html',
+    './train-points-editor.html',
     './assets/tunnel.png',
     './css/styles.css',
+    './css/train-points-editor.css',
     './js/app.js',
     './js/functions.js',
     './js/geo.js',
@@ -32,6 +34,10 @@ const PRECACHE_URLS = [
     './js/car-ui.js',
     './js/car-waypoint-overrides.js',
     './js/car-points-editor.js',
+    './js/master-routes-data.js',
+    './js/train-points-model.js',
+    './js/train-points-editor-config.js',
+    './js/train-points-editor.js',
     './data/masterRoutes.normalized.json',
     './data/servicePatterns.json',
     // Datasets PK/PR : descripteurs + CSV générés dans data/csv/ (hors-ligne

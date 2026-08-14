@@ -2,8 +2,8 @@
 
 /**
  * Retourne la voie de circulation d'une master route.
- * Voie 1 = sens Paris (south-north), Voie 2 = sens Marseille/Lyon (north-south).
- * Se base sur le champ `voie` de la route, avec fallback sur `direction`.
+ * Voie 1 = Paris → Province, voie 2 = Province → Paris.
+ * Se base sur le champ `voie`, avec repli sur les anciennes valeurs de `direction`.
  * @param {object} route - Objet master route
  * @returns {1|2|null}
  */

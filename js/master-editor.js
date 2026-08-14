@@ -1,4 +1,10 @@
 import { MAIN_ROUTES } from './routes-config.js';
+import {
+    buildMasterRoutesDocument,
+    downloadMasterRoutesDocument,
+    loadMasterRoutes
+} from './master-routes-data.js';
+import { getVoieForRoute } from './utils.js';
 
 const state = {
     routes: [],        // Tous les trajets chargés depuis le JSON
@@ -61,10 +67,7 @@ init();
 
 async function init() {
     try {
-        const masterRes = await fetch('data/masterRoutes.normalized.json');
-        if (!masterRes.ok) throw new Error(`HTTP ${masterRes.status}`);
-
-        const masterData = await masterRes.json();
+        const masterData = await loadMasterRoutes();
 
         state.globalPoints = masterData.points || {};
         state.routes = masterData.trajets || [];
@@ -483,24 +486,14 @@ function duplicateRoute() {
 }
 
 function exportJson() {
-    const data = { _schema: 'v3', points: state.globalPoints, trajets: state.routes };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'masterRoutes.normalized.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    showMessage('Export réalisé. Remplacez data/masterRoutes.normalized.json avec ce fichier pour mettre à jour l\'app et l\'éditeur.', 'success');
-    clearDirty();
-}
-
-function getVoieForRoute(route) {
-    if (route?.voie === 1 || route?.voie === 2) return route.voie;
-    const dir = (route?.direction || '').toLowerCase();
-    if (dir === 'south-north') return 1;
-    if (dir === 'north-south') return 2;
-    return null;
+    try {
+        const data = buildMasterRoutesDocument(state.globalPoints, state.routes);
+        downloadMasterRoutesDocument(data);
+        showMessage('Export validé et réalisé. Remplacez data/masterRoutes.normalized.json avec ce fichier pour mettre à jour l\'app et l\'éditeur.', 'success');
+        clearDirty();
+    } catch (error) {
+        showMessage(error.message, 'error');
+    }
 }
 
 function syncVoiePicker() {

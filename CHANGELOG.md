@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.1.0 - 2026-08-14
+
+### Éditeur cartographique des points rail
+
+- Ajout de `train-points-editor.html`, accessible depuis la page principale,
+  avec fond OpenStreetMap et overlay ferroviaire OpenRailwayMap.
+- Les trajets peuvent être affichés voie par voie ou simultanément ; les
+  bifurcations distinguent leurs coordonnées V1 (Paris → Province) et V2
+  (Province → Paris), tandis que les autres points restent communs.
+- Les repères sont déplaçables sur la carte et éditables par saisie directe,
+  avec annulation par point ou pour toute la session.
+- Le chargement, la validation et l'export du schéma v3 sont désormais
+  partagés avec `master-editor.html`. Un document incohérent ne peut plus être
+  exporté silencieusement.
+- Ajout de tests de non-régression sur les coordonnées directionnelles et sur
+  la source de vérité `data/masterRoutes.normalized.json`.
+- Mise à jour du cache hors ligne (`tallon-v19`) pour précacher le nouvel
+  éditeur et ses modules locaux.
+
 ## v3.0.8 - 2026-08-14
 
 ### Recalage complet des points voiture

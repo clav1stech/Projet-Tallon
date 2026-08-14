@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éditeur cartographique — points rail</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/train-points-editor.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
+<body>
+    <main class="train-map-editor">
+        <aside class="train-map-sidebar">
+            <h1>Points du mode train</h1>
+            <p class="editor-hint">Faites glisser un repère ou saisissez ses coordonnées.
+                Les bifurcations conservent une position propre à chaque voie ; les autres
+                points restent communs aux deux sens.</p>
+            <div class="train-voie-legend" aria-label="Légende des voies">
+                <span><i class="train-voie-swatch"></i> Voie 1 · Paris → Province</span>
+                <span><i class="train-voie-swatch voie-2"></i> Voie 2 · Province → Paris</span>
+            </div>
+
+            <div class="train-map-toolbar">
+                <label for="train-editor-route"><i class="fas fa-route"></i> Trajet</label>
+                <select id="train-editor-route"></select>
+                <div class="train-map-actions">
+                    <button id="train-editor-export" class="btn primary">Exporter le JSON validé</button>
+                    <button id="train-editor-reset" class="btn secondary">Annuler les corrections</button>
+                </div>
+            </div>
+
+            <div id="train-editor-status" role="status"></div>
+            <section id="train-coordinate-editor" class="train-coordinate-editor" aria-live="polite">
+                <h2 id="train-coordinate-title"></h2>
+                <div id="train-coordinate-meta" class="train-coordinate-meta"></div>
+                <div class="train-coordinate-fields">
+                    <label>Latitude
+                        <input id="train-coordinate-lat" type="number" step="0.000001" inputmode="decimal">
+                    </label>
+                    <label>Longitude
+                        <input id="train-coordinate-lon" type="number" step="0.000001" inputmode="decimal">
+                    </label>
+                </div>
+                <div class="train-map-actions">
+                    <button id="train-coordinate-apply" class="btn primary">Appliquer</button>
+                    <button id="train-coordinate-reset" class="btn secondary">Réinitialiser ce point</button>
+                </div>
+            </section>
+            <div id="train-point-list" class="train-point-list"></div>
+        </aside>
+        <div id="train-map" aria-label="Carte des points de passage ferroviaires"></div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script type="module" src="js/train-points-editor.js"></script>
+</body>
+</html>

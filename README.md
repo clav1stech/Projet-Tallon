@@ -45,6 +45,10 @@ pour l'historique complet.
   sens de circulation).
 - **Éditeur visuel de trajets** (`master-editor.html`) pour ajouter,
   réordonner ou éditer les points d'un trajet sans toucher au JSON à la main.
+- **Éditeur cartographique rail** (`train-points-editor.html`) pour déplacer
+  les points sur un fond OpenRailwayMap. Les bifurcations distinguent les
+  coordonnées V1 (Paris → Province) et V2 (Province → Paris), avec une vue
+  simultanée des deux voies et un export du schéma v3 validé.
 
 ## Mode voiture (`car.html`, branche `dev/road-rail-route`)
 
@@ -102,8 +106,10 @@ Application 100 % statique, sans backend ni build (modules ES natifs
 index.html              Page principale rail (sélection trajet + timeline + HUD)
 car.html                 Page mode voiture (Mâcon ⇄ Combloux, HUD paysage)
 car-points-editor.html   Carte de contrôle et correction des points voiture
+train-points-editor.html Carte de contrôle et correction des points rail
 master-editor.html       Éditeur visuel des trajets (data/masterRoutes.normalized.json)
 css/styles.css           Tous les styles (dont HUD paysage rail + voiture, responsive)
+css/train-points-editor.css Styles dédiés à l'éditeur cartographique rail
 sw.js                    Service worker : cache hors-ligne (stale-while-revalidate)
 manifest.webmanifest     Manifeste PWA (installation plein écran iPhone)
 
@@ -129,6 +135,9 @@ js/
   car-app.js              Orchestration voiture (boucle de tracking, matching)
   car-waypoint-overrides.js Surcouche locale/exportable des corrections cartographiques
   car-points-editor.js    Carte interactive et recalage des repères sur le corridor
+  master-routes-data.js   Chargement, validation et export partagés du schéma v3
+  train-points-model.js   Lecture/écriture des coordonnées communes et V1/V2
+  train-points-editor.js  Carte rail, repères déplaçables et vue des deux voies
   master-editor.js        Logique de master-editor.html
   fakeGeoSim.js           Simulateur GPS pour le développement (désactivé par défaut,
                           multiplicateur de vitesse + point de départ configurables)
@@ -184,6 +193,12 @@ Aucune dépendance à installer pour l'app elle-même :
 Ouvrir `master-editor.html` (même serveur), modifier les points d'un trajet,
 puis **Exporter JSON** pour récupérer le fichier mis à jour — les
 modifications ne sont jamais écrites automatiquement sur disque.
+
+Pour corriger uniquement leur placement géographique, ouvrir
+`train-points-editor.html`. Le fond OpenRailwayMap est superposé à
+OpenStreetMap et nécessite une connexion réseau. Une bifurcation déplacée sur
+V1 ou V2 conserve une coordonnée propre à ce sens ; les autres points gardent
+une position commune. L'export est refusé si le schéma v3 n'est plus valide.
 
 ### Tests
 
