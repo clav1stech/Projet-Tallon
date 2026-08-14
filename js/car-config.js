@@ -71,11 +71,31 @@ export const CAR_TRACKING_CONFIG = Object.freeze({
 const A40_WAYPOINTS = [
     // Sorties et échangeurs (km officiels A40 : autoroutes.fr/WikiSara).
     { pk: 12.683879, name: 'Aire du Musée de la Bresse',                          type: 'aire' },
-    { pk: 26.67536,  km: 30,  name: 'Sortie 5 – Bourg-en-Bresse nord',             type: 'sortie' },
-    { pk: 33.353851, km: 37,  name: 'Échangeur A39 (Dijon)',                       type: 'echangeur' },
-    { pk: 36.792972, km: 40,  name: 'Sortie 6 – Viriat / Bourg centre',            type: 'sortie' },
-    { pk: 47.082784, km: 50,  name: 'Sortie 7 – Bourg-en-Bresse sud / Ceyzériat',  type: 'sortie' },
-    { pk: 57.08379,  km: 60,  name: "Échangeur A42 (Pont-d'Ain, Lyon)",            type: 'echangeur' },
+    {
+        pk: 26.67536, reversePk: 27.323019,
+        reverseLat: 46.2614211, reverseLon: 5.1689784,
+        km: 30, name: 'Sortie 5 – Bourg-en-Bresse nord', type: 'sortie'
+    },
+    {
+        pk: 33.353851, reversePk: 34.436188,
+        reverseLat: 46.2519663, reverseLon: 5.2568084,
+        km: 37, name: 'Échangeur A39 (Dijon)', type: 'echangeur'
+    },
+    {
+        pk: 36.792972, reversePk: 37.223399,
+        reverseLat: 46.2334507, reverseLon: 5.2809571,
+        km: 40, name: 'Sortie 6 – Viriat / Bourg centre', type: 'sortie'
+    },
+    {
+        pk: 47.082784, reversePk: 47.712039,
+        reverseLat: 46.1437909, reverseLon: 5.2903694,
+        km: 50, name: 'Sortie 7 – Bourg-en-Bresse sud / Ceyzériat', type: 'sortie'
+    },
+    {
+        pk: 57.08379, reversePk: 58.465484,
+        reverseLat: 46.0725374, reverseLon: 5.3334987,
+        km: 60, name: "Échangeur A42 (Pont-d'Ain, Lyon)", type: 'echangeur'
+    },
     {
         pk: 74.067078,
         lat: 46.12972222222222,
@@ -117,21 +137,29 @@ const A40_WAYPOINTS = [
     // Ouvrages d'art (km = 204 − PR ; le PR du tunnel de Chamoise
     // est recalé sur la géométrie réelle — sortie est du tunnel
     // juste avant le viaduc de Nantua, PR ≈ 120,5).
-    { pk: 63.977217, reversePk: 64.520013, km: 65, name: 'Viaduc de Poncin', type: 'viaduc', lengthM: 566 },
-    { pk: 76.884273, reversePk: 80.137326, km: 83.5, name: 'Tunnel de Chamoise', type: 'tunnel', lengthM: 3300 },
-    { pk: 82.414162, reversePk: 83.407304, km: 86, name: 'Viaduc de Nantua', type: 'viaduc', lengthM: 1003 },
-    { pk: 83.333311, reversePk: 84.106513, km: 87, name: 'Viaduc des Neyrolles', type: 'viaduc', lengthM: 782 },
-    { pk: 85.472698, reversePk: 85.686236, km: 90, name: 'Viaduc des Glacières', type: 'viaduc', lengthM: 214 },
-    { pk: 86.337383, reversePk: 87.587796, km: 92, name: 'Viaduc de Sylans', type: 'viaduc', lengthM: 1266 },
-    { pk: 88.884677, reversePk: 89.402165, km: 93, name: 'Viaduc de Charix', type: 'viaduc', lengthM: 542 },
-    { pk: 92.425082, reversePk: 92.618128, km: 94, name: 'Viaduc de Lalleyriat', type: 'viaduc', lengthM: 194 },
-    { pk: 92.679094, reversePk: 93.110861, km: 95, name: 'Viaduc de Frébuge', type: 'viaduc', lengthM: 439 },
-    { pk: 93.866461, reversePk: 95.088182, km: 96, name: 'Tunnel de Saint-Germain-de-Joux', type: 'tunnel', lengthM: 1196 },
-    { pk: 95.874189, reversePk: 96.196631, km: 97, name: 'Viaduc du Tacon', type: 'viaduc', lengthM: 322 },
-    { pk: 97.229832, reversePk: 97.950133, km: 99, name: 'Tunnel de Châtillon', type: 'tunnel', lengthM: 720 },
-    { pk: 98.207746, reversePk: 98.430013, km: 100, name: 'Viaduc de Châtillon', type: 'viaduc', lengthM: 222 },
-    { pk: 105.188732, reversePk: 106.229365, km: 107, name: 'Viaduc de Bellegarde-sur-Valserine', type: 'viaduc', lengthM: 1040 },
-    { pk: 117.13946, reversePk: 118.519803, km: 120, name: 'Tunnel du Vuache', type: 'tunnel', lengthM: 1400 }
+    { pk: 65.07982, reversePk: 64.520013, km: 65, name: 'Viaduc de Poncin', type: 'viaduc', lengthM: 566 },
+    { pk: 83.461586, reversePk: 80.137326, km: 83.5, name: 'Tunnel de Chamoise', type: 'tunnel', lengthM: 3300 },
+    { pk: 84.393997, reversePk: 83.407304, km: 86, name: 'Viaduc de Nantua', type: 'viaduc', lengthM: 1003 },
+    {
+        pk: 84.694631, reversePk: 84.106513,
+        lat: 46.1428893, lon: 5.630018,
+        km: 87, name: 'Viaduc des Neyrolles', type: 'viaduc', lengthM: 782
+    },
+    { pk: 85.900475, reversePk: 85.686236, km: 90, name: 'Viaduc des Glacières', type: 'viaduc', lengthM: 214 },
+    { pk: 88.825299, reversePk: 87.587796, km: 92, name: 'Viaduc de Sylans', type: 'viaduc', lengthM: 1266 },
+    {
+        pk: 89.546651, reversePk: 89.402165,
+        lat: 46.1702943, lon: 5.6773125,
+        km: 93, name: 'Viaduc de Charix', type: 'viaduc', lengthM: 542
+    },
+    { pk: 92.811459, reversePk: 92.618128, km: 94, name: 'Viaduc de Lalleyriat', type: 'viaduc', lengthM: 194 },
+    { pk: 93.541167, reversePk: 93.110861, km: 95, name: 'Viaduc de Frébuge', type: 'viaduc', lengthM: 439 },
+    { pk: 96.304146, reversePk: 95.088182, km: 96, name: 'Tunnel de Saint-Germain-de-Joux', type: 'tunnel', lengthM: 1196 },
+    { pk: 96.519033, reversePk: 96.196631, km: 97, name: 'Viaduc du Tacon', type: 'viaduc', lengthM: 322 },
+    { pk: 98.670796, reversePk: 97.950133, km: 99, name: 'Tunnel de Châtillon', type: 'tunnel', lengthM: 720 },
+    { pk: 98.652292, reversePk: 98.430013, km: 100, name: 'Viaduc de Châtillon', type: 'viaduc', lengthM: 222 },
+    { pk: 107.270736, reversePk: 106.229365, km: 107, name: 'Viaduc de Bellegarde-sur-Valserine', type: 'viaduc', lengthM: 1040 },
+    { pk: 119.860696, reversePk: 118.519803, km: 120, name: 'Tunnel du Vuache', type: 'tunnel', lengthM: 1400 }
 ];
 
 // Secteurs A40 (bornes pk_cum indicatives, à affiner à l'usage) :

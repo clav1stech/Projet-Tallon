@@ -22,7 +22,7 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
     it('intègre les recalages du fichier sur A40 et A406', () => {
         expect(a40.waypoints.find(wp => wp.name === 'Sortie 19 – Cluses')?.pk).toBe(180.210039);
         expect(a40.waypoints.find(wp => wp.name === 'Tunnel de Chamoise')).toMatchObject({
-            pk: 76.884273,
+            pk: 83.461586,
             reversePk: 80.137326
         });
         expect(a40.waypoints.find(wp => wp.name === 'Péage de Viry')?.pk).toBe(126.482059);
@@ -76,19 +76,48 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
         expect(reverse).toBe(forward);
     });
 
-    it('décale les entrées aller des ouvrages vers l’ouest depuis les points retour', () => {
+    it('place les repères aller du côté est par rapport aux points retour', () => {
         const structures = a40.waypoints.filter(wp => Number.isFinite(wp.lengthM));
         expect(structures).toHaveLength(15);
-        expect(structures.every(wp => Number.isFinite(wp.reversePk) && wp.pk < wp.reversePk)).toBe(true);
+        expect(structures.every(wp => Number.isFinite(wp.reversePk) && wp.pk > wp.reversePk)).toBe(true);
         expect(structures.find(wp => wp.name === 'Tunnel de Chamoise')).toMatchObject({
-            pk: 76.884273,
+            pk: 83.461586,
             reversePk: 80.137326,
             lengthM: 3300
         });
         expect(structures.find(wp => wp.name === 'Tunnel du Vuache')).toMatchObject({
-            pk: 117.13946,
+            pk: 119.860696,
             reversePk: 118.519803,
             lengthM: 1400
+        });
+    });
+
+    it('intègre les nouvelles corrections retour et les deux corrections aller explicites', () => {
+        expect(a40.waypoints.find(wp => wp.name === 'Sortie 5 – Bourg-en-Bresse nord')).toMatchObject({
+            pk: 26.67536,
+            reversePk: 27.323019,
+            reverseLat: 46.2614211,
+            reverseLon: 5.1689784
+        });
+        expect(a40.waypoints.find(wp => wp.name === 'Échangeur A39 (Dijon)')).toMatchObject({
+            pk: 33.353851,
+            reversePk: 34.436188,
+            reverseLat: 46.2519663,
+            reverseLon: 5.2568084
+        });
+        expect(a40.waypoints.find(wp => wp.name === 'Sortie 6 – Viriat / Bourg centre')?.reversePk).toBe(37.223399);
+        expect(a40.waypoints.find(wp => wp.name === 'Sortie 7 – Bourg-en-Bresse sud / Ceyzériat')?.reversePk).toBe(47.712039);
+        expect(a40.waypoints.find(wp => wp.name === "Échangeur A42 (Pont-d'Ain, Lyon)")?.reversePk).toBe(58.465484);
+
+        expect(a40.waypoints.find(wp => wp.name === 'Viaduc de Charix')).toMatchObject({
+            pk: 89.546651,
+            lat: 46.1702943,
+            lon: 5.6773125
+        });
+        expect(a40.waypoints.find(wp => wp.name === 'Viaduc des Neyrolles')).toMatchObject({
+            pk: 84.694631,
+            lat: 46.1428893,
+            lon: 5.630018
         });
     });
 });

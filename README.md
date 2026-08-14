@@ -78,8 +78,8 @@ géométrie de corridor issue d'une trace GPS réelle et des données propres.
   recalage automatique sur la route, projection spatiale de la longueur des
   tunnels et viaducs à partir de leur repère propre au sens sélectionné,
   application locale et export/import JSON.
-  Les repères aller des ouvrages sont dérivés des points retour validés en les
-  décalant vers l'ouest de leur longueur réelle le long du corridor.
+  La projection suit le sens sélectionné : vers l'est à l'aller et vers
+  l'ouest au retour.
 
 Les données d'itinéraire vivent dans `js/car-config.js` (source unique,
 comme `routes-config.js` pour le rail) ; toute route ou tout point de passage

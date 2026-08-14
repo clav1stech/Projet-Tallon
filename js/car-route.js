@@ -235,9 +235,9 @@ function interpolateRoutePoint(route, routeKm) {
 
 /**
  * Extrait la portion du tracé correspondant à la longueur d'un ouvrage à
- * partir de son repère directionnel. Sur la chaussée retour, les repères
- * fournis correspondent à l'extrémité ouest : la portée est donc reconstruite
- * vers l'est, en remontant les km-route du trajet inversé.
+ * partir de son repère directionnel, en avançant dans l'ordre du trajet
+ * construit. Les legs retour étant déjà inversés, les km-route croissants
+ * vont vers l'ouest sur Combloux → Mâcon et vers l'est sur l'aller.
  * @returns {Array<{lat:number, lon:number, routeKm:number}>}
  */
 export function projectRouteLength(route, startRouteKm, lengthM, legIndex = null) {
@@ -246,11 +246,8 @@ export function projectRouteLength(route, startRouteKm, lengthM, legIndex = null
     const leg = legIndex == null ? null : route.legs?.find(item => item.index === legIndex);
     const minKm = Number.isFinite(leg?.startKm) ? leg.startKm : 0;
     const maxKm = Number.isFinite(leg?.endKm) ? leg.endKm : route.totalKm;
-    const markerKm = Math.max(minKm, Math.min(maxKm, startRouteKm));
-    const direction = leg?.reverse ? -1 : 1;
-    const projectedEndKm = Math.max(minKm, Math.min(maxKm, markerKm + direction * lengthM / 1000));
-    const startKm = Math.min(markerKm, projectedEndKm);
-    const endKm = Math.max(markerKm, projectedEndKm);
+    const startKm = Math.max(minKm, Math.min(maxKm, startRouteKm));
+    const endKm = Math.min(maxKm, startKm + lengthM / 1000);
     if (!(endKm > startKm)) return [];
 
     const start = interpolateRoutePoint(route, startKm);
@@ -268,7 +265,7 @@ export function projectRouteLength(route, startRouteKm, lengthM, legIndex = null
         }
     }
     projected.push(end);
-    return direction < 0 ? projected.reverse() : projected;
+    return projected;
 }
 
 /**

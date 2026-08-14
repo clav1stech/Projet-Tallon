@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.0.6 - 2026-08-14
+
+### Nouveaux recalages du trajet retour
+
+- Intégration des cinq corrections `reverse` de l'export cartographique pour
+  les sorties 5, 6 et 7 ainsi que les échangeurs A39 et A42.
+- Correction du sens de projection : est sur Mâcon → Combloux, ouest sur
+  Combloux → Mâcon, sans double inversion du trajet retour.
+- Repositionnement des 15 repères aller du côté est ; les corrections manuelles
+  `forward` de Charix et Neyrolles sont reprises exactement depuis l'export.
+
 ## v3.0.5 - 2026-08-14
 
 ### Sens de projection des ouvrages d'art
@@ -9,8 +20,6 @@
 - Ajout du col de Ceignes au PK A40 `74.067078`, aux coordonnées indiquées dans
   les deux sens.
 - Ajout de Mâcon-Loché TGV comme véritable terminus ouest des deux trajets.
-- Les 15 repères aller des tunnels et viaducs sont recalculés vers l'ouest à
-  partir des points retour déjà corrigés, sur la longueur réelle de l'ouvrage.
 
 ## v3.0.4 - 2026-08-14
 

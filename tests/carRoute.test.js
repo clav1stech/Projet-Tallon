@@ -218,7 +218,7 @@ describe('projectRouteLength', () => {
         expect(projectRouteLength(route, 1, 0, 0)).toEqual([]);
     });
 
-    it("projette vers l'est à partir du repère retour", () => {
+    it("projette vers l'ouest dans l'ordre du trajet retour", () => {
         const reverseRoute = buildCarRoute({
             legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', reverse: true }]
         }, DATASETS);
@@ -226,8 +226,8 @@ describe('projectRouteLength', () => {
         const projected = projectRouteLength(reverseRoute, entryKm, 1000, 0);
 
         expect(projected[0].routeKm).toBeCloseTo(entryKm, 6);
-        expect(projected.at(-1).routeKm).toBeCloseTo(entryKm - 1, 6);
-        expect(projected.at(-1).lon).toBeGreaterThan(projected[0].lon);
+        expect(projected.at(-1).routeKm).toBeCloseTo(entryKm + 1, 6);
+        expect(projected.at(-1).lon).toBeLessThan(projected[0].lon);
     });
 });
 
