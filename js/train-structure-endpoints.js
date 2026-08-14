@@ -120,10 +120,26 @@ export function structurePathOnCorridor(point, corridor) {
         lat: point.lat_V2 ?? point.lat,
         lon: point.lon_V2 ?? point.lon
     };
+    return pathBetweenRailCoordinates(corridor, startCoordinates, endCoordinates);
+}
+
+export function pathBetweenRailCoordinates(
+    corridor,
+    startCoordinates,
+    endCoordinates,
+    { includeExactEndpoints = true } = {}
+) {
+    if (!corridor || !startCoordinates || !endCoordinates) return null;
     const start = nearestCorridorLocation(corridor, startCoordinates.lat, startCoordinates.lon);
     const end = nearestCorridorLocation(corridor, endCoordinates.lat, endCoordinates.lon);
     if (!start || !end) return null;
-    return pathBetweenLocations(corridor, start, end, startCoordinates, endCoordinates);
+    const exactStart = includeExactEndpoints
+        ? startCoordinates
+        : { lat: start.lat, lon: start.lon };
+    const exactEnd = includeExactEndpoints
+        ? endCoordinates
+        : { lat: end.lat, lon: end.lon };
+    return pathBetweenLocations(corridor, start, end, exactStart, exactEnd);
 }
 
 function corridorForStructure(point, corridorsByLine) {

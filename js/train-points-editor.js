@@ -24,6 +24,7 @@ import {
     structurePathOnCorridor,
     validateStructureEndpoints
 } from './train-structure-endpoints.js';
+import { buildTrainRoutePolyline } from './train-map-polyline.js';
 import { getVoieForRoute } from './utils.js';
 
 const routeSelect = document.getElementById('train-editor-route');
@@ -224,17 +225,18 @@ function updateMarkerDisplayPositions() {
 }
 
 function routeCoordinates(context) {
-    return context.route.points.map(routePoint => {
-        const point = state.data.points[routePoint.id];
-        const coordinates = getTrainPointCoordinates(point, context.voie);
-        return [coordinates.lat, coordinates.lon];
-    });
+    return buildTrainRoutePolyline(
+        state.data.points,
+        context.route,
+        context.voie,
+        state.railCorridors
+    ).map(point => [point.lat, point.lon]);
 }
 
-function routeBounds() {
+function routeBounds(contextPaths) {
     const bounds = L.latLngBounds([]);
-    for (const context of state.contexts) {
-        for (const coordinates of routeCoordinates(context)) bounds.extend(coordinates);
+    for (const { coordinates } of contextPaths) {
+        for (const point of coordinates) bounds.extend(point);
     }
     return bounds;
 }
@@ -265,9 +267,13 @@ function drawSelection(fit = true) {
     markers = new Map();
 
     const both = state.contexts.length > 1;
-    for (const context of state.contexts) {
+    const contextPaths = state.contexts.map(context => ({
+        context,
+        coordinates: routeCoordinates(context)
+    }));
+    for (const { context, coordinates } of contextPaths) {
         const meta = TRAIN_EDITOR_VOIES[context.voie];
-        const layer = L.polyline(routeCoordinates(context), {
+        const layer = L.polyline(coordinates, {
             color: meta.color,
             weight: both ? (context.voie === 1 ? 6 : 4) : 5,
             opacity: both ? 0.72 : 0.84,
@@ -304,7 +310,7 @@ function drawSelection(fit = true) {
     }
 
     if (fit) {
-        const bounds = routeBounds();
+        const bounds = routeBounds(contextPaths);
         if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24] });
     }
 

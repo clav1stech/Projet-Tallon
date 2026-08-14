@@ -13,6 +13,11 @@
 - Lorsque la longueur d'un ouvrage est disponible, son entrée V2 est calculée
   depuis l'entrée V1 en suivant la polyline ferroviaire dense. L'emprise
   affichée épouse elle aussi la polyline au lieu de couper les courbes.
+- Le tracé cartographique rouge/bleu est reconstruit avec les milliers de
+  points intermédiaires des corridors SNCF, segment par segment et selon la
+  ligne commune aux bifurcations, au lieu de relier les seuls repères par des
+  segments droits. Une portion sans corridor identifié reste volontairement
+  directe afin d'éviter toute projection sur une ligne voisine arbitraire.
 - Douze extrémités V2 sont proposées automatiquement. Les longueurs inscrites
   dans le nom de quatre ouvrages sont normalisées ; les huit ouvrages restants
   sont signalés pour placement manuel et bloquent l'export tant que leurs deux
@@ -26,7 +31,7 @@
   exporté silencieusement.
 - Ajout de tests de non-régression sur les coordonnées directionnelles et sur
   la source de vérité `data/masterRoutes.normalized.json`.
-- Mise à jour du cache hors ligne (`tallon-v20`) pour précacher le nouvel
+- Mise à jour du cache hors ligne (`tallon-v21`) pour précacher le nouvel
   éditeur et ses modules locaux.
 
 ## v3.0.8 - 2026-08-14

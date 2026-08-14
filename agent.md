@@ -92,7 +92,7 @@ Dans les trois cas, utiliser uniquement les fichiers liés au travail en cours, 
 - `js/fakeGeoSim.js` : simulateur GPS pour le développement (désactivé par défaut, `ENABLE_FAKE_GPS = false`). Ne jamais l'activer dans un commit poussé.
 - `js/master-editor.js` + `master-editor.html` : éditeur visuel de `data/masterRoutes.normalized.json` (ajout/réordonnancement de points, export JSON). Les modifications n'écrivent jamais le fichier directement — export manuel puis remplacement.
 - `js/master-routes-data.js` : chargement, validation et export du schéma v3 partagés par les éditeurs.
-  `js/train-points-model.js` + `js/train-structure-endpoints.js` + `js/train-points-editor.js` + `train-points-editor.html` : placement cartographique rail sur OpenRailwayMap, avec positions directionnelles V1/V2 pour les bifurcations et ouvrages d'art, projection des longueurs sur la polyline ferroviaire et export manuel validé.
+  `js/train-points-model.js` + `js/train-structure-endpoints.js` + `js/train-map-polyline.js` + `js/train-points-editor.js` + `train-points-editor.html` : placement cartographique rail sur OpenRailwayMap, avec positions directionnelles V1/V2 pour les bifurcations et ouvrages d'art, projection des longueurs et du tracé complet sur les polylines ferroviaires, et export manuel validé.
 - `js/car-config.js`, `js/car-route.js`, `js/car-app.js`, `js/car-ui.js` + `car.html` : mode voiture (suivi Mâcon → Combloux), page autonome miroir du mode rail — corridors PR (A406/A40/D1212) + waypoints, progression + distance restante, pas de notion d'horaire/retard.
 
 **Données** :

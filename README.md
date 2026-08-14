@@ -140,6 +140,7 @@ js/
   master-routes-data.js   Chargement, validation et export partagés du schéma v3
   train-points-model.js   Lecture/écriture des coordonnées communes et V1/V2
   train-structure-endpoints.js Projection des ouvrages sur la polyline ferroviaire
+  train-map-polyline.js   Reconstruction des trajets sur les corridors ferroviaires
   train-points-editor.js  Carte rail, repères déplaçables et vue des deux voies
   master-editor.js        Logique de master-editor.html
   fakeGeoSim.js           Simulateur GPS pour le développement (désactivé par défaut,
@@ -203,7 +204,9 @@ OpenStreetMap et nécessite une connexion réseau. Une bifurcation déplacée su
 V1 ou V2 conserve une coordonnée propre à ce sens. Il en va de même pour les
 tunnels et ouvrages d'art, dont l'extrémité V2 est proposée à partir de la
 longueur connue et de la polyline ferroviaire dense. Les autres points gardent
-une position commune. Les ouvrages sans longueur sont signalés et leur entrée
+une position commune. Le tracé rouge/bleu suit lui aussi cette polyline entre
+les points, y compris lors d'un changement de ligne à une bifurcation. Les
+ouvrages sans longueur sont signalés et leur entrée
 V2 doit être placée manuellement ; l'export est refusé tant que les deux
 extrémités ne sont pas distinctes ou si le schéma v3 n'est plus valide.
 
