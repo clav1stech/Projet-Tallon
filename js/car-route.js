@@ -13,6 +13,7 @@
 import { haversineDistance } from './geo.js';
 import { buildCorridor } from './linearref.js';
 import { waypointOverrideKey } from './car-waypoint-overrides.js';
+import { buildSegmentCandidate } from './functions.js';
 
 // Vitesses indicatives par type de leg si `avgSpeedKmh` absent de la config.
 export const DEFAULT_LEG_SPEED_KMH = {
@@ -266,6 +267,67 @@ export function projectRouteLength(route, startRouteKm, lengthM, legIndex = null
     }
     projected.push(end);
     return projected;
+}
+
+function pointToPolylineDistanceKm(point, line) {
+    if (!point || !Array.isArray(line) || line.length === 0) return Infinity;
+    if (line.length === 1) return haversineDistance(point.lat, point.lon, line[0].lat, line[0].lon);
+
+    let bestKm = Infinity;
+    for (let i = 0; i < line.length - 1; i++) {
+        const candidate = buildSegmentCandidate(line[i], line[i + 1], point.lat, point.lon);
+        if (candidate && candidate.offsetKm < bestKm) bestKm = candidate.offsetKm;
+    }
+    return bestKm;
+}
+
+function directedProjectionGapKm(source, target) {
+    let maxKm = 0;
+    for (const point of source) {
+        maxKm = Math.max(maxKm, pointToPolylineDistanceKm(point, target));
+    }
+    return maxKm;
+}
+
+/**
+ * Compare deux projections d'un même ouvrage, quel que soit leur ordre de
+ * parcours. Le contrôle combine l'écart géométrique des polylignes et celui
+ * de leurs extrémités : deux lignes parallèles ou seulement partiellement
+ * superposées sont ainsi signalées même si elles ont la même longueur.
+ */
+export function compareRouteProjections(first, second, toleranceM = 50) {
+    if (!Array.isArray(first) || !Array.isArray(second) || first.length < 2 || second.length < 2) {
+        return { comparable: false, withinTolerance: false, maxGapM: Infinity, endpointGapM: Infinity };
+    }
+
+    const firstStart = first[0];
+    const firstEnd = first[first.length - 1];
+    const secondStart = second[0];
+    const secondEnd = second[second.length - 1];
+    const sameOrderGapKm = Math.max(
+        haversineDistance(firstStart.lat, firstStart.lon, secondStart.lat, secondStart.lon),
+        haversineDistance(firstEnd.lat, firstEnd.lon, secondEnd.lat, secondEnd.lon)
+    );
+    const oppositeOrderGapKm = Math.max(
+        haversineDistance(firstStart.lat, firstStart.lon, secondEnd.lat, secondEnd.lon),
+        haversineDistance(firstEnd.lat, firstEnd.lon, secondStart.lat, secondStart.lon)
+    );
+    const endpointGapM = Math.min(sameOrderGapKm, oppositeOrderGapKm) * 1000;
+    const maxGapM = Math.max(
+        directedProjectionGapKm(first, second),
+        directedProjectionGapKm(second, first)
+    ) * 1000;
+    const allowedM = Number.isFinite(toleranceM) && toleranceM >= 0 ? toleranceM : 50;
+    const deviationM = Math.max(maxGapM, endpointGapM);
+
+    return {
+        comparable: true,
+        withinTolerance: deviationM <= allowedM,
+        maxGapM,
+        endpointGapM,
+        deviationM,
+        toleranceM: allowedM
+    };
 }
 
 /**

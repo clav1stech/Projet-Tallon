@@ -77,7 +77,11 @@ géométrie de corridor issue d'une trace GPS réelle et des données propres.
   tracé et des points de passage sur OpenStreetMap, déplacement par glisser,
   recalage automatique sur la route, projection spatiale de la longueur des
   tunnels et viaducs à partir de leur repère propre au sens sélectionné,
-  application locale et export/import JSON.
+  application locale et export/import JSON. Une troisième option affiche et
+  édite les deux sens simultanément : les repères sont différenciés par couleur
+  et ceux qui se confondent sont légèrement écartés perpendiculairement au
+  tracé pour rester cliquables. Les projections aller/retour sont comparées
+  automatiquement avec une tolérance de 50 m et les écarts sont signalés.
   La projection suit le sens sélectionné : vers l'est à l'aller et vers
   l'ouest au retour.
 

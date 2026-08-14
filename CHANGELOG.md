@@ -1,5 +1,21 @@
 # Changelog
 
+## v3.0.7 - 2026-08-14
+
+### Édition cartographique simultanée des deux sens
+
+- Ajout d'une troisième option « Les deux sens » dans l'éditeur des points
+  voiture, avec repères bordeaux pour Mâcon → Combloux et bleus pour le retour.
+- Décalage visuel perpendiculaire des repères aller/retour superposés afin que
+  chacun reste visible, cliquable et déplaçable sans modifier ses coordonnées.
+- Affichage simultané des projections d'ouvrages avec deux épaisseurs et deux
+  couleurs ; le pointillé continue de distinguer les tunnels.
+- Contrôle géométrique automatique des 15 projections aller/retour avec une
+  tolérance de 50 m. Treize sont conformes ; les viaducs des Neyrolles
+  (environ 160 m) et de Charix (environ 362 m) sont signalés à corriger.
+- Test de non-régression sur les données A40 réelles et mise à jour du cache
+  hors-ligne (`tallon-v16`).
+
 ## v3.0.6 - 2026-08-14
 
 ### Inversion des repères directionnels des ouvrages

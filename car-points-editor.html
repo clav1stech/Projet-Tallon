@@ -29,13 +29,15 @@
         .car-map-toolbar { display: grid; gap: 10px; margin-bottom: 14px; }
         .car-structure-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 14px; font-size: 0.82rem; color: var(--text-muted, #666); }
         .car-structure-legend span { display: inline-flex; align-items: center; gap: 7px; }
-        .car-structure-swatch { width: 30px; border-top: 5px solid #f0a13c; }
-        .car-structure-swatch.tunnel { border-color: #5bc0eb; border-top-style: dashed; }
+        .car-direction-swatch { width: 30px; border-top: 6px solid #b43650; }
+        .car-direction-swatch.reverse { border-color: #2563b8; }
+        .car-structure-swatch { width: 30px; border-top: 5px dashed #6b7280; }
         .car-map-actions { display: flex; flex-wrap: wrap; gap: 8px; }
         .car-map-actions .btn { flex: 1 1 120px; }
         #car-map { min-height: 100vh; width: 100%; }
         #car-editor-status { min-height: 1.4em; margin: 8px 0 14px; color: var(--text-muted, #666); }
         #car-editor-status.success { color: #228b4b; }
+        #car-editor-status.warning { color: #a05c00; font-weight: 650; }
         #car-editor-status.error { color: #c43d3d; }
         .car-point-list { display: grid; gap: 7px; }
         .car-point-item {
@@ -46,8 +48,15 @@
             cursor: pointer;
             text-align: left;
         }
+        .car-point-item.direction-forward { border-left: 5px solid #b43650; }
+        .car-point-item.direction-reverse { border-left: 5px solid #2563b8; }
         .car-point-item:hover, .car-point-item.active { border-color: #b84e61; background: rgba(184, 78, 97, 0.12); }
+        .car-point-item.direction-forward:hover, .car-point-item.direction-forward.active { border-left-color: #b43650; }
+        .car-point-item.direction-reverse:hover, .car-point-item.direction-reverse.active { border-left-color: #2563b8; }
         .car-point-item strong { display: block; }
+        .car-direction-badge { display: block; margin-top: 2px; font-size: 0.75em; font-weight: 700; }
+        .car-point-item.direction-forward .car-direction-badge { color: #b43650; }
+        .car-point-item.direction-reverse .car-direction-badge { color: #2563b8; }
         .car-point-meta { display: block; margin-top: 3px; font-size: 0.8em; color: var(--text-muted, #666); }
         .car-point-item.modified .car-point-meta::after { content: ' · modifié'; color: #b84e61; font-weight: 700; }
         .car-map-marker { background: transparent; border: 0; }
@@ -56,8 +65,10 @@
             border: 3px solid #fff; border-radius: 50%; background: #b84e61; color: #fff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, .4); font-size: 12px;
         }
-        .car-map-marker.modified span { background: #f0a13c; }
-        .car-map-marker.active span { width: 34px; height: 34px; margin: -3px; background: #2c7be5; }
+        .car-map-marker.direction-forward span { background: #b43650; }
+        .car-map-marker.direction-reverse span { background: #2563b8; }
+        .car-map-marker.modified span { box-shadow: 0 0 0 4px #f0a13c, 0 2px 8px rgba(0, 0, 0, .4); }
+        .car-map-marker.active span { width: 34px; height: 34px; margin: -3px; filter: brightness(1.18); }
         .leaflet-popup-content { line-height: 1.4; }
         @media (max-width: 760px) {
             body { overflow: auto; }
@@ -71,10 +82,11 @@
     <main class="car-map-editor">
         <aside class="car-map-sidebar">
             <h1>Points du mode voiture</h1>
-            <p class="editor-hint">Faites glisser un repère. Les sorties, tunnels et ouvrages sont automatiquement recollés au point le plus proche du tracé.</p>
+            <p class="editor-hint">Faites glisser un repère. Les sorties, tunnels et ouvrages sont automatiquement recollés au point le plus proche du tracé. Le mode « Les deux sens » compare aussi la superposition des ouvrages.</p>
             <div class="car-structure-legend" aria-label="Légende des ouvrages projetés">
-                <span><i class="car-structure-swatch"></i> Viaduc</span>
-                <span><i class="car-structure-swatch tunnel"></i> Tunnel</span>
+                <span><i class="car-direction-swatch"></i> Mâcon → Combloux</span>
+                <span><i class="car-direction-swatch reverse"></i> Combloux → Mâcon</span>
+                <span><i class="car-structure-swatch"></i> Tunnel (pointillé)</span>
             </div>
 
             <div class="car-map-toolbar">

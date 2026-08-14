@@ -3,7 +3,13 @@
 // waypoints manuels en une route unique.
 
 import { describe, it, expect } from 'vitest';
-import { buildCarRoute, findSector, projectRouteLength, DEFAULT_LEG_SPEED_KMH } from '../js/car-route.js';
+import {
+    buildCarRoute,
+    compareRouteProjections,
+    findSector,
+    projectRouteLength,
+    DEFAULT_LEG_SPEED_KMH
+} from '../js/car-route.js';
 
 // Mini corridor "autoroute" ouest-est + montée "points" vers le sud,
 // avec jonction confondue (dernier point corridor = premier waypoint).
@@ -228,6 +234,24 @@ describe('projectRouteLength', () => {
         expect(projected[0].routeKm).toBeCloseTo(entryKm, 6);
         expect(projected.at(-1).routeKm).toBeCloseTo(entryKm + 1, 6);
         expect(projected.at(-1).lon).toBeLessThan(projected[0].lon);
+    });
+
+    it('contrôle la superposition dans les deux sens avec une tolérance métrique', () => {
+        const forward = [
+            { lat: 46.2, lon: 5.00 },
+            { lat: 46.2, lon: 5.06 }
+        ];
+        const reverse = [...forward].reverse();
+        const slightlyOffset = reverse.map(point => ({ ...point, lat: point.lat + 0.0001 }));
+        const clearlyOffset = reverse.map(point => ({ ...point, lat: point.lat + 0.001 }));
+
+        expect(compareRouteProjections(forward, reverse, 20)).toMatchObject({
+            comparable: true,
+            withinTolerance: true,
+            deviationM: 0
+        });
+        expect(compareRouteProjections(forward, slightlyOffset, 20).withinTolerance).toBe(true);
+        expect(compareRouteProjections(forward, clearlyOffset, 20).withinTolerance).toBe(false);
     });
 });
 
