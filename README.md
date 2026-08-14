@@ -75,7 +75,8 @@ géométrie de corridor issue d'une trace GPS réelle et des données propres.
   de signal, le graphe prolonge la dernière vitesse connue en pointillés.
 - **Éditeur cartographique** (`car-points-editor.html`) : visualisation du
   tracé et des points de passage sur OpenStreetMap, déplacement par glisser,
-  recalage automatique sur la route, application locale et export/import JSON.
+  recalage automatique sur la route, projection spatiale de la longueur des
+  tunnels et viaducs, application locale et export/import JSON.
 
 Les données d'itinéraire vivent dans `js/car-config.js` (source unique,
 comme `routes-config.js` pour le rail) ; toute route ou tout point de passage

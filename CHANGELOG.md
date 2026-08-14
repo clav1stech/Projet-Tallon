@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.0.4 - 2026-08-14
+
+### Projection cartographique des ouvrages d'art
+
+- Les tunnels et viaducs sont maintenant matérialisés sur la carte par un
+  segment suivant exactement le corridor sur toute leur longueur.
+- Les tunnels utilisent un trait bleu pointillé et les viaducs un trait orange
+  continu ; le survol rappelle le nom et la longueur de l'ouvrage.
+
 ## v3.0.3 - 2026-08-14
 
 ### Recalage des points de passage voiture

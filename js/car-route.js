@@ -211,6 +211,62 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
     return { points, cumKm, totalKm, legs, waypoints };
 }
 
+function interpolateRoutePoint(route, routeKm) {
+    const { points, cumKm } = route || {};
+    if (!Array.isArray(points) || !Array.isArray(cumKm) || points.length < 2 || points.length !== cumKm.length) {
+        return null;
+    }
+
+    const clampedKm = Math.max(cumKm[0], Math.min(cumKm[cumKm.length - 1], routeKm));
+    for (let i = 0; i < cumKm.length - 1; i++) {
+        if (clampedKm > cumKm[i + 1]) continue;
+        const spanKm = cumKm[i + 1] - cumKm[i];
+        const ratio = spanKm > 0 ? (clampedKm - cumKm[i]) / spanKm : 0;
+        return {
+            lat: points[i].lat + ratio * (points[i + 1].lat - points[i].lat),
+            lon: points[i].lon + ratio * (points[i + 1].lon - points[i].lon),
+            routeKm: clampedKm
+        };
+    }
+    const last = points[points.length - 1];
+    return { lat: last.lat, lon: last.lon, routeKm: cumKm[cumKm.length - 1] };
+}
+
+/**
+ * Extrait la portion du tracé correspondant à la longueur d'un ouvrage,
+ * centrée sur son repère. Les bornes suivent la distance cumulée réelle du
+ * corridor et restent limitées au leg de l'ouvrage.
+ * @returns {Array<{lat:number, lon:number, routeKm:number}>}
+ */
+export function projectRouteLength(route, centerKm, lengthM, legIndex = null) {
+    if (!route || !Number.isFinite(centerKm) || !Number.isFinite(lengthM) || lengthM <= 0) return [];
+
+    const leg = legIndex == null ? null : route.legs?.find(item => item.index === legIndex);
+    const minKm = Number.isFinite(leg?.startKm) ? leg.startKm : 0;
+    const maxKm = Number.isFinite(leg?.endKm) ? leg.endKm : route.totalKm;
+    const halfLengthKm = lengthM / 2000;
+    const startKm = Math.max(minKm, centerKm - halfLengthKm);
+    const endKm = Math.min(maxKm, centerKm + halfLengthKm);
+    if (!(endKm > startKm)) return [];
+
+    const start = interpolateRoutePoint(route, startKm);
+    const end = interpolateRoutePoint(route, endKm);
+    if (!start || !end) return [];
+
+    const projected = [start];
+    for (let i = 1; i < route.cumKm.length - 1; i++) {
+        if (route.cumKm[i] > startKm && route.cumKm[i] < endKm) {
+            projected.push({
+                lat: route.points[i].lat,
+                lon: route.points[i].lon,
+                routeKm: route.cumKm[i]
+            });
+        }
+    }
+    projected.push(end);
+    return projected;
+}
+
 /**
  * Secteur géographique courant, pour l'affichage HUD.
  * Déclaré dans la config des legs, dans le référentiel pk du corridor

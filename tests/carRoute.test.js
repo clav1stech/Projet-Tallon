@@ -3,7 +3,7 @@
 // waypoints manuels en une route unique.
 
 import { describe, it, expect } from 'vitest';
-import { buildCarRoute, findSector, DEFAULT_LEG_SPEED_KMH } from '../js/car-route.js';
+import { buildCarRoute, findSector, projectRouteLength, DEFAULT_LEG_SPEED_KMH } from '../js/car-route.js';
 
 // Mini corridor "autoroute" ouest-est + montée "points" vers le sud,
 // avec jonction confondue (dernier point corridor = premier waypoint).
@@ -194,6 +194,27 @@ describe('buildCarRoute — waypoints', () => {
         // ROUTE_CFG n'a pas de waypoints corridor mais des points nommés (étapes)
         expect(route.waypoints.every(w => w.type === 'etape')).toBe(true);
         expect(route.waypoints.map(w => w.name)).toEqual(['Mi-pente', 'Sommet']);
+    });
+});
+
+describe('projectRouteLength', () => {
+    it("projette la longueur d'un ouvrage de part et d'autre de son repère", () => {
+        const route = buildCarRoute(ROUTE_CFG, DATASETS);
+        const centerKm = route.cumKm[1];
+        const projected = projectRouteLength(route, centerKm, 1000, 0);
+
+        expect(projected[0].routeKm).toBeCloseTo(centerKm - 0.5, 6);
+        expect(projected.at(-1).routeKm).toBeCloseTo(centerKm + 0.5, 6);
+        expect(projected.at(-1).routeKm - projected[0].routeKm).toBeCloseTo(1, 6);
+        expect(projected.some(point => point.routeKm === centerKm)).toBe(true);
+    });
+
+    it('limite la projection aux bornes du leg et rejette une longueur invalide', () => {
+        const route = buildCarRoute(ROUTE_CFG, DATASETS);
+        const projected = projectRouteLength(route, 0.2, 1000, 0);
+
+        expect(projected[0].routeKm).toBe(0);
+        expect(projectRouteLength(route, 1, 0, 0)).toEqual([]);
     });
 });
 

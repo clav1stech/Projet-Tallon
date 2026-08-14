@@ -1,6 +1,6 @@
 import { CAR_ROUTES } from './car-config.js';
 import { loadDataset } from './csv.js';
-import { buildCarRoute } from './car-route.js';
+import { buildCarRoute, projectRouteLength } from './car-route.js';
 import { buildSegmentCandidate } from './functions.js';
 import {
     applyCarWaypointOverrides,
@@ -19,6 +19,7 @@ let overrides = loadCarWaypointOverrides();
 let currentRoute = null;
 let map = null;
 let routeLayer = null;
+let structureLayers = new Map();
 let markers = new Map();
 let activeKey = null;
 
@@ -37,6 +38,17 @@ function markerIcon(wp) {
         iconSize: [28, 28],
         iconAnchor: [14, 14]
     });
+}
+
+function structureStyle(wp, active = false) {
+    const isTunnel = wp.type === 'tunnel';
+    return {
+        color: active ? '#2c7be5' : (isTunnel ? '#5bc0eb' : '#f0a13c'),
+        weight: active ? 13 : 9,
+        opacity: active ? 1 : 0.9,
+        dashArray: isTunnel ? '10 8' : null,
+        lineCap: 'butt'
+    };
 }
 
 function nearestRouteProjection(lat, lon, route, legIndex = null) {
@@ -72,17 +84,32 @@ async function loadRoute(routeKey, fit = true) {
     const effectiveCfg = applyCarWaypointOverrides(cfg, overrides);
     currentRoute = buildCarRoute(effectiveCfg, datasetsById);
     drawRoute(fit);
-    showStatus(`${currentRoute.waypoints.filter(wp => wp.sourceKey).length} points modifiables affichés.`);
+    showStatus(`${currentRoute.waypoints.filter(wp => wp.sourceKey).length} points modifiables · ${structureLayers.size} ouvrages projetés.`);
 }
 
 function drawRoute(fit = true) {
     routeLayer?.remove();
+    for (const layer of structureLayers.values()) layer.remove();
+    structureLayers = new Map();
     for (const marker of markers.values()) marker.remove();
     markers = new Map();
 
     const line = currentRoute.points.map(point => [point.lat, point.lon]);
     routeLayer = L.polyline(line, { color: '#a9324c', weight: 5, opacity: 0.8 }).addTo(map);
     if (fit) map.fitBounds(routeLayer.getBounds(), { padding: [24, 24] });
+
+    for (const wp of currentRoute.waypoints.filter(item => item.sourceKey && Number.isFinite(item.lengthM))) {
+        const projected = projectRouteLength(currentRoute, wp.routeKm, wp.lengthM, wp.legIndex);
+        if (projected.length < 2) continue;
+        const lengthLabel = `${Math.round(wp.lengthM).toLocaleString('fr-FR')} m`;
+        const layer = L.polyline(
+            projected.map(point => [point.lat, point.lon]),
+            structureStyle(wp, wp.sourceKey === activeKey)
+        ).addTo(map);
+        layer.bindTooltip(`${wp.name} · ${lengthLabel}`, { sticky: true, direction: 'top' });
+        layer.on('click', () => selectWaypoint(wp.sourceKey, false));
+        structureLayers.set(wp.sourceKey, layer);
+    }
 
     for (const wp of currentRoute.waypoints.filter(item => item.sourceKey)) {
         const marker = L.marker([wp.lat, wp.lon], { draggable: true, icon: markerIcon(wp), title: wp.name }).addTo(map);
@@ -131,6 +158,7 @@ function selectWaypoint(key, pan = true) {
     renderList();
     for (const item of currentRoute.waypoints.filter(point => point.sourceKey)) {
         markers.get(item.sourceKey)?.setIcon(markerIcon(item));
+        structureLayers.get(item.sourceKey)?.setStyle(structureStyle(item, item.sourceKey === activeKey));
     }
 }
 
