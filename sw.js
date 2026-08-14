@@ -4,7 +4,7 @@
 // immédiatement (zéro latence même sans réseau), puis rafraîchie en arrière-plan
 // pour la prochaine visite. Incrémenter CACHE_VERSION pour forcer une purge.
 
-const CACHE_VERSION = 'tallon-v16';
+const CACHE_VERSION = 'tallon-v18';
 
 // Coquille applicative pré-cachée à l'installation.
 const PRECACHE_URLS = [
@@ -12,6 +12,7 @@ const PRECACHE_URLS = [
     './index.html',
     './car.html',
     './car-points-editor.html',
+    './assets/tunnel.png',
     './css/styles.css',
     './js/app.js',
     './js/functions.js',

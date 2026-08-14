@@ -227,11 +227,77 @@ function interpolateRoutePoint(route, routeKm) {
         return {
             lat: points[i].lat + ratio * (points[i + 1].lat - points[i].lat),
             lon: points[i].lon + ratio * (points[i + 1].lon - points[i].lon),
-            routeKm: clampedKm
+            routeKm: clampedKm,
+            segmentIndex: i,
+            ratio
         };
     }
     const last = points[points.length - 1];
-    return { lat: last.lat, lon: last.lon, routeKm: cumKm[cumKm.length - 1] };
+    return {
+        lat: last.lat,
+        lon: last.lon,
+        routeKm: cumKm[cumKm.length - 1],
+        segmentIndex: points.length - 2,
+        ratio: 1
+    };
+}
+
+/** Localise une distance cumulée sur la route et restitue son segment. */
+export function locateRouteProgress(route, routeKm) {
+    const point = interpolateRoutePoint(route, routeKm);
+    if (!point) return null;
+    const segmentIndex = point.segmentIndex;
+    const segmentStartKm = route.cumKm[segmentIndex];
+    const segmentEndKm = route.cumKm[segmentIndex + 1];
+    return {
+        ...point,
+        distanceFromSegmentStart: point.routeKm - segmentStartKm,
+        distanceToNextPointKm: Math.max(0, segmentEndKm - point.routeKm)
+    };
+}
+
+/**
+ * Prolonge une dernière progression GPS à vitesse constante lorsqu'elle
+ * atteint un tunnel déclaré. La progression continue jusqu'à la sortie puis
+ * pendant le délai de raccrochage ; au-delà, la distance retournée est figée.
+ */
+export function estimateDeclaredTunnelProgress(route, startRouteKm, speedKmh, elapsedMs, options = {}) {
+    if (!route || !Number.isFinite(startRouteKm) || !Number.isFinite(speedKmh) || speedKmh <= 0 ||
+        !Number.isFinite(elapsedMs) || elapsedMs < 0) return null;
+
+    const entryToleranceKm = Math.max(0, Number(options.entryToleranceM) || 0) / 1000;
+    const exitGraceMs = Math.max(0, Number(options.exitGraceMs) || 0);
+    const speedKmPerMs = speedKmh / 3_600_000;
+    const predictedKm = startRouteKm + speedKmPerMs * elapsedMs;
+    const tunnels = (route.waypoints || [])
+        .filter(wp => wp.type === 'tunnel' && Number.isFinite(wp.routeKm) && Number.isFinite(wp.lengthM) && wp.lengthM > 0)
+        .map(wp => ({
+            name: wp.name,
+            startKm: wp.routeKm,
+            endKm: wp.routeKm + wp.lengthM / 1000,
+            lengthM: wp.lengthM
+        }));
+
+    const tunnel = tunnels.find(item =>
+        startRouteKm <= item.endKm &&
+        predictedKm >= item.startKm - entryToleranceKm
+    );
+    if (!tunnel) return null;
+
+    const exitElapsedMs = Math.max(0, (tunnel.endKm - startRouteKm) / speedKmPerMs);
+    const graceEndElapsedMs = exitElapsedMs + exitGraceMs;
+    const simulatedElapsedMs = Math.min(elapsedMs, graceEndElapsedMs);
+    const doneKm = Math.min(route.totalKm, startRouteKm + speedKmPerMs * simulatedElapsedMs);
+    const inExitGrace = elapsedMs > exitElapsedMs && elapsedMs <= graceEndElapsedMs;
+
+    return {
+        phase: elapsedMs <= graceEndElapsedMs ? 'tunnel' : 'lost',
+        doneKm,
+        tunnel,
+        inExitGrace,
+        exitElapsedMs,
+        graceEndElapsedMs
+    };
 }
 
 /**

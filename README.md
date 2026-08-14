@@ -71,8 +71,12 @@ géométrie de corridor issue d'une trace GPS réelle et des données propres.
 - **Progression le long de la route** : PK interpolé et distances restantes
   mesurées le long du corridor (et non à vol d'oiseau).
 - **GPS routier réactif** : flux continu, vitesse native du téléphone quand
-  elle est disponible et bascule rapide sur une icône tunnel. Pendant la perte
-  de signal, le graphe prolonge la dernière vitesse connue en pointillés.
+  elle est disponible. Si le signal disparaît à l'entrée d'un tunnel déclaré,
+  la progression continue à la vitesse d'entrée jusqu'à la sortie théorique,
+  puis pendant 10 secondes de raccrochage avant d'être figée. Durant cette
+  estimation, `assets/tunnel.png` remplace la vitesse et le graphe prolonge la
+  dernière vitesse connue en pointillés. Une perte hors tunnel est affichée
+  séparément et suspend immédiatement la progression.
 - **Éditeur cartographique** (`car-points-editor.html`) : visualisation du
   tracé et des points de passage sur OpenStreetMap, déplacement par glisser,
   recalage automatique sur la route, projection spatiale de la longueur des

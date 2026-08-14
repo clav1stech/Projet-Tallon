@@ -17,7 +17,12 @@
 import { STATE } from './state.js';
 import { CAR_ROUTES, CAR_TRACKING_CONFIG } from './car-config.js';
 import { loadDataset, DatasetError } from './csv.js';
-import { buildCarRoute, findSector } from './car-route.js';
+import {
+    buildCarRoute,
+    estimateDeclaredTunnelProgress,
+    findSector,
+    locateRouteProgress
+} from './car-route.js';
 import { applyCarWaypointOverrides, loadCarWaypointOverrides } from './car-waypoint-overrides.js';
 import { createPositionEngine } from './position-engine.js';
 import { isGpsSignalStale } from './tracking.js';
@@ -43,7 +48,12 @@ const CAR = {
     lastKnownSpeedKmh: 0,
     lastLostSampleAt: 0,
     gpsLost: false,
-    lastRenderData: null
+    inTunnel: false,
+    tunnelInGrace: false,
+    absenceMode: null,
+    absenceFrozenDoneKm: null,
+    lastRenderData: null,
+    lastFixRenderData: null
 };
 
 const engine = createPositionEngine({
@@ -67,6 +77,57 @@ function appendSpeedSample(speedKmh, reliable, timestamp = Date.now()) {
     }
 }
 
+function buildEstimatedRenderData(base, doneKm, { inTunnel, gpsLost, tunnelName }) {
+    const progress = locateRouteProgress(CAR.route, doneKm);
+    if (!base || !progress) return base;
+
+    const route = CAR.route.points;
+    const cumKm = CAR.route.cumKm;
+    const segmentIndex = progress.segmentIndex;
+    const a = route[segmentIndex];
+    const b = route[segmentIndex + 1];
+    if (CAR.lastSegmentIndex === null || segmentIndex > CAR.lastSegmentIndex) {
+        CAR.lastSegmentIndex = segmentIndex;
+    }
+
+    let pk = null;
+    let line = null;
+    if (a && b && Number.isFinite(a.pk) && Number.isFinite(b.pk)) {
+        const segLen = cumKm[segmentIndex + 1] - cumKm[segmentIndex];
+        const ratio = segLen > 0 ? progress.distanceFromSegmentStart / segLen : 0;
+        pk = a.pk + Math.max(0, Math.min(1, ratio)) * (b.pk - a.pk);
+        line = a.line ?? null;
+    }
+
+    let nextWaypoint = null;
+    let nextDistanceKm = null;
+    for (const wp of CAR.route.waypoints) {
+        if (wp.routeKm > progress.routeKm) {
+            nextWaypoint = wp;
+            nextDistanceKm = wp.routeKm - progress.routeKm;
+            break;
+        }
+    }
+
+    return {
+        ...base,
+        legLabel: a?.legLabel ?? base.legLabel,
+        pk,
+        line,
+        nextWaypoint,
+        nextDistanceKm,
+        doneKm: progress.routeKm,
+        remainingKm: Math.max(0, CAR.route.totalKm - progress.routeKm),
+        speedKmh: CAR.lastKnownSpeedKmh,
+        speedReliable: false,
+        speedHistory: CAR.speedHistory,
+        gpsLost,
+        inTunnel,
+        tunnelName,
+        sector: findSector(CAR.routeCfg, a?.legIndex, pk)
+    };
+}
+
 function renderGpsLoss(now = Date.now(), force = false) {
     if (!CAR.route) return;
     if (!force && !isGpsSignalStale(
@@ -76,29 +137,61 @@ function renderGpsLoss(now = Date.now(), force = false) {
         CAR_TRACKING_CONFIG.gpsLostAfterMs
     )) return;
 
-    const firstLostRender = !CAR.gpsLost;
-    CAR.gpsLost = true;
-    if (firstLostRender || now - CAR.lastLostSampleAt >= CAR_TRACKING_CONFIG.lostGraphSampleMs) {
+    const base = CAR.lastFixRenderData || CAR.lastRenderData;
+    const estimate = base && CAR.lastFixAt > 0 && CAR.absenceMode !== 'lost'
+        ? estimateDeclaredTunnelProgress(
+            CAR.route,
+            base.doneKm,
+            CAR.lastKnownSpeedKmh,
+            Math.max(0, now - CAR.lastFixAt),
+            {
+                entryToleranceM: CAR_TRACKING_CONFIG.tunnelEntryToleranceM,
+                exitGraceMs: CAR_TRACKING_CONFIG.tunnelExitGraceMs
+            }
+        )
+        : null;
+    const tunnelActive = estimate?.phase === 'tunnel';
+    const firstTunnelRender = tunnelActive && !CAR.inTunnel;
+    const graceChanged = tunnelActive && Boolean(estimate.inExitGrace) !== CAR.tunnelInGrace;
+    const firstLostRender = !tunnelActive && !CAR.gpsLost;
+
+    CAR.inTunnel = tunnelActive;
+    CAR.tunnelInGrace = tunnelActive && Boolean(estimate.inExitGrace);
+    CAR.gpsLost = !tunnelActive;
+    if (tunnelActive) {
+        CAR.absenceMode = 'tunnel';
+    } else if (CAR.absenceMode !== 'lost') {
+        CAR.absenceMode = 'lost';
+        CAR.absenceFrozenDoneKm = estimate?.doneKm ?? base?.doneKm ?? null;
+    }
+    if (firstTunnelRender || firstLostRender || now - CAR.lastLostSampleAt >= CAR_TRACKING_CONFIG.lostGraphSampleMs) {
         appendSpeedSample(CAR.lastKnownSpeedKmh, false, now);
         CAR.lastLostSampleAt = now;
     }
 
-    if (CAR.lastRenderData) {
-        const staleData = {
-            ...CAR.lastRenderData,
-            speedKmh: CAR.lastKnownSpeedKmh,
-            speedReliable: false,
-            speedHistory: CAR.speedHistory,
-            gpsLost: true
-        };
+    if (base) {
+        const staleData = buildEstimatedRenderData(
+            base,
+            estimate?.doneKm ?? CAR.absenceFrozenDoneKm ?? base.doneKm,
+            {
+                inTunnel: tunnelActive,
+                gpsLost: !tunnelActive,
+                tunnelName: estimate?.tunnel?.name ?? null
+            }
+        );
         updateCarWidget(staleData);
         updateCarHUD(staleData);
         CAR.lastRenderData = staleData;
     }
 
-    if (firstLostRender) {
-        updateCarInfo('<i class="fas fa-mountain" aria-hidden="true"></i> Signal GPS perdu — tunnel probable.');
+    if (graceChanged && estimate.inExitGrace) {
+        updateCarInfo(`<strong>Sortie de ${estimate.tunnel.name}</strong> — recherche du GPS pendant 10 secondes.`);
+    } else if (firstTunnelRender) {
+        updateCarInfo(`<strong>${estimate.tunnel.name}</strong> — progression estimée à la vitesse d’entrée.`);
+    } else if (firstLostRender) {
+        updateCarInfo('Signal GPS perdu — progression suspendue.');
     }
+    return tunnelActive ? 'tunnel' : 'lost';
 }
 
 async function loadCarRoute(routeKey) {
@@ -124,7 +217,12 @@ async function loadCarRoute(routeKey) {
     CAR.lastKnownSpeedKmh = 0;
     CAR.lastLostSampleAt = 0;
     CAR.gpsLost = false;
+    CAR.inTunnel = false;
+    CAR.tunnelInGrace = false;
+    CAR.absenceMode = null;
+    CAR.absenceFrozenDoneKm = null;
     CAR.lastRenderData = null;
+    CAR.lastFixRenderData = null;
     engine.reset();
 
     // Compat fakeGeoSim (dev) : la simulation lit STATE.currentRoute et les
@@ -150,6 +248,10 @@ function onPosition(position) {
     const fixTimestamp = Date.now();
     CAR.lastFixAt = fixTimestamp;
     CAR.gpsLost = false;
+    CAR.inTunnel = false;
+    CAR.tunnelInGrace = false;
+    CAR.absenceMode = null;
+    CAR.absenceFrozenDoneKm = null;
     CAR.lastLostSampleAt = 0;
     if (speedReliable) CAR.lastKnownSpeedKmh = speedKmh;
     appendSpeedSample(speedKmh, speedReliable, fixTimestamp);
@@ -245,10 +347,13 @@ function onPosition(position) {
         speedReliable,
         speedHistory: CAR.speedHistory,
         gpsLost: false,
+        inTunnel: false,
+        tunnelName: null,
         sector,
         arrived: CAR.arrived
     };
     CAR.lastRenderData = renderData;
+    CAR.lastFixRenderData = renderData;
     updateCarWidget(renderData);
     updateCarHUD(renderData);
 
@@ -265,8 +370,11 @@ function onPosition(position) {
 function onGeoError(error) {
     // Un refus de permission n'est pas un tunnel ; TIMEOUT et
     // POSITION_UNAVAILABLE correspondent bien à une disette de signal.
-    if (error?.code !== 1) renderGpsLoss(Date.now(), true);
-    updateCarInfo(geoErrorMessage(error));
+    if (error?.code === 1) {
+        updateCarInfo(geoErrorMessage(error));
+        return;
+    }
+    if (!renderGpsLoss(Date.now(), true)) updateCarInfo(geoErrorMessage(error));
 }
 
 async function startTracking() {

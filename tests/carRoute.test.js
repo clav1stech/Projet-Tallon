@@ -6,7 +6,9 @@ import { describe, it, expect } from 'vitest';
 import {
     buildCarRoute,
     compareRouteProjections,
+    estimateDeclaredTunnelProgress,
     findSector,
+    locateRouteProgress,
     projectRouteLength,
     DEFAULT_LEG_SPEED_KMH
 } from '../js/car-route.js';
@@ -252,6 +254,46 @@ describe('projectRouteLength', () => {
         });
         expect(compareRouteProjections(forward, slightlyOffset, 20).withinTolerance).toBe(true);
         expect(compareRouteProjections(forward, clearlyOffset, 20).withinTolerance).toBe(false);
+    });
+});
+
+describe('progression sans GPS dans un tunnel déclaré', () => {
+    const tunnelRoute = {
+        points: [
+            { lat: 46.2, lon: 5.00 },
+            { lat: 46.2, lon: 5.02 },
+            { lat: 46.2, lon: 5.04 },
+            { lat: 46.2, lon: 5.06 }
+        ],
+        cumKm: [0, 1, 2, 3],
+        totalKm: 3,
+        waypoints: [{ name: 'Tunnel Test', type: 'tunnel', routeKm: 1, lengthM: 1000 }]
+    };
+
+    it('localise une progression cumulée sur son segment', () => {
+        expect(locateRouteProgress(tunnelRoute, 1.25)).toMatchObject({
+            routeKm: 1.25,
+            segmentIndex: 1,
+            distanceFromSegmentStart: 0.25,
+            distanceToNextPointKm: 0.75
+        });
+    });
+
+    it("continue à la vitesse d'entrée dans le tunnel puis pendant 10 s de grâce", () => {
+        const options = { entryToleranceM: 100, exitGraceMs: 10_000 };
+        const inside = estimateDeclaredTunnelProgress(tunnelRoute, 0.95, 72, 5_000, options);
+        const grace = estimateDeclaredTunnelProgress(tunnelRoute, 0.95, 72, 55_000, options);
+
+        expect(inside).toMatchObject({ phase: 'tunnel', doneKm: 1.05, inExitGrace: false });
+        expect(grace).toMatchObject({ phase: 'tunnel', doneKm: 2.05, inExitGrace: true });
+    });
+
+    it('fige la progression seulement après les 10 s de raccrochage', () => {
+        const options = { entryToleranceM: 100, exitGraceMs: 10_000 };
+        const lost = estimateDeclaredTunnelProgress(tunnelRoute, 0.95, 72, 70_000, options);
+
+        expect(lost).toMatchObject({ phase: 'lost', doneKm: 2.2, inExitGrace: false });
+        expect(estimateDeclaredTunnelProgress(tunnelRoute, 0.5, 72, 5_000, options)).toBeNull();
     });
 });
 

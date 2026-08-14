@@ -8,6 +8,7 @@ function leg(routeKey, datasetId) {
 describe('CAR_ROUTES — repères cartographiques validés', () => {
     const a40 = leg('MACON_COMBLOUX', 'a40-trace');
     const a406 = leg('MACON_COMBLOUX', 'a406-trace');
+    const d1212 = leg('MACON_COMBLOUX', 'd1212-trace');
 
     it("remplace Replonges et la sortie 4 par l'aire à la position exportée", () => {
         expect(a40.waypoints.some(wp => wp.name.includes('Replonges'))).toBe(false);
@@ -22,8 +23,8 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
     it('intègre les recalages du fichier sur A40 et A406', () => {
         expect(a40.waypoints.find(wp => wp.name === 'Sortie 19 – Cluses')?.pk).toBe(180.210039);
         expect(a40.waypoints.find(wp => wp.name === 'Tunnel de Chamoise')).toMatchObject({
-            pk: 80.137326,
-            reversePk: 83.461586
+            pk: 80.021323,
+            reversePk: 83.387975
         });
         expect(a40.waypoints.find(wp => wp.name === 'Péage de Viry')?.pk).toBe(126.482059);
         expect(a406.waypoints.find(wp => wp.name === 'Péage Mâcon – Val de Saône')?.pk).toBe(8.109835);
@@ -48,20 +49,36 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
 
     it('intègre les corrections spécifiques au trajet retour', () => {
         expect(a40.waypoints.find(wp => wp.name === 'Sortie 19 – Cluses')?.reversePk).toBe(181.364191);
-        expect(a40.waypoints.find(wp => wp.name === 'Tunnel du Vuache')?.reversePk).toBe(119.860696);
+        expect(a40.waypoints.find(wp => wp.name === 'Tunnel du Vuache')?.reversePk).toBe(118.509711);
         const combloux = CAR_ROUTES.COMBLOUX_MACON.legs[0].points[0];
         expect(combloux).toMatchObject({ lat: 45.8903069, lon: 6.6419649 });
     });
 
-    it('ajoute le col de Ceignes aux mêmes coordonnées dans les deux sens', () => {
+    it('intègre les coordonnées corrigées du col de Ceignes dans les deux sens', () => {
         expect(a40.waypoints.find(wp => wp.name === 'Col de Ceignes')).toMatchObject({
-            pk: 74.067078,
-            lat: 46.12972222222222,
-            lon: 5.5055555555555555,
-            reverseLat: 46.12972222222222,
-            reverseLon: 5.5055555555555555,
+            pk: 74.095046,
+            reversePk: 74.104584,
+            lat: 46.1298136,
+            lon: 5.5058963,
+            reverseLat: 46.1298498,
+            reverseLon: 5.5060093,
             type: 'col'
         });
+    });
+
+    it('supprime la sortie 13 et ajoute Sallanches Mairie dans les deux sens', () => {
+        expect(a40.waypoints.some(wp => wp.name === 'Sortie 13 – Saint-Julien-en-Genevois')).toBe(false);
+        expect(d1212.waypoints).toContainEqual({
+            pk: 0.000224,
+            reversePk: 0.000224,
+            lat: 45.93641811218994,
+            lon: 6.63016378635892,
+            reverseLat: 45.93641811218994,
+            reverseLon: 6.63016378635892,
+            name: 'Sallanches (Mairie)',
+            type: 'etape'
+        });
+        expect(leg('COMBLOUX_MACON', 'd1212-trace').waypoints).toBe(d1212.waypoints);
     });
 
     it('utilise Mâcon-Loché TGV comme terminus ouest dans les deux sens', () => {
@@ -81,18 +98,18 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
         expect(structures).toHaveLength(15);
         expect(structures.every(wp => Number.isFinite(wp.reversePk) && wp.pk < wp.reversePk)).toBe(true);
         expect(structures.find(wp => wp.name === 'Tunnel de Chamoise')).toMatchObject({
-            pk: 80.137326,
-            reversePk: 83.461586,
+            pk: 80.021323,
+            reversePk: 83.387975,
             lengthM: 3300
         });
         expect(structures.find(wp => wp.name === 'Tunnel du Vuache')).toMatchObject({
-            pk: 118.519803,
-            reversePk: 119.860696,
+            pk: 117.14765,
+            reversePk: 118.509711,
             lengthM: 1400
         });
     });
 
-    it('intègre les nouvelles corrections retour et les deux corrections aller explicites', () => {
+    it('conserve les corrections antérieures et intègre les nouveaux recalages précis', () => {
         expect(a40.waypoints.find(wp => wp.name === 'Sortie 5 – Bourg-en-Bresse nord')).toMatchObject({
             pk: 26.67536,
             reversePk: 27.323019,
@@ -110,16 +127,20 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
         expect(a40.waypoints.find(wp => wp.name === "Échangeur A42 (Pont-d'Ain, Lyon)")?.reversePk).toBe(58.465484);
 
         expect(a40.waypoints.find(wp => wp.name === 'Viaduc de Charix')).toMatchObject({
-            pk: 89.402165,
-            reversePk: 89.546651,
-            reverseLat: 46.1702943,
-            reverseLon: 5.6773125
+            pk: 89.508921,
+            reversePk: 90.00468,
+            lat: 46.1699386,
+            lon: 5.6768638,
+            reverseLat: 46.1712339,
+            reverseLon: 5.6831647
         });
         expect(a40.waypoints.find(wp => wp.name === 'Viaduc des Neyrolles')).toMatchObject({
-            pk: 84.106513,
-            reversePk: 84.694631,
-            reverseLat: 46.1428893,
-            reverseLon: 5.630018
+            pk: 84.350732,
+            reversePk: 85.108187,
+            lat: 46.1414534,
+            lon: 5.6258576,
+            reverseLat: 46.1458585,
+            reverseLon: 5.6333229
         });
     });
 });

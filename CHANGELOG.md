@@ -1,5 +1,29 @@
 # Changelog
 
+## v3.0.8 - 2026-08-14
+
+### Recalage complet des points voiture
+
+- Intégration des 30 corrections aller/retour de l'export cartographique sur
+  l'A40, notamment les extrémités précises des tunnels et viaducs.
+- Suppression de la sortie 13 Saint-Julien-en-Genevois, absente du trajet.
+- Ajout de Sallanches (Mairie) aux coordonnées fournies dans les deux sens,
+  comme étape du corridor D1212.
+- Les projections des 15 ouvrages sont désormais toutes superposées dans la
+  tolérance de 50 m de l'éditeur.
+
+### Progression estimée dans les tunnels
+
+- Lorsqu'un fix disparaît à l'entrée d'un tunnel déclaré, la progression
+  continue à la vitesse du dernier fix fiable jusqu'à la sortie théorique.
+- Après la sortie, une grâce de 10 secondes prolonge l'estimation pour laisser
+  au GPS le temps de raccrocher ; la progression n'est figée qu'au-delà.
+- Pendant l'estimation, la vitesse est remplacée par `assets/tunnel.png` et le
+  graphe utilise un trait pointillé. Une perte hors tunnel fige immédiatement
+  la progression et affiche désormais un état « Signal perdu » distinct.
+- Mise à jour du cache hors ligne (`tallon-v18`) avec précache de l'image du
+  tunnel.
+
 ## v3.0.7 - 2026-08-14
 
 ### Édition cartographique simultanée des deux sens
@@ -11,8 +35,7 @@
 - Affichage simultané des projections d'ouvrages avec deux épaisseurs et deux
   couleurs ; le pointillé continue de distinguer les tunnels.
 - Contrôle géométrique automatique des 15 projections aller/retour avec une
-  tolérance de 50 m. Treize sont conformes ; les viaducs des Neyrolles
-  (environ 160 m) et de Charix (environ 362 m) sont signalés à corriger.
+  tolérance de 50 m ; les écarts sont signalés directement dans l'éditeur.
 - Test de non-régression sur les données A40 réelles et mise à jour du cache
   hors-ligne (`tallon-v16`).
 

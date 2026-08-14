@@ -33,7 +33,7 @@
 // - `reversePk` et les coordonnées `reverse*` décrivent la chaussée retour ;
 // - `km` est le kilométrage officiel de l'autoroute (= 204 − PR réel pour
 //   l'A40, la colonne `numero` de road_pr.csv), conservé pour documentation ;
-// - `type` ∈ 'sortie' | 'echangeur' | 'aire' | 'col' | 'viaduc' | 'tunnel' | 'peage'.
+// - `type` ∈ 'sortie' | 'echangeur' | 'aire' | 'col' | 'viaduc' | 'tunnel' | 'peage' | 'etape'.
 // Les pk sont interpolés entre les PR IGN du corridor (PR réel → pk_cum) et
 // ont été validés contre une trace GPS réelle du trajet (< 40 m d'écart hors
 // zones sans signal). Un waypoint hors du pkRange du leg est ignoré au build.
@@ -62,6 +62,8 @@ export const CAR_TRACKING_CONFIG = Object.freeze({
     gpsLostAfterMs: 2500,
     freshnessCheckMs: 500,
     lostGraphSampleMs: 1000,
+    tunnelEntryToleranceM: 100,
+    tunnelExitGraceMs: 10000,
     geolocationTimeoutMs: 5000,
     geolocationMaximumAgeMs: 500,
     speedHistoryMax: 600,
@@ -97,20 +99,33 @@ const A40_WAYPOINTS = [
         km: 60, name: "Échangeur A42 (Pont-d'Ain, Lyon)", type: 'echangeur'
     },
     {
-        pk: 74.067078,
-        lat: 46.12972222222222,
-        lon: 5.5055555555555555,
-        reverseLat: 46.12972222222222,
-        reverseLon: 5.5055555555555555,
+        pk: 74.095046,
+        reversePk: 74.104584,
+        lat: 46.1298136,
+        lon: 5.5058963,
+        reverseLat: 46.1298498,
+        reverseLon: 5.5060093,
         name: 'Col de Ceignes',
         type: 'col'
     },
-    { pk: 76.428129, km: 81,  name: 'Sortie 8 – St-Martin-du-Fresne / A404 (Oyonnax)', type: 'sortie' },
-    { pk: 86.338617, km: 90,  name: 'Sortie 9 – Sylans / Nantua',                  type: 'sortie' },
+    {
+        pk: 76.428129, reversePk: 77.516986,
+        reverseLat: 46.1322526, reverseLon: 5.5451506,
+        km: 81, name: 'Sortie 8 – St-Martin-du-Fresne / A404 (Oyonnax)', type: 'sortie'
+    },
+    {
+        pk: 86.990671,
+        lat: 46.1580209, lon: 5.6502556,
+        km: 90, name: 'Sortie 9 – Sylans / Nantua', type: 'sortie'
+    },
     { pk: 102.812187, reversePk: 103.132725, km: 108, name: 'Sortie 10 – Bellegarde-sur-Valserine', type: 'sortie' },
     { pk: 111.436518, reversePk: 111.777118, km: 117, name: 'Sortie 11 – Éloise / Frangy', type: 'sortie' },
-    { pk: 133.26425, reversePk: 133.628303, km: 138, name: 'Sortie 13 – Saint-Julien-en-Genevois', type: 'sortie' },
-    { pk: 134.037982, km: 140, name: 'Échangeur A41 (Annecy / Genève)',            type: 'echangeur' },
+    {
+        pk: 133.649099, reversePk: 134.530369,
+        lat: 46.1325426, lon: 6.0951977,
+        reverseLat: 46.1346836, reverseLon: 6.1062046,
+        km: 140, name: 'Échangeur A41 (Annecy / Genève)', type: 'echangeur'
+    },
     { pk: 135.394829, reversePk: 136.215904, km: 143, name: 'Sortie 13.1 – Archamps', type: 'sortie' },
     { pk: 145.054929, reversePk: 145.946866, km: 151, name: 'Sortie 14 – Annemasse / A411 (Genève)', type: 'sortie' },
     { pk: 153.583018, reversePk: 154.418716, km: 161, name: 'Sortie 15 – La Vallée Verte', type: 'sortie' },
@@ -138,28 +153,80 @@ const A40_WAYPOINTS = [
     // est recalé sur la géométrie réelle — sortie est du tunnel
     // juste avant le viaduc de Nantua, PR ≈ 120,5).
     { pk: 64.520013, reversePk: 65.07982, km: 65, name: 'Viaduc de Poncin', type: 'viaduc', lengthM: 566 },
-    { pk: 80.137326, reversePk: 83.461586, km: 83.5, name: 'Tunnel de Chamoise', type: 'tunnel', lengthM: 3300 },
-    { pk: 83.407304, reversePk: 84.393997, km: 86, name: 'Viaduc de Nantua', type: 'viaduc', lengthM: 1003 },
     {
-        pk: 84.106513, reversePk: 84.694631,
-        reverseLat: 46.1428893, reverseLon: 5.630018,
+        pk: 80.021323, reversePk: 83.387975,
+        lat: 46.1269115, lon: 5.576249,
+        reverseLat: 46.1413052, reverseLon: 5.6136953,
+        km: 83.5, name: 'Tunnel de Chamoise', type: 'tunnel', lengthM: 3300
+    },
+    {
+        pk: 83.363062, reversePk: 84.335221,
+        lat: 46.1411952, lon: 5.6134118,
+        reverseLat: 46.1414574, reverseLon: 5.6256565,
+        km: 86, name: 'Viaduc de Nantua', type: 'viaduc', lengthM: 1003
+    },
+    {
+        pk: 84.350732, reversePk: 85.108187,
+        lat: 46.1414534, lon: 5.6258576,
+        reverseLat: 46.1458585, reverseLon: 5.6333229,
         km: 87, name: 'Viaduc des Neyrolles', type: 'viaduc', lengthM: 782
     },
     { pk: 85.686236, reversePk: 85.900475, km: 90, name: 'Viaduc des Glacières', type: 'viaduc', lengthM: 214 },
     { pk: 87.587796, reversePk: 88.825299, km: 92, name: 'Viaduc de Sylans', type: 'viaduc', lengthM: 1266 },
     {
-        pk: 89.402165, reversePk: 89.546651,
-        reverseLat: 46.1702943, reverseLon: 5.6773125,
+        pk: 89.508921, reversePk: 90.00468,
+        lat: 46.1699386, lon: 5.6768638,
+        reverseLat: 46.1712339, reverseLon: 5.6831647,
         km: 93, name: 'Viaduc de Charix', type: 'viaduc', lengthM: 542
     },
-    { pk: 92.618128, reversePk: 92.811459, km: 94, name: 'Viaduc de Lalleyriat', type: 'viaduc', lengthM: 194 },
-    { pk: 93.110861, reversePk: 93.541167, km: 95, name: 'Viaduc de Frébuge', type: 'viaduc', lengthM: 439 },
-    { pk: 95.088182, reversePk: 96.304146, km: 96, name: 'Tunnel de Saint-Germain-de-Joux', type: 'tunnel', lengthM: 1196 },
-    { pk: 96.196631, reversePk: 96.519033, km: 97, name: 'Viaduc du Tacon', type: 'viaduc', lengthM: 322 },
-    { pk: 97.950133, reversePk: 98.670796, km: 99, name: 'Tunnel de Châtillon', type: 'tunnel', lengthM: 720 },
-    { pk: 98.430013, reversePk: 98.652292, km: 100, name: 'Viaduc de Châtillon', type: 'viaduc', lengthM: 222 },
-    { pk: 106.229365, reversePk: 107.270736, km: 107, name: 'Viaduc de Bellegarde-sur-Valserine', type: 'viaduc', lengthM: 1040 },
-    { pk: 118.519803, reversePk: 119.860696, km: 120, name: 'Tunnel du Vuache', type: 'tunnel', lengthM: 1400 }
+    {
+        pk: 91.720586, reversePk: 91.917837,
+        lat: 46.1649956, lon: 5.7030671,
+        reverseLat: 46.1656895, reverseLon: 5.7054504,
+        km: 94, name: 'Viaduc de Lalleyriat', type: 'viaduc', lengthM: 194
+    },
+    {
+        pk: 92.712851, reversePk: 93.136048,
+        lat: 46.1677662, lon: 5.7153203,
+        reverseLat: 46.1676981, reverseLon: 5.7208746,
+        km: 95, name: 'Viaduc de Frébuge', type: 'viaduc', lengthM: 439
+    },
+    {
+        pk: 93.80434, reversePk: 95.020005,
+        lat: 46.169843, lon: 5.729053,
+        reverseLat: 46.1706814, reverseLon: 5.7444284,
+        km: 96, name: 'Tunnel de Saint-Germain-de-Joux', type: 'tunnel', lengthM: 1196
+    },
+    {
+        pk: 95.888899, reversePk: 96.174647,
+        lat: 46.1668048, lon: 5.7535417,
+        reverseLat: 46.1651172, reverseLon: 5.7563333,
+        km: 97, name: 'Viaduc du Tacon', type: 'viaduc', lengthM: 322
+    },
+    {
+        pk: 97.214416, reversePk: 97.925576,
+        lat: 46.1609693, lon: 5.7683536,
+        reverseLat: 46.1596698, reverseLon: 5.7773671,
+        km: 99, name: 'Tunnel de Châtillon', type: 'tunnel', lengthM: 720
+    },
+    {
+        pk: 98.003, reversePk: 98.245821,
+        lat: 46.1595429, lon: 5.7783552,
+        reverseLat: 46.1590185, reverseLon: 5.7813457,
+        km: 100, name: 'Viaduc de Châtillon', type: 'viaduc', lengthM: 222
+    },
+    {
+        pk: 105.172607, reversePk: 106.191609,
+        lat: 46.1052375, lon: 5.8125671,
+        reverseLat: 46.1022568, reverseLon: 5.8247553,
+        km: 107, name: 'Viaduc de Bellegarde-sur-Valserine', type: 'viaduc', lengthM: 1040
+    },
+    {
+        pk: 117.14765, reversePk: 118.509711,
+        lat: 46.0829268, lon: 5.908093,
+        reverseLat: 46.0893528, reverseLon: 5.9212936,
+        km: 120, name: 'Tunnel du Vuache', type: 'tunnel', lengthM: 1400
+    }
 ];
 
 // Secteurs A40 (bornes pk_cum indicatives, à affiner à l'usage) :
@@ -178,6 +245,19 @@ const A40_SECTORS = [
 
 const A406_WAYPOINTS = [
     { pk: 8.109835, name: 'Péage Mâcon – Val de Saône', type: 'peage' }
+];
+
+const D1212_WAYPOINTS = [
+    {
+        pk: 0.000224,
+        reversePk: 0.000224,
+        lat: 45.93641811218994,
+        lon: 6.63016378635892,
+        reverseLat: 45.93641811218994,
+        reverseLon: 6.63016378635892,
+        name: 'Sallanches (Mairie)',
+        type: 'etape'
+    }
 ];
 
 // Descripteurs de datasets à charger (communs aux deux sens).
@@ -246,6 +326,7 @@ export const CAR_ROUTES = {
                 label: 'D1212',
                 avgSpeedKmh: 45,
                 sector: 'Mont-Blanc',
+                waypoints: D1212_WAYPOINTS,
                 // Sallanches (PR 0) → Combloux ; la trace GPS suit la D1212
                 // jusqu'à pk_cum ≈ 6,4 (et non 5,3) avant d'obliquer vers le
                 // centre. La D1212 continue ensuite vers Megève, hors trajet.
@@ -282,6 +363,7 @@ export const CAR_ROUTES = {
                 avgSpeedKmh: 45,
                 sector: 'Mont-Blanc',
                 pkRange: [0, 6.4],
+                waypoints: D1212_WAYPOINTS,
                 reverse: true
             },
             {

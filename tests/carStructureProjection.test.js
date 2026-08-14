@@ -34,7 +34,7 @@ function structureProjections(route) {
 }
 
 describe('ouvrages réels A40 dans les deux sens', () => {
-    it(`compare les 15 projections à ±${OVERLAP_TOLERANCE_M} m et identifie les écarts restants`, () => {
+    it(`superpose les 15 projections à ±${OVERLAP_TOLERANCE_M} m`, () => {
         const forwardCfg = CAR_ROUTES.MACON_COMBLOUX;
         const reverseCfg = CAR_ROUTES.COMBLOUX_MACON;
         const datasets = loadRouteDatasets(forwardCfg);
@@ -50,10 +50,7 @@ describe('ouvrages réels A40 dans les deux sens', () => {
             ...compareRouteProjections(projection, reverse.get(name), OVERLAP_TOLERANCE_M)
         }));
         expect(comparisons.every(result => result.comparable)).toBe(true);
-        expect(comparisons.filter(result => result.withinTolerance)).toHaveLength(13);
-        expect(comparisons
-            .filter(result => !result.withinTolerance)
-            .map(result => result.name.replace('corridor:a40-trace:', ''))
-        ).toEqual(['Viaduc des Neyrolles', 'Viaduc de Charix']);
+        expect(comparisons.filter(result => result.withinTolerance)).toHaveLength(15);
+        expect(comparisons.filter(result => !result.withinTolerance)).toEqual([]);
     });
 });

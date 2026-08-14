@@ -1899,13 +1899,35 @@ body.tracking-active #hud-speed-graph {
     opacity: 0.75;
 }
 
-.car-tunnel-status,
+.car-gps-lost,
 .hud-tunnel-icon {
     color: #f0b35a;
 }
 
-.car-tunnel-status i {
+.car-gps-lost i {
     margin-right: 0.35em;
+}
+
+.tunnel-image {
+    display: block;
+    object-fit: contain;
+    filter: invert(79%) sepia(45%) saturate(814%) hue-rotate(337deg) brightness(101%) contrast(88%);
+}
+
+.car-tunnel-image {
+    width: 2.3rem;
+    height: 2.3rem;
+    margin-left: auto;
+}
+
+.hud-tunnel-image {
+    width: 76px;
+    height: 76px;
+}
+
+body.non-iphone-device.tracking-active .hud-tunnel-image {
+    width: 100px;
+    height: 100px;
 }
 
 @media screen and (orientation: landscape) {

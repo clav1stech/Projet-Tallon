@@ -27,6 +27,11 @@ export function waypointIconHtml(type) {
     return cls ? `<i class="${cls} wp-icon" aria-hidden="true"></i>` : '';
 }
 
+export function tunnelImageHtml(className = '') {
+    const classes = ['tunnel-image', className].filter(Boolean).join(' ');
+    return `<img src="assets/tunnel.png" class="${classes}" alt="Tunnel">`;
+}
+
 export function populateCarRouteSelect() {
     const select = document.getElementById('car-route-select');
     if (!select) return;
@@ -95,8 +100,10 @@ export function updateCarWidget(data) {
     setText('car-km', `${data.doneKm.toFixed(1)} km / ${data.totalKm.toFixed(1)} km`);
     const speed = document.getElementById('car-speed');
     if (speed) {
-        if (data.gpsLost) {
-            speed.innerHTML = '<span class="car-tunnel-status"><i class="fas fa-mountain" aria-hidden="true"></i> Tunnel</span>';
+        if (data.inTunnel) {
+            speed.innerHTML = tunnelImageHtml('car-tunnel-image');
+        } else if (data.gpsLost) {
+            speed.innerHTML = '<span class="car-gps-lost"><i class="fas fa-signal-slash" aria-hidden="true"></i> Signal perdu</span>';
         } else {
             speed.textContent = `${Math.round(data.speedKmh)} km/h${data.speedReliable ? '' : ' (?)'}`;
         }
@@ -167,6 +174,7 @@ function carHudPointClass(i, currentIdx, wp) {
  * @param {number}   data.speedKmh
  * @param {boolean}  data.speedReliable
  * @param {boolean}  data.gpsLost
+ * @param {boolean}  data.inTunnel
  * @param {Array<{v:number, reliable:boolean}>} data.speedHistory
  * @param {string|null} data.sector
  * @param {boolean}  data.arrived
@@ -177,15 +185,15 @@ export function updateCarHUD(data) {
     // --- Dashboard : compteur ---
     const speedEl = document.getElementById('hud-speed');
     if (speedEl) {
-        if (data.gpsLost) {
+        if (data.inTunnel) {
             speedEl.style.setProperty('--speed-deg', '0deg');
             speedEl.innerHTML = `
-                <span class="hud-speed-value hud-tunnel-icon" title="Signal GPS perdu — tunnel probable">
-                    <i class="fas fa-mountain" aria-hidden="true"></i>
+                <span class="hud-speed-value hud-tunnel-icon" title="${data.tunnelName || 'Tunnel'} — progression estimée">
+                    ${tunnelImageHtml('hud-tunnel-image')}
                 </span>
                 <span class="hud-speed-unit">tunnel</span>
             `;
-        } else if (!data.speedReliable) {
+        } else if (data.gpsLost || !data.speedReliable) {
             speedEl.style.setProperty('--speed-deg', '0deg');
             speedEl.innerHTML = `<span class="hud-speed-value"><i class="fas fa-signal-slash"></i></span>`;
         } else {
