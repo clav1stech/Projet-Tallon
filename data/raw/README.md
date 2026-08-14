@@ -9,7 +9,7 @@ Les fichiers exploitables par l'app sont **générés** dans `data/csv/` (léger
 
 | Script | Source | Sortie |
 |---|---|---|
-| `python3 python/extract_pk.py` | `rail/pks 2.csv` | `data/csv/rail_pk.csv` (lignes 752000/752100/830000, toutes colonnes) |
+| `python3 python/extract_pk.py` | `rail/pks 2.csv` | `data/csv/rail_pk.csv` (lignes 752000/752100/752330/830000/893000, toutes colonnes) |
 | `python3 python/extract_pr.py` | `road/pr-*.csv` | `data/csv/road_pr.csv` (corridors a406/a40/d1212, toutes colonnes + `pk_cum`) |
 | `python3 python/refine_corridors.py` | `gps/trajet_gps_nettoye.csv` + `data/csv/road_pr.csv` | `data/csv/road_trace.csv` (géométrie fine des corridors, PR interpolés) |
 
@@ -25,7 +25,8 @@ Relancer ces scripts si d'autres lignes SNCF / corridors routiers sont ajoutés
   — délimiteur virgule, champs quotés, point décimal, `NULL` littéral, `pk` en km décimaux
   (**valeurs négatives possibles**, ex. -0.8).
 - **Lignes utiles à l'app** (code_ligne des points de `masterRoutes.normalized.json`) :
-  752000 (LGV Sud-Est, 7113 pts), 752100 (raccordement, 395 pts), 830000 (8619 pts).
+  752000 (LGV Sud-Est, 7113 pts), 752100 (raccordement, 395 pts), 752330
+  (accès Montanay–Lyon-Saint-Clair), 830000 et 893000 (accès Lyon-Part-Dieu).
 - ✅ **Utilisé** : source de `data/csv/rail_pk.csv` ; le descripteur `data/datasets/rail-pk.json`
   filtre la 752000 pour l'affichage PK d'index.html.
 - 🔮 **Futur** : `vitesse` (vitesse de ligne au PK courant), `altitude`/`altitude_declivites`

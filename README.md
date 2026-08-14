@@ -206,7 +206,9 @@ tunnels et ouvrages d'art, dont l'extrémité V2 est proposée à partir de la
 longueur connue et de la polyline ferroviaire dense. Les autres points gardent
 une position commune. Le tracé rouge/bleu suit lui aussi cette polyline entre
 les points, y compris lors d'un changement de ligne à une bifurcation. Les
-ouvrages sans longueur sont signalés et leur entrée
+accès `752330` vers Lyon-Saint-Clair et `893000` vers Lyon-Part-Dieu sont
+inclus dans le jeu de corridors local. Les ouvrages sans longueur sont
+signalés et leur entrée
 V2 doit être placée manuellement ; l'export est refusé tant que les deux
 extrémités ne sont pas distinctes ou si le schéma v3 n'est plus valide.
 

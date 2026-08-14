@@ -8,18 +8,19 @@ voudront vitesse/altitude). Relancer avec --lines pour ajouter des lignes.
 
 Usage (défauts adaptés au dépôt, lancer depuis la racine) :
     python3 python/extract_pk.py
-    python3 python/extract_pk.py --lines 752000 752100 830000 886000
+    python3 python/extract_pk.py --lines 752000 752100 752330 830000 893000
 """
 
 import argparse
 import csv
 import os
 import sys
+import tempfile
 
 DEFAULT_INPUT = "data/raw/rail/pks 2.csv"
 DEFAULT_OUTPUT = "data/csv/rail_pk.csv"
 # code_ligne utilisés par les points de data/masterRoutes.normalized.json
-DEFAULT_LINES = ["752000", "752100", "830000"]
+DEFAULT_LINES = ["752000", "752100", "752330", "830000", "893000"]
 
 
 def is_number(value):
@@ -65,11 +66,25 @@ def main():
 
     rows.sort(key=lambda r: (r["code_ligne"], float(r["pk"])))
 
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
-    with open(args.output, "w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=header)
-        writer.writeheader()
-        writer.writerows(rows)
+    output_dir = os.path.dirname(args.output) or "."
+    os.makedirs(output_dir, exist_ok=True)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", newline="", encoding="utf-8", dir=output_dir,
+            prefix=f".{os.path.basename(args.output)}.", suffix=".tmp", delete=False
+        ) as fh:
+            temporary_path = fh.name
+            writer = csv.DictWriter(fh, fieldnames=header)
+            writer.writeheader()
+            writer.writerows(rows)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.chmod(temporary_path, 0o644)
+        os.replace(temporary_path, args.output)
+    finally:
+        if temporary_path and os.path.exists(temporary_path):
+            os.unlink(temporary_path)
 
     print(f"✅ {args.output} : {len(rows)} points, {len(header)} colonnes")
     for code in sorted(wanted):

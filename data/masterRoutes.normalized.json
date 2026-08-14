@@ -35,7 +35,11 @@
       "PK": "4,231",
       "Vmax": null,
       "altitude": null,
-      "longueur": 1682
+      "longueur": 1682,
+      "lat_V1": 48.74884,
+      "lon_V1": 2.4724,
+      "lat_V2": 48.7366532,
+      "lon_V2": 2.4857023
     },
     "TRANCHEE_COUVERTE_DE_VILLECRESNE": {
       "name": "Tranchée couverte de Villecresne",
@@ -46,7 +50,11 @@
       "PK": "7,633",
       "Vmax": null,
       "altitude": null,
-      "longueur": 2793
+      "longueur": 2793,
+      "lat_V1": 48.73355,
+      "lon_V1": 2.50744,
+      "lat_V2": 48.7260549,
+      "lon_V2": 2.5427101
     },
     "BIF_DE_CHEVRY_COSSIGNY": {
       "name": "Bifurcation de Chevry-Cossigny",
@@ -99,12 +107,16 @@
       "PK": "42,740",
       "Vmax": null,
       "altitude": null,
-      "longueur": 200
+      "longueur": 200,
+      "lat_V1": 48.3973155,
+      "lon_V1": 2.9775811,
+      "lat_V2": 48.3959446,
+      "lon_V2": 2.9793346
     },
     "PRS_DE_MAROLLES": {
       "name": "SEI de Marolles",
-      "lat": 48.3726,
-      "lon": 3.05381,
+      "lat": 48.372601,
+      "lon": 3.0548698,
       "type": "poste_aiguillage",
       "code_ligne": "752000",
       "PK": "49,284",
@@ -125,8 +137,8 @@
     },
     "PRS_DE_VAUMORT": {
       "name": "SEI de Vaumort",
-      "lat": 48.11586,
-      "lon": 3.44976,
+      "lat": 48.115594,
+      "lon": 3.4502649,
       "type": "poste_aiguillage",
       "code_ligne": "752000",
       "PK": "93,000",
@@ -143,7 +155,11 @@
       "PK": "115,752",
       "Vmax": null,
       "altitude": null,
-      "longueur": 160
+      "longueur": 160,
+      "lat_V1": 47.9822271,
+      "lon_V1": 3.6779197,
+      "lat_V2": 47.9812005,
+      "lon_V2": 3.679426
     },
     "BIF_DE_VERGIGNY": {
       "name": "Bifurcation de Vergigny",
@@ -157,7 +173,9 @@
       "PK_2_V1": "",
       "PK_2_V2": "",
       "Vmax": null,
-      "altitude": null
+      "altitude": null,
+      "lat_V2": 47.9664221,
+      "lon_V2": 3.7105465
     },
     "PRS_TONNERRE": {
       "name": "SEI de Tonnerre",
@@ -182,7 +200,11 @@
       "PK_2_V1": "",
       "PK_2_V2": "",
       "Vmax": null,
-      "altitude": null
+      "altitude": null,
+      "lat_V1": 47.6817721,
+      "lon_V1": 4.0803909,
+      "lat_V2": 47.6962092,
+      "lon_V2": 4.071089
     },
     "VIADUC_D_EPOISSES": {
       "name": "Viaduc d'Époisses",
@@ -193,12 +215,16 @@
       "PK": "185,353",
       "Vmax": null,
       "altitude": null,
-      "longueur": 90
+      "longueur": 90,
+      "lat_V1": 47.4868214,
+      "lon_V1": 4.1555754,
+      "lat_V2": 47.4861593,
+      "lon_V2": 4.1562644
     },
     "PRS_DE_LACOUR_D_ARCENAY": {
       "name": "SEI de Lacour d'Arcenay",
-      "lat": 47.3479,
-      "lon": 4.24603,
+      "lat": 47.3483244,
+      "lon": 4.2457867,
       "type": "poste_aiguillage",
       "code_ligne": "752000",
       "PK": "202,367",
@@ -215,12 +241,16 @@
       "PK": "208,686",
       "Vmax": null,
       "altitude": null,
-      "longueur": 202
+      "longueur": 202,
+      "lat_V1": 47.29473,
+      "lon_V1": 4.27178,
+      "lat_V2": 47.2929184,
+      "lon_V2": 4.2719788
     },
     "PRS_DE_VIANGES": {
       "name": "SEI de Vianges",
-      "lat": 47.149,
-      "lon": 4.34201,
+      "lat": 47.1491078,
+      "lon": 4.341976,
       "type": "poste_aiguillage",
       "code_ligne": "752000",
       "PK": "225,809",
@@ -230,8 +260,8 @@
     },
     "PRS_DE_SULLY": {
       "name": "SEI de Sully",
-      "lat": 46.99679,
-      "lon": 4.45548,
+      "lat": 46.9952814,
+      "lon": 4.4573969,
       "type": "poste_aiguillage",
       "code_ligne": "752000",
       "PK": "247,214",
@@ -248,7 +278,11 @@
       "PK": "253,454",
       "Vmax": null,
       "altitude": null,
-      "longueur": 420
+      "longueur": 420,
+      "lat_V1": 46.9478,
+      "lon_V1": 4.48808,
+      "lat_V2": 46.9441138,
+      "lon_V2": 4.4892869
     },
     "CREUSOT_TGV": {
       "name": "Le Creusot – Montceau – Montchanin TGV",
@@ -263,8 +297,8 @@
     },
     "PRS_DE_VAUX_EN_PRE": {
       "name": "SEI de Vaux-en-Pré",
-      "lat": 46.6119,
-      "lon": 4.60418,
+      "lat": 46.6124664,
+      "lon": 4.603824,
       "type": "poste_aiguillage",
       "code_ligne": "752000",
       "PK": "292,995",
@@ -274,8 +308,8 @@
     },
     "PRS_DE_CLUNY": {
       "name": "SEI de Cluny",
-      "lat": 46.43449,
-      "lon": 4.67387,
+      "lat": 46.4346369,
+      "lon": 4.6738672,
       "type": "poste_aiguillage",
       "code_ligne": "752000",
       "PK": "313,579",
@@ -292,12 +326,16 @@
       "PK": "321,187",
       "Vmax": null,
       "altitude": null,
-      "longueur": 385
+      "longueur": 385,
+      "lat_V1": 46.37125,
+      "lon_V1": 4.67518,
+      "lat_V2": 46.3684916,
+      "lon_V2": 4.6782114
     },
     "MACON_LOCHE": {
       "name": "Macon – Loché TGV",
-      "lat": 46.28338,
-      "lon": 4.77797,
+      "lat": 46.2827577,
+      "lon": 4.7784117,
       "type": "gare",
       "code_ligne": "752000",
       "PK": "333,917",
@@ -307,8 +345,8 @@
     },
     "PRS_DE_CESSEIN": {
       "name": "SEI de Cessein",
-      "lat": 46.06674,
-      "lon": 4.84928,
+      "lat": 46.0669819,
+      "lon": 4.849281,
       "type": "poste_aiguillage",
       "code_ligne": "752000",
       "PK": "361,134",
@@ -325,7 +363,11 @@
       "PK": "379,572",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": null,
+      "lat_V1": 45.9020796,
+      "lon_V1": 4.874829,
+      "lat_V2": 45.9015427,
+      "lon_V2": 4.8749638
     },
     "BIF_MONTANAY": {
       "name": "Bifurcation V.1 de Montanay",
@@ -333,13 +375,17 @@
       "lon": 4.87707,
       "type": "bifurcation",
       "code_ligne": "752000",
-      "code_ligne_2": "",
+      "code_ligne_2": "752330",
       "PK_V1": "380,540",
       "PK_V2": "380,540",
-      "PK_2_V1": "",
-      "PK_2_V2": "",
+      "PK_2_V1": "380,540",
+      "PK_2_V2": "380,540",
       "Vmax": null,
-      "altitude": null
+      "altitude": null,
+      "lat_V1": 45.8923604,
+      "lon_V1": 4.8772323,
+      "lat_V2": 45.8923306,
+      "lon_V2": 4.8775005
     },
     "PONT_SUR_L_A46": {
       "name": "Pont sur l'A46",
@@ -350,7 +396,11 @@
       "PK": "385,133",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": null,
+      "lat_V1": 45.86041,
+      "lon_V1": 4.90772,
+      "lat_V2": 45.860077,
+      "lon_V2": 4.9088004
     },
     "VIADUC_DE_LA_COTIERE": {
       "name": "Viaduc de la Cotière",
@@ -361,7 +411,11 @@
       "PK": "394,060",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": null,
+      "lat_V1": 45.84303,
+      "lon_V1": 5.01456,
+      "lat_V2": 45.8249691,
+      "lon_V2": 5.0329283
     },
     "LYON_ST_EX": {
       "name": "Lyon-Saint-Exupéry TGV",
@@ -397,7 +451,11 @@
       "PK": "440,545",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": null,
+      "lat_V1": 45.4604269,
+      "lon_V1": 5.0440362,
+      "lat_V2": 45.4448858,
+      "lon_V2": 5.0333952
     },
     "VIADUC_DE_LA_GALAURE": {
       "name": "Viaduc de la Galaure",
@@ -408,7 +466,11 @@
       "PK": "471,869",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": null,
+      "lat_V1": 45.197578,
+      "lon_V1": 4.9192733,
+      "lat_V2": 45.1968688,
+      "lon_V2": 4.9190184
     },
     "PRCI_DE_CLAVEYSON_BREN": {
       "name": "PRCI de Claveyson - Bren",
@@ -441,7 +503,11 @@
       "PK": "531,661",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": 2340,
+      "lat_V1": 44.68243,
+      "lon_V1": 4.9353,
+      "lat_V2": 44.6631382,
+      "lon_V2": 4.9235227
     },
     "SEI_D_ALLAN": {
       "name": "SEI d'Allan",
@@ -463,7 +529,11 @@
       "PK": "569,737",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": null,
+      "lat_V1": 44.3786667,
+      "lon_V1": 4.7327654,
+      "lat_V2": 44.3766796,
+      "lon_V2": 4.7315735
     },
     "BIF_VERS_LE_RACC_DE_BOLLENE": {
       "name": "Bif. vers le racc. de Bollène",
@@ -524,7 +594,11 @@
       "PK": "650,559",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": 900,
+      "lat_V1": 43.80702,
+      "lon_V1": 5.04268,
+      "lat_V2": 43.8000963,
+      "lon_V2": 5.0484881
     },
     "VIADUC_DE_VERNEGUES_1_211_M": {
       "name": "Viaduc de Vernègues (1 211 m)",
@@ -535,7 +609,11 @@
       "PK": "669,022",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": 1211,
+      "lat_V1": 43.68812,
+      "lon_V1": 5.19707,
+      "lat_V2": 43.6790387,
+      "lon_V2": 5.2053826
     },
     "VIADUC_DE_VENTABREN_1_730_M": {
       "name": "Viaduc de Ventabren (1 730 m)",
@@ -546,7 +624,11 @@
       "PK": "688,232",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": 1730,
+      "lat_V1": 43.54931,
+      "lon_V1": 5.32919,
+      "lat_V2": 43.5342007,
+      "lon_V2": 5.333556
     },
     "AIX_TGV": {
       "name": "Aix-en-Provence TGV",
@@ -568,7 +650,11 @@
       "PK": "702,280",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": null,
+      "lat_V1": 43.42822,
+      "lon_V1": 5.32977,
+      "lat_V2": 43.3655391,
+      "lon_V2": 5.3397369
     },
     "BIF_DES_TUILERIES": {
       "name": "Bif. des Tuileries",
@@ -582,7 +668,11 @@
       "PK_2_V1": "854,736",
       "PK_2_V2": "854,736",
       "Vmax": null,
-      "altitude": null
+      "altitude": null,
+      "lat_V1": 43.355266,
+      "lon_V1": 5.3515434,
+      "lat_V2": 43.355266,
+      "lon_V2": 5.3510284
     },
     "MARSEILLE_ST_CHARLES": {
       "name": "Marseille Saint-Charles",
@@ -597,11 +687,11 @@
     },
     "SATHONAY_RILLIEU": {
       "name": "Gare de Sathonay-Rillieu",
-      "lat": 45.85896,
-      "lon": 4.90772,
+      "lat": 45.8197676,
+      "lon": 4.8751187,
       "type": "gare",
-      "code_ligne": "",
-      "PK": "",
+      "code_ligne": "752330",
+      "PK": "389,314",
       "Vmax": null,
       "altitude": null,
       "longueur": null
@@ -611,30 +701,35 @@
       "lat": 45.81778,
       "lon": 5.01456,
       "type": "ouvrage_art",
-      "code_ligne": "",
-      "PK": "",
+      "code_ligne": "752330",
+      "PK": "390,209",
       "Vmax": null,
       "altitude": null,
-      "longueur": null
+      "longueur": 1188,
+      "lat_V1": 45.81334495510869,
+      "lon_V1": 4.869757728530714,
+      "lat_V2": 45.80881816790197,
+      "lon_V2": 4.881947948829882
     },
     "GARE_DE_LYON_SAINT_CLAIR": {
       "name": "Gare de Lyon-Saint-Clair",
-      "lat": 45.81778,
-      "lon": 5.07589,
+      "lat": 45.7905693,
+      "lon": 4.8614985,
       "type": "gare",
-      "code_ligne": "",
-      "PK": "",
+      "code_ligne": "752330",
+      "code_ligne_2": "893000",
+      "PK": "394,427",
       "Vmax": null,
       "altitude": null,
       "longueur": null
     },
     "LYON_PART_DIEU": {
       "name": "Lyon-Part-Dieu",
-      "lat": 45.78947,
-      "lon": 4.8608,
+      "lat": 45.759679,
+      "lon": 4.8599482,
       "type": "passage",
-      "code_ligne": "",
-      "PK": "",
+      "code_ligne": "893000",
+      "PK": "507,525",
       "Vmax": null,
       "altitude": null,
       "longueur": null

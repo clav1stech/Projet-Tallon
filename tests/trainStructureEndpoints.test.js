@@ -82,7 +82,7 @@ describe('extrémités directionnelles des ouvrages rail', () => {
         expect(result.errors).toHaveLength(2);
     });
 
-    it('projette les longueurs disponibles dans les données réelles', async () => {
+    it('valide les extrémités corrigées dans les données réelles', async () => {
         const fetchFile = async path => {
             const text = readFileSync(path, 'utf8');
             return {
@@ -95,9 +95,15 @@ describe('extrémités directionnelles des ouvrages rail', () => {
         const data = JSON.parse(readFileSync('data/masterRoutes.normalized.json', 'utf8'));
         const corridors = await loadRailCorridors('data/datasets/rail-pk.json', fetchFile);
         const suggestions = applyStructureEndpointSuggestions(data.points, corridors);
-        expect(suggestions.size).toBe(12);
+        expect(suggestions.size).toBe(0);
+        expect(corridors.has('752330')).toBe(true);
+        expect(corridors.has('893000')).toBe(true);
         expect(data.points.TUNNEL_DE_TARTAIGUILLE.longueur).toBe(2340);
-        expect(suggestions.get('TRANCHEE_COUVERTE_DE_VILLECRESNE').path.length).toBeGreaterThan(20);
-        expect(validateStructureEndpoints(data.points, 5).errors).toHaveLength(8);
+        const mercieresPath = structurePathOnCorridor(
+            data.points.TUNNEL_DES_MERCIERES,
+            corridors.get('752330')
+        );
+        expect(mercieresPath.length).toBeGreaterThan(10);
+        expect(validateStructureEndpoints(data.points, 5).errors).toHaveLength(0);
     });
 });

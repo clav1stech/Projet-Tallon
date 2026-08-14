@@ -18,10 +18,12 @@
   ligne commune aux bifurcations, au lieu de relier les seuls repères par des
   segments droits. Une portion sans corridor identifié reste volontairement
   directe afin d'éviter toute projection sur une ligne voisine arbitraire.
-- Douze extrémités V2 sont proposées automatiquement. Les longueurs inscrites
-  dans le nom de quatre ouvrages sont normalisées ; les huit ouvrages restants
-  sont signalés pour placement manuel et bloquent l'export tant que leurs deux
-  entrées ne sont pas distinctes.
+- Import des 36 points corrigés depuis l'export cartographique, dont les deux
+  extrémités des 20 tunnels et ouvrages d'art ; tous passent désormais la
+  validation de distinction V1/V2.
+- Ajout des corridors `752330` (Montanay–Lyon-Saint-Clair) et `893000`
+  (accès à Lyon-Part-Dieu). Le tunnel des Mercières reprend ses extrémités SNCF
+  sur la `752330`, sa longueur de 1 188 m et son PK 390,209.
 - Les corrections manuelles des ouvrages sont recollées à la polyline, et le
   moteur de suivi utilise désormais leur entrée propre au sens de circulation.
 - Les repères sont déplaçables sur la carte et éditables par saisie directe,
@@ -31,7 +33,7 @@
   exporté silencieusement.
 - Ajout de tests de non-régression sur les coordonnées directionnelles et sur
   la source de vérité `data/masterRoutes.normalized.json`.
-- Mise à jour du cache hors ligne (`tallon-v21`) pour précacher le nouvel
+- Mise à jour du cache hors ligne (`tallon-v22`) pour précacher le nouvel
   éditeur et ses modules locaux.
 
 ## v3.0.8 - 2026-08-14

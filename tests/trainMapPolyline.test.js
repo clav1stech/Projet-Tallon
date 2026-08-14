@@ -89,10 +89,20 @@ describe('polyline cartographique des trajets rail', () => {
         const data = JSON.parse(readFileSync('data/masterRoutes.normalized.json', 'utf8'));
         const corridors = await loadRailCorridors('data/datasets/rail-pk.json', fetchFile);
         const routeParisMacon = data.trajets.find(candidate => candidate.id === 'PAR_MAC_SUD');
+        const routeParisLyon = data.trajets.find(candidate => candidate.id === 'PAR_LPD_SUD');
 
-        const path = buildTrainRoutePolyline(data.points, routeParisMacon, 1, corridors);
+        const maconPath = buildTrainRoutePolyline(data.points, routeParisMacon, 1, corridors);
+        const lyonPath = buildTrainRoutePolyline(data.points, routeParisLyon, 1, corridors);
 
-        expect(path.length).toBeGreaterThan(3000);
-        expect(path.some(point => Math.abs(point.lat - 48.67599) < 0.00001)).toBe(true);
+        expect(maconPath.length).toBeGreaterThan(3000);
+        expect(maconPath.some(point => Math.abs(point.lat - 48.67599) < 0.00001)).toBe(true);
+        expect(lyonPath.some(point => (
+            Math.abs(point.lat - 45.81334495510869) < 0.001
+            && Math.abs(point.lon - 4.869757728530714) < 0.001
+        ))).toBe(true);
+        expect(lyonPath.some(point => (
+            Math.abs(point.lat - 45.759679) < 0.001
+            && Math.abs(point.lon - 4.8599482) < 0.001
+        ))).toBe(true);
     });
 });

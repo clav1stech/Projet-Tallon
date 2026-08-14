@@ -11,7 +11,7 @@
   "everyNth": 1,
   "notes": [
     "Fichier généré par `python3 python/extract_pk.py` depuis data/raw/rail/pks 2.csv (voir data/raw/README.md).",
-    "Contient les lignes 752000 (LGV Sud-Est, 7113 pts), 752100 et 830000 — le filtre `code_ligne` sélectionne le corridor ; corridors multi-lignes = évolution future.",
+    "Contient les lignes 752000 (LGV Sud-Est), 752100, 752330 (accès Montanay–Lyon-Saint-Clair), 830000 et 893000 (accès Lyon-Part-Dieu) — le filtre `code_ligne` sélectionne le corridor principal pour l'affichage PK.",
     "Toutes les colonnes source sont conservées (vitesse, altitude, altitude_tunnels, altitude_declivites) pour de futures features.",
     "Relancer le script avec --lines pour ajouter d'autres lignes SNCF."
   ]
