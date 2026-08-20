@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.1.2 - 2026-08-20
+
+### Installation PWA distincte pour le mode voiture
+
+- `car.html` référençait le manifeste du mode train : « Sur l'écran d'accueil »
+  depuis la page voiture créait une icône qui ouvrait la timeline TGV. Un
+  manifeste dédié (`car.webmanifest`, `start_url` `./car.html`) est ajouté et
+  les deux manifestes sont précachés (`tallon-v23`).
+- `docs/wifi-sncf-iphone.md` précise qu'une PWA iOS n'affranchit pas des
+  restrictions CORS de WebKit : le bridge Scriptable reste la seule voie pour
+  interroger `wifi.sncf` depuis un iPhone.
+
 ## v3.1.1 - 2026-08-14
 
 ### Projection ferroviaire et ouvrages directionnels

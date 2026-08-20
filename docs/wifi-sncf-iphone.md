@@ -28,7 +28,9 @@ toujours, pour une raison principale :
    l'API `wifi.sncf` ne renvoie pas d'en-tête `Access-Control-Allow-Origin`.
    Safari bloque donc la lecture de la réponse. C'est une restriction du
    navigateur, pas du réseau : il n'existe **aucun réglage iPhone** pour la
-   contourner.
+   contourner. Ajouter l'app à l'écran d'accueil n'y change rien : une PWA
+   iOS s'exécute dans le même moteur WebKit, avec la même politique d'origine
+   — le mode plein écran n'accorde aucun privilège réseau supplémentaire.
 2. Accessoirement : tant que le portail captif n'a pas été accepté, toute
    requête est redirigée vers la page de login (réponse invalide).
 
