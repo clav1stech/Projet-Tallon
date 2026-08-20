@@ -1837,7 +1837,9 @@ body.tracking-active #hud-speed-graph {
 
 .hud-eta-time {
     display: block;
-    font-size: 3.5em;
+    /* Toujours sur une seule ligne : la taille cède avant le retour à la ligne. */
+    white-space: nowrap;
+    font-size: min(3.5em, 11vw);
     font-weight: 800;
     color: var(--text-main);
     line-height: 1.05;

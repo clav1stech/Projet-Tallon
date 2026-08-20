@@ -48,9 +48,11 @@ export function updateCarInfo(html) {
     if (el) el.innerHTML = html;
 }
 
+// Affichage en kilomètres entiers : la décimale n'apporte rien sur une
+// distance restante et fait déborder le HUD paysage sur une seconde ligne.
 export function formatRemainingDistance(km) {
     if (!Number.isFinite(km) || km < 0) return '—';
-    return `${km.toFixed(1)} km`;
+    return `${Math.round(km)} km`;
 }
 
 /**

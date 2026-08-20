@@ -8,5 +8,19 @@
   "orientation": "any",
   "background_color": "#111418",
   "theme_color": "#111418",
-  "lang": "fr"
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "assets/icons/car-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/car-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
 }

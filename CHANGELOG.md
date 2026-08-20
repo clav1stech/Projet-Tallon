@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.1.4 - 2026-08-20
+
+### Icônes d'écran d'accueil et distance restante sur une ligne
+
+- Icônes dédiées à chaque mode (`assets/icons/`, générées par
+  `tools/make-icons.py`) : motrice sur fond bordeaux pour le rail, berline sur
+  fond teal pour la route. Sans `apple-touch-icon`, iOS reprenait une capture
+  de la page comme icône.
+- La distance restante s'affiche en kilomètres entiers et ne peut plus passer
+  à la ligne dans le HUD paysage : la taille de police cède avant le retour à
+  la ligne.
+- Mise à jour du cache hors ligne (`tallon-v24`).
+
 ## v3.1.3 - 2026-08-20
 
 ### Bridge WiFi SNCF diagnosticable et mise en page correcte sous Scriptable
