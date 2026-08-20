@@ -64,9 +64,30 @@ Mise en place (une fois) :
 Astuce : ajouter le script à l'écran d'accueil (Scriptable → partager →
 « Add to Home Screen ») pour un lancement en une touche.
 
-Limites : le service worker ne fonctionne pas dans la WebView Scriptable
-(l'app y nécessite donc du réseau au premier chargement) et l'écran doit
-rester allumé (Scriptable ne tourne pas en arrière-plan).
+Limites :
+- **Pas de vrai plein écran.** La WebView de Scriptable est présentée dans une
+  feuille modale : le bandeau supérieur (titre + « Done ») est dessiné par
+  Scriptable, aucun script ne peut le retirer. La page dispose donc d'une
+  hauteur réduite. C'est la contrepartie du bridge, et c'est irréductible.
+- Le service worker ne fonctionne pas dans la WebView Scriptable (l'app y
+  nécessite donc du réseau au premier chargement).
+- L'écran doit rester allumé : Scriptable ne tourne pas en arrière-plan.
+
+### Quand « le bridge ne marche pas »
+
+Toutes les causes possibles produisent le même symptôme (la page reste sur le
+GPS natif). Pour les séparer :
+
+1. Lancer `tools/scriptable-sncf-diagnostic.js` — il n'ouvre aucune WebView et
+   affiche un verdict : `PORTAIL CAPTIF` (accepter les CGU dans Safari sur
+   `http://wifi.sncf`), `INJOIGNABLE` (pas sur le réseau du train), `API SANS
+   POSITION` (rame non équipée ou sans fix — rien à corriger côté app), ou
+   `OK` avec la position. Tant que ce script n'affiche pas `OK`, le bridge ne
+   peut rien injecter.
+2. Si le diagnostic passe, relancer le bridge : il affiche désormais un
+   bandeau d'état en bas de la page (vert `OK ×n` avec la position, rouge avec
+   la cause de l'échec), la console Scriptable étant invisible sous la WebView.
+   Un échec au démarrage déclenche une alerte avant même l'ouverture de l'app.
 
 ### Option B — GPS natif en PWA (zéro dépendance)
 

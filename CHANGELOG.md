@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.1.3 - 2026-08-20
+
+### Bridge WiFi SNCF diagnosticable et mise en page correcte sous Scriptable
+
+- Ajout de `tools/scriptable-sncf-diagnostic.js` : sonde l'API du train sans
+  ouvrir de WebView et distingue portail captif, réseau injoignable, rame sans
+  position et succès. Les échecs du bridge n'étaient jusqu'ici pas
+  différenciables à bord.
+- Le bridge vérifie l'API avant d'ouvrir l'app, tente aussi l'endpoint en
+  clair, et affiche son état (position transmise ou cause de l'échec) dans un
+  bandeau injecté en bas de page — la console Scriptable étant masquée par la
+  WebView.
+- `isIPhoneDevice` se replie sur `navigator.platform` : dans une WebView dont
+  l'user-agent n'annonce pas « iPhone », la page basculait sur la mise en page
+  non-iPhone (HUD surdimensionné).
+- `docs/wifi-sncf-iphone.md` documente la procédure de diagnostic et le
+  bandeau supérieur non supprimable de la feuille Scriptable.
+
 ## v3.1.2 - 2026-08-20
 
 ### Installation PWA distincte pour le mode voiture

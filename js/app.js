@@ -8,9 +8,14 @@ import { buildCorridor, locateOnCorridor, formatPk } from './linearref.js';
 
 let trackingInterval = null;
 
+// La détection ne peut pas reposer sur le seul user-agent : dans une WebView
+// hôte (Scriptable), l'UA peut ne pas contenir « iPhone », ce qui basculerait
+// la page sur la mise en page non-iPhone (HUD surdimensionné) sur un iPhone.
+// navigator.platform reste fiable dans WebKit quel que soit l'UA.
 function isIPhoneDevice() {
     if (typeof navigator === 'undefined') return false;
-    return /iPhone/i.test(navigator.userAgent || '');
+    if (/iPhone|iPod/i.test(navigator.userAgent || '')) return true;
+    return navigator.platform === 'iPhone' || navigator.platform === 'iPod touch';
 }
 
 function updateDebugBar(status) {

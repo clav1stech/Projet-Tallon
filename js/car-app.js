@@ -428,7 +428,10 @@ async function startTracking() {
 
 document.addEventListener('DOMContentLoaded', () => {
     // Le HUD paysage adapte ses tailles hors iPhone (mêmes classes que le rail).
-    const isIPhone = /iPhone/i.test(navigator.userAgent || '');
+    // Même raison que dans app.js : l'UA d'une WebView hôte peut omettre
+    // « iPhone », navigator.platform non.
+    const isIPhone = /iPhone|iPod/i.test(navigator.userAgent || '')
+        || navigator.platform === 'iPhone' || navigator.platform === 'iPod touch';
     document.body.classList.toggle('iphone-device', isIPhone);
     document.body.classList.toggle('non-iphone-device', !isIPhone);
 
