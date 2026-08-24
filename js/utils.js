@@ -1,5 +1,25 @@
 // js/utils.js
 
+// Seuils d'affichage du retard : en dessous, l'écart n'est ni annoncé ni
+// répercuté sur les heures projetées. L'asymétrie est voulue — une minute de
+// retard se voit, une avance de moins de trois minutes se résorbe à quai.
+export const LATE_DISPLAY_THRESHOLD_MS = 60_000;
+export const EARLY_DISPLAY_THRESHOLD_MS = -180_000;
+
+/**
+ * Retard retenu pour l'affichage : aligné sur la minute entière (comme la
+ * pilule du HUD) et nul sous les seuils, pour que la pilule, l'ETA et les
+ * heures projetées de la timeline racontent toujours la même chose.
+ * @param {number} delayMs - retard courant (négatif = avance)
+ * @returns {number} décalage en ms à appliquer aux heures théoriques
+ */
+export function alignDelayForDisplay(delayMs) {
+    if (!Number.isFinite(delayMs)) return 0;
+    if (delayMs <= LATE_DISPLAY_THRESHOLD_MS && delayMs >= EARLY_DISPLAY_THRESHOLD_MS) return 0;
+    const minutes = Math.floor(Math.abs(delayMs) / 60_000);
+    return (delayMs >= 0 ? 1 : -1) * minutes * 60_000;
+}
+
 /**
  * Retourne la voie de circulation d'une master route.
  * Voie 1 = Paris → Province, voie 2 = Province → Paris.

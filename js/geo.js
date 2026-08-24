@@ -25,6 +25,25 @@ export function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
+ * Distances cumulées (km) le long d'une polyligne, depuis son premier point.
+ * Le tableau retourné a la même longueur que `points` (index i = distance
+ * parcourue jusqu'au point i), ce qui permet de situer n'importe quel point
+ * dans le référentiel du trajet plutôt qu'à vol d'oiseau.
+ * @param {Array<{lat:number, lon:number}>} points
+ * @returns {number[]}
+ */
+export function buildCumulativeDistances(points) {
+    if (!Array.isArray(points) || points.length === 0) return [];
+    const cumKm = [0];
+    for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        cumKm.push(cumKm[i - 1] + haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon));
+    }
+    return cumKm;
+}
+
+/**
  * Calcule la progression sur un segment donné.
  */
 export function computeSegmentProgress(route, segIdx, lat, lon) {

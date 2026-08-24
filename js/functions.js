@@ -463,6 +463,21 @@ export function projectPositionOnRouteSegment(route, segmentIndex, lat, lon) {
 }
 
 /**
+ * Avancement 0 → 1 sur le segment courant, à partir des deux distances
+ * fournies par le matching. Sert aux repères de progression continue de
+ * l'affichage (tête de lecture du HUD, liseré de la timeline) : entre deux
+ * points, seul ce ratio bouge.
+ * @returns {number} borné à [0, 1] ; 0 si le segment est de longueur nulle
+ */
+export function computeSegmentRatio(distanceFromSegmentStart, distanceToNextPointKm) {
+    const done = Number.isFinite(distanceFromSegmentStart) ? Math.max(0, distanceFromSegmentStart) : 0;
+    const left = Number.isFinite(distanceToNextPointKm) ? Math.max(0, distanceToNextPointKm) : 0;
+    const total = done + left;
+    if (total <= 0) return 0;
+    return Math.max(0, Math.min(1, done / total));
+}
+
+/**
  * Trouve le segment le plus proche d'une position par projection orthogonale.
  * Sert au "seed" du premier fix GPS (le train peut embarquer en milieu de route).
  * @returns {number} index de segment (0 par défaut)

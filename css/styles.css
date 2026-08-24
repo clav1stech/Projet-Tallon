@@ -1318,6 +1318,25 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
         border-radius: 3px;
     }
 
+    /* Portion déjà parcourue : posée par-dessus la ligne, jusqu'à la tête de
+       lecture. Sous les nœuds (z-index 2) pour ne jamais les masquer. */
+    body.tracking-active #hud-track-points::after {
+        content: '';
+        position: absolute;
+        top: var(--line-top, 0px);
+        height: max(0px, calc(var(--cursor-top, 0px) - var(--line-top, 0px)));
+        left: 10%;
+        width: 6px;
+        background: rgba(135, 44, 59, 0.22);
+        border-radius: 3px;
+        z-index: 1;
+    }
+
+    body.non-iphone-device.tracking-active #hud-track-points::after {
+        width: 8px;
+        border-radius: 4px;
+    }
+
     body.tracking-active .hud-carousel {
         overflow-y: scroll;
         overflow-x: hidden;
@@ -1941,5 +1960,242 @@ body.non-iphone-device.tracking-active .hud-tunnel-image {
         padding: 13px 24px;
         font-size: 1.02em;
         margin-top: 18px;
+    }
+}
+
+/* ── Franchissement d'un ouvrage d'art (viaduc, tunnel) ──
+   L'ouvrage reste le point affiché de son entrée à sa sortie : une pulsation
+   lente et une jauge de franchissement le distinguent d'un point simplement
+   à venir, sans attirer l'œil comme le ferait une animation rapide. */
+@keyframes structure-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+}
+
+@keyframes structure-halo {
+    0%, 100% { box-shadow: 0 0 0 8px rgba(135, 44, 59, 0.18); }
+    50%      { box-shadow: 0 0 0 14px rgba(135, 44, 59, 0.06); }
+}
+
+/* Widget portrait : même teinte ambre que les autres états « on estime la
+   position » (tunnel, signal perdu). */
+#car-next.on-structure {
+    display: inline-block;
+    text-align: right;
+    color: #f0b35a;
+    animation: structure-pulse 2.4s ease-in-out infinite;
+}
+
+.car-structure-gauge,
+.hud-point-gauge {
+    display: block;
+    margin-top: 6px;
+    height: 3px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+}
+
+.hud-point-gauge {
+    background: rgba(135, 44, 59, 0.15);
+}
+
+.car-structure-gauge > span,
+.hud-point-gauge > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 3px;
+    background: #f0b35a;
+    transition: width 0.6s linear;
+}
+
+.hud-point-gauge > span {
+    background: var(--primary);
+}
+
+/* La jauge n'a de sens que pendant le franchissement : partout ailleurs
+   l'ouvrage est un point de passage comme un autre. */
+.hud-point:not(.on-structure) .hud-point-gauge {
+    display: none;
+}
+
+.hud-point.on-structure .hud-point-gauge {
+    height: 5px;
+    margin-top: 10px;
+}
+
+.hud-point.on-structure .hud-point-name {
+    animation: structure-pulse 2.4s ease-in-out infinite;
+}
+
+.hud-point.on-structure .hud-point-dot {
+    animation: structure-halo 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #car-next.on-structure,
+    .hud-point.on-structure .hud-point-name,
+    .hud-point.on-structure .hud-point-dot {
+        animation: none;
+    }
+
+    .car-structure-gauge > span,
+    .hud-point-gauge > span {
+        transition: none;
+    }
+}
+
+
+/* ── Tête de lecture du carousel (rail et voiture) ──
+   Position écrite en JS (--cursor-top) : elle s'interpole entre deux nœuds
+   dont la hauteur transitionne pendant 700 ms après un changement de point. */
+.hud-cursor {
+    position: absolute;
+    left: calc(10% + 3px);
+    top: var(--cursor-top, 0px);
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    border: 4px solid var(--primary);
+    box-shadow: 0 0 0 4px rgba(135, 44, 59, 0.14);
+    z-index: 3;
+}
+
+body.non-iphone-device.tracking-active .hud-cursor {
+    left: calc(10% + 4px);
+    width: 20px;
+    height: 20px;
+    border-width: 5px;
+}
+
+.hud-cursor.hidden {
+    display: none;
+}
+
+/* ── Timeline portrait : progression et heures reprojetées ── */
+.timeline-progress {
+    position: absolute;
+    left: 0;
+    width: 3px;
+    top: 0;
+    height: 0;
+    background: var(--primary);
+    border-radius: 0 3px 3px 0;
+    z-index: 1;
+    pointer-events: none;
+    transition: height 0.6s linear;
+}
+
+.projected-time {
+    font-size: 0.85em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+}
+
+.projected-time.late {
+    color: var(--danger);
+}
+
+.projected-time.early {
+    color: var(--success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .timeline-progress {
+        transition: none;
+    }
+}
+
+/* ===========================
+   Mode voiture — thème nuit
+   ===========================
+   Suit l'apparence du système (qui bascule au coucher du soleil sur iOS) et
+   ne concerne que car.html : le mode rail garde son identité SNCF claire.
+   Toutes les règles sont donc préfixées par body.car-page. */
+@media (prefers-color-scheme: dark) {
+    body.car-page {
+        background-color: #14161a;
+        color: #e6e8ec;
+    }
+
+    body.car-page .container,
+    body.car-page .settings-panel {
+        background: #1c1f25;
+        color: #e6e8ec;
+    }
+
+    body.car-page .car-stat-label {
+        opacity: 0.65;
+    }
+
+    body.car-page .car-structure-gauge {
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* Carousel : c'est lui qui occupe tout l'écran en conduite de nuit. */
+    body.car-page .hud-carousel,
+    body.car-page #hud-track-points {
+        background: #14161a;
+    }
+
+    body.car-page .hud-dashboard {
+        border-right-color: rgba(255, 255, 255, 0.10);
+    }
+
+    /* Bordeaux éclairci : le bordeaux de jour disparaît sur fond sombre. */
+    body.car-page.tracking-active #hud-track-points::before,
+    body.car-page .hud-point-dot,
+    body.car-page .hud-point.next .hud-point-dot,
+    body.car-page .hud-point.active .hud-point-dot {
+        background: #c9707f;
+    }
+
+    body.car-page.tracking-active #hud-track-points::after {
+        background: rgba(201, 112, 127, 0.25);
+    }
+
+    /* Cœur des nœuds « bullseye » et de la tête de lecture : la couleur du
+       fond, pas le blanc, sinon ils brillent comme des pastilles pleines. */
+    body.car-page .hud-point.stop .hud-point-dot,
+    body.car-page .hud-point.next.stop .hud-point-dot,
+    body.car-page .hud-point.active.stop .hud-point-dot,
+    body.car-page .hud-cursor {
+        background: #14161a;
+        border-color: #c9707f;
+    }
+
+    body.car-page .hud-cursor {
+        box-shadow: 0 0 0 4px rgba(201, 112, 127, 0.18);
+    }
+
+    body.car-page .hud-point-name,
+    body.car-page .hud-point.next .hud-point-name {
+        color: #f2f4f7;
+    }
+
+    body.car-page .hud-point.active .hud-point-name,
+    body.car-page .hud-point-time,
+    body.car-page .hud-point-distance {
+        color: #9aa2ae;
+    }
+
+    body.car-page .hud-point.next .hud-point-distance {
+        color: #c9707f;
+    }
+
+    body.car-page .hud-point-gauge {
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    body.car-page .hud-point-gauge > span {
+        background: #c9707f;
+    }
+
+    body.car-page.tracking-active #hud-sector {
+        background: #c9707f;
+        color: #14161a;
     }
 }

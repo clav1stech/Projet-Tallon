@@ -21,7 +21,8 @@ import {
     buildCarRoute,
     estimateDeclaredTunnelProgress,
     findSector,
-    locateRouteProgress
+    locateRouteProgress,
+    resolveWaypointTarget
 } from './car-route.js';
 import { applyCarWaypointOverrides, loadCarWaypointOverrides } from './car-waypoint-overrides.js';
 import { createPositionEngine } from './position-engine.js';
@@ -99,23 +100,18 @@ function buildEstimatedRenderData(base, doneKm, { inTunnel, gpsLost, tunnelName 
         line = a.line ?? null;
     }
 
-    let nextWaypoint = null;
-    let nextDistanceKm = null;
-    for (const wp of CAR.route.waypoints) {
-        if (wp.routeKm > progress.routeKm) {
-            nextWaypoint = wp;
-            nextDistanceKm = wp.routeKm - progress.routeKm;
-            break;
-        }
-    }
+    const target = resolveWaypointTarget(CAR.route.waypoints, progress.routeKm);
 
     return {
         ...base,
         legLabel: a?.legLabel ?? base.legLabel,
         pk,
         line,
-        nextWaypoint,
-        nextDistanceKm,
+        nextWaypoint: target.nextWaypoint,
+        nextIndex: target.nextIndex,
+        nextDistanceKm: target.nextDistanceKm,
+        onStructure: target.onStructure,
+        structureProgress: target.structureProgress,
         doneKm: progress.routeKm,
         remainingKm: Math.max(0, CAR.route.totalKm - progress.routeKm),
         speedKmh: CAR.lastKnownSpeedKmh,
@@ -320,16 +316,9 @@ function onPosition(position) {
     }
 
     // Prochain point de passage (sortie, échangeur, ouvrage d'art, étape) —
-    // liste triée par km-route fournie par buildCarRoute.
-    let nextWaypoint = null;
-    let nextDistanceKm = null;
-    for (const wp of CAR.route.waypoints) {
-        if (wp.routeKm > doneKm) {
-            nextWaypoint = wp;
-            nextDistanceKm = wp.routeKm - doneKm;
-            break;
-        }
-    }
+    // liste triée par km-route fournie par buildCarRoute. Un ouvrage d'art
+    // reste la cible affichée jusqu'à sa sortie (resolveWaypointTarget).
+    const target = resolveWaypointTarget(CAR.route.waypoints, doneKm);
 
     const sector = findSector(CAR.routeCfg, a?.legIndex, pk);
     const renderData = {
@@ -338,8 +327,11 @@ function onPosition(position) {
         legLabel: a?.legLabel ?? '',
         pk,
         line,
-        nextWaypoint,
-        nextDistanceKm,
+        nextWaypoint: target.nextWaypoint,
+        nextIndex: target.nextIndex,
+        nextDistanceKm: target.nextDistanceKm,
+        onStructure: target.onStructure,
+        structureProgress: target.structureProgress,
         doneKm,
         remainingKm,
         totalKm: CAR.route.totalKm,

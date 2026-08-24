@@ -10,6 +10,7 @@ import {
     findSector,
     locateRouteProgress,
     projectRouteLength,
+    resolveWaypointTarget,
     DEFAULT_LEG_SPEED_KMH
 } from '../js/car-route.js';
 
@@ -385,6 +386,50 @@ describe('buildCarRoute — origin/destination synthétiques', () => {
         const routeDest = buildCarRoute(cfgDest, DATASETS);
         expect(routeDest.waypoints[routeDest.waypoints.length - 1])
             .toMatchObject({ name: 'Arrivée Test', type: 'arrivee', routeKm: routeDest.totalKm });
+    });
+});
+
+describe('resolveWaypointTarget', () => {
+    const waypoints = [
+        { name: 'Sortie 8', type: 'sortie', routeKm: 10 },
+        { name: 'Tunnel de Chamoise', type: 'tunnel', routeKm: 20, lengthM: 3300 },
+        { name: 'Viaduc de Nantua', type: 'viaduc', routeKm: 23.3, lengthM: 1003 },
+        { name: 'Sortie 9', type: 'sortie', routeKm: 30 }
+    ];
+
+    it('cible le prochain point de passage et sa distance', () => {
+        const target = resolveWaypointTarget(waypoints, 5);
+        expect(target.nextWaypoint.name).toBe('Sortie 8');
+        expect(target.nextIndex).toBe(0);
+        expect(target.nextDistanceKm).toBeCloseTo(5, 6);
+        expect(target.onStructure).toBe(false);
+    });
+
+    it("garde l'ouvrage comme cible entre son entrée et sa sortie", () => {
+        const target = resolveWaypointTarget(waypoints, 21.65);
+        expect(target.nextWaypoint.name).toBe('Tunnel de Chamoise');
+        expect(target.onStructure).toBe(true);
+        expect(target.nextDistanceKm).toBeCloseTo(1.65, 6);
+        expect(target.structureProgress).toBeCloseTo(0.5, 6);
+    });
+
+    it('passe au point suivant une fois la sortie franchie', () => {
+        const target = resolveWaypointTarget(waypoints, 23.31);
+        expect(target.nextWaypoint.name).toBe('Viaduc de Nantua');
+        expect(target.onStructure).toBe(true);
+        expect(resolveWaypointTarget(waypoints, 24.4).nextWaypoint.name).toBe('Sortie 9');
+    });
+
+    it('un point sans longueur ne retient jamais la cible', () => {
+        const target = resolveWaypointTarget(waypoints, 10.0001);
+        expect(target.nextWaypoint.name).toBe('Tunnel de Chamoise');
+        expect(target.onStructure).toBe(false);
+    });
+
+    it('après le dernier point ou sur une entrée invalide : aucune cible', () => {
+        expect(resolveWaypointTarget(waypoints, 40).nextWaypoint).toBeNull();
+        expect(resolveWaypointTarget(null, 10).nextWaypoint).toBeNull();
+        expect(resolveWaypointTarget(waypoints, NaN).nextWaypoint).toBeNull();
     });
 });
 

@@ -4,7 +4,7 @@
 // immédiatement (zéro latence même sans réseau), puis rafraîchie en arrière-plan
 // pour la prochaine visite. Incrémenter CACHE_VERSION pour forcer une purge.
 
-const CACHE_VERSION = 'tallon-v22';
+const CACHE_VERSION = 'tallon-v24';
 
 // Coquille applicative pré-cachée à l'installation.
 const PRECACHE_URLS = [
@@ -32,6 +32,7 @@ const PRECACHE_URLS = [
     './js/car-route.js',
     './js/car-app.js',
     './js/car-ui.js',
+    './js/hud-cursor.js',
     './js/car-waypoint-overrides.js',
     './js/car-points-editor.js',
     './js/master-routes-data.js',

@@ -10,7 +10,7 @@
 // en cas d'échec du matching, le repli est purement séquentiel (on reste sur
 // le dernier index validé), aucune logique cardinale.
 
-import { haversineDistance } from './geo.js';
+import { buildCumulativeDistances, haversineDistance } from './geo.js';
 import { buildCorridor } from './linearref.js';
 import { waypointOverrideKey } from './car-waypoint-overrides.js';
 import { buildSegmentCandidate } from './functions.js';
@@ -92,10 +92,7 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
     }
 
     // Distances cumulées + durées indicatives par segment
-    const cumKm = [0];
-    for (let i = 1; i < points.length; i++) {
-        cumKm.push(cumKm[i - 1] + haversineDistance(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon));
-    }
+    const cumKm = buildCumulativeDistances(points);
     for (let i = 0; i < points.length - 1; i++) {
         const leg = routeCfg.legs[points[i].legIndex];
         const speed = Number(leg?.avgSpeedKmh) || DEFAULT_LEG_SPEED_KMH[leg?.type] || 60;
@@ -417,4 +414,62 @@ export function findSector(routeCfg, legIndex, pk) {
         }
     }
     return leg.sector ?? null;
+}
+
+/**
+ * Point de passage à afficher pour une progression donnée.
+ *
+ * Un ouvrage d'art (waypoint porteur d'une `lengthM`) occupe une PORTION de
+ * trajet, pas un repère ponctuel : tant que la progression est comprise entre
+ * son entrée et sa sortie, il reste la cible affichée. Basculer sur le point
+ * suivant dès l'entrée franchie laisserait croire qu'on en est sorti alors
+ * qu'il reste 3,3 km à parcourir dans le tunnel de Chamoise.
+ *
+ * Les waypoints sont triés par routeKm (buildCarRoute) : le premier dont
+ * l'entrée est devant nous, ou en cours de franchissement, est la cible.
+ * @param {Array} waypoints - route.waypoints
+ * @param {number} doneKm   - progression cumulée le long du trajet
+ * @returns {{ nextWaypoint: object|null, nextIndex: number|null,
+ *             nextDistanceKm: number|null, onStructure: boolean,
+ *             structureProgress: number|null }}
+ *   `nextDistanceKm` mesure la distance jusqu'à l'entrée du point, ou jusqu'à
+ *   la SORTIE de l'ouvrage quand on s'y trouve (`onStructure`).
+ */
+export function resolveWaypointTarget(waypoints, doneKm) {
+    const none = {
+        nextWaypoint: null,
+        nextIndex: null,
+        nextDistanceKm: null,
+        onStructure: false,
+        structureProgress: null
+    };
+    if (!Array.isArray(waypoints) || !Number.isFinite(doneKm)) return none;
+
+    for (let i = 0; i < waypoints.length; i++) {
+        const wp = waypoints[i];
+        if (!wp || !Number.isFinite(wp.routeKm)) continue;
+
+        if (doneKm < wp.routeKm) {
+            return {
+                nextWaypoint: wp,
+                nextIndex: i,
+                nextDistanceKm: wp.routeKm - doneKm,
+                onStructure: false,
+                structureProgress: null
+            };
+        }
+
+        const lengthKm = Number.isFinite(wp.lengthM) && wp.lengthM > 0 ? wp.lengthM / 1000 : 0;
+        const endKm = wp.routeKm + lengthKm;
+        if (lengthKm > 0 && doneKm < endKm) {
+            return {
+                nextWaypoint: wp,
+                nextIndex: i,
+                nextDistanceKm: endKm - doneKm,
+                onStructure: true,
+                structureProgress: (doneKm - wp.routeKm) / lengthKm
+            };
+        }
+    }
+    return none;
 }

@@ -652,7 +652,11 @@ function showPosition(position) {
         );
     }
 
-    displayTimeline(displayIdx);
+    // Avancement sur le segment courant : alimente le liseré de la timeline
+    // et la tête de lecture du HUD.
+    const displayProgress = { distanceFromSegmentStart, distanceToNextPointKm };
+
+    displayTimeline(displayIdx, displayProgress);
 
     updateTrackingWidget(
         lastPassedPoint,
@@ -662,7 +666,7 @@ function showPosition(position) {
     );
 
     const speedReliable = hasDirectSncfSpeed || (STATE.locationMethod === 'geo' && STATE.lastPositions.length >= 2);
-    updateLandscapeHUD(displayIdx, currentSpeed, currentDelayMs, userLat, userLon, speedReliable);
+    updateLandscapeHUD(displayIdx, currentSpeed, currentDelayMs, userLat, userLon, speedReliable, displayProgress);
 
     let infoHtml = `<strong>Position :</strong> ${userLat.toFixed(5)}, ${userLon.toFixed(5)}.`;
     if (Number.isFinite(accuracyMeters) && accuracyMeters > 0) {
