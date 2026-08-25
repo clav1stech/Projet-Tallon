@@ -1,5 +1,34 @@
 # Changelog
 
+## v3.1.5 - 2026-08-25
+
+### Franchissement des ouvrages d'art (mode voiture)
+
+- Un ouvrage d'art est traité comme une portion de trajet et non plus comme un
+  repère ponctuel : il reste le point affiché de son entrée jusqu'à sa sortie,
+  avec la distance restante à parcourir dessus. L'affichage basculait jusqu'ici
+  sur le point suivant dès l'entrée franchie, soit 3,3 km trop tôt dans le
+  tunnel de Chamoise.
+- Le franchissement est signalé par une pulsation lente et une jauge de
+  progression, dans le widget portrait comme dans le carousel paysage, où
+  l'ouvrage conserve le rôle de point héros jusqu'à sa sortie.
+
+### Progression continue du HUD et de la timeline
+
+- Une tête de lecture glisse le long de la ligne du carousel entre le point
+  franchi et le suivant, la portion parcourue passant en tonalité claire :
+  la progression est désormais lisible entre deux points et plus seulement à
+  leur franchissement. Partagée par les modes rail et voiture.
+- La timeline portrait reçoit un liseré de progression et affiche, pour les
+  points encore à venir, l'heure d'arrivée reprojetée selon le retard courant.
+- Les distances du carousel rail sont mesurées le long du trajet au lieu du vol
+  d'oiseau, avec repli sur la distance directe faute de projection valide.
+- Les seuils d'affichage du retard, jusqu'ici en dur dans le calcul d'ETA, sont
+  centralisés : pilule, ETA et heures projetées suivent la même règle.
+- Le carousel du mode voiture suit le thème sombre du système, pour la conduite
+  de nuit ; le mode rail conserve son thème clair.
+- Mise à jour du cache hors ligne (`tallon-v25`).
+
 ## v3.1.4 - 2026-08-20
 
 ### Icônes d'écran d'accueil et distance restante sur une ligne

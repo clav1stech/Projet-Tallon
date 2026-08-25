@@ -1,7 +1,9 @@
 // js/ui.js
 import { STATE } from './state.js';
-import { formatTime, timeStringToDate } from './utils.js';
-import { haversineDistance } from './geo.js';
+import { alignDelayForDisplay, formatTime, timeStringToDate } from './utils.js';
+import { buildCumulativeDistances, haversineDistance } from './geo.js';
+import { computeSegmentRatio } from './functions.js';
+import { ensureHudCursor, interpolateElementY, updateHudCursor } from './hud-cursor.js';
 export { MAIN_ROUTES } from './routes-config.js';
 import { MAIN_ROUTES } from './routes-config.js';
 
@@ -76,7 +78,9 @@ let _timelineLastRouteKey = null;
 let _timelineLastDepartureTime = null;
 
 // Affichage principal de la timeline à partir de STATE.currentRoute
-export function displayTimeline(currentIdx = null) {
+// `progress` = { distanceFromSegmentStart, distanceToNextPointKm } : même
+// objet que le HUD, il porte le liseré de progression entre deux stations.
+export function displayTimeline(currentIdx = null, progress = {}) {
     const timeline = document.getElementById('timeline');
     if (!timeline) return;
 
@@ -100,7 +104,9 @@ export function displayTimeline(currentIdx = null) {
         headerDiv.innerHTML = `<span>TIME</span><span>WAYPOINT</span><span>DELAY</span>`;
 
         let currentDate = timeStringToDate(STATE.departureTime);
-        const nodes = [headerDiv];
+        const progressBar = document.createElement('div');
+        progressBar.className = 'timeline-progress';
+        const nodes = [headerDiv, progressBar];
 
         STATE.currentRoute.forEach((point, idx) => {
             const stationDiv = document.createElement('div');
@@ -114,6 +120,9 @@ export function displayTimeline(currentIdx = null) {
             }
             const arrivalTimeStr = formatTime(currentDate);
             stationDiv.dataset.arrivalTime = arrivalTimeStr;
+            // Timestamp conservé pour reprojeter l'heure d'arrivée à chaque
+            // tick sans reconstruire le cumul des durées.
+            stationDiv.dataset.arrivalTs = String(currentDate.getTime());
 
             const isStop = !!point.isStop;
             const nameHtml = isStop ? `<strong>${point.name}</strong>` : point.name;
@@ -130,10 +139,14 @@ export function displayTimeline(currentIdx = null) {
                 ? `<span>${arrivalTimeStr} <span class="delay-inline">${delayText}</span></span>`
                 : `<span>${arrivalTimeStr}</span>`;
 
+            const delayCellHtml = isNextPoint
+                ? ''
+                : (delayText || projectedTimeHtml(currentIdx, idx, currentDate.getTime()));
+
             stationDiv.innerHTML = `
                 ${timeSpan}
                 <span>${nameHtml}</span>
-                <span class="delay">${isNextPoint ? '' : delayText}</span>
+                <span class="delay">${delayCellHtml}</span>
             `;
 
             if (currentIdx !== null && idx === currentIdx) {
@@ -147,6 +160,7 @@ export function displayTimeline(currentIdx = null) {
 
         // Remplacement atomique : pas d'état vide intermédiaire, évite le flash visuel
         timeline.replaceChildren(...nodes);
+        updateTimelineProgress(timeline, currentIdx, progress);
         return;
     }
 
@@ -185,9 +199,54 @@ export function displayTimeline(currentIdx = null) {
             }
         }
         if (delayCell) {
-            delayCell.textContent = isNextPoint ? '' : delayText;
+            const html = isNextPoint
+                ? ''
+                : (delayText || projectedTimeHtml(currentIdx, idx, Number(stationDiv.dataset.arrivalTs)));
+            if (delayCell.innerHTML !== html) delayCell.innerHTML = html;
         }
     });
+
+    updateTimelineProgress(timeline, currentIdx, progress);
+}
+
+/**
+ * Heure d'arrivée reprojetée d'un point encore à venir, affichée dans la
+ * colonne DELAY (vide pour ces points jusqu'ici). Rien tant que le retard
+ * reste sous les seuils d'affichage : une heure théorique inchangée n'a pas
+ * besoin d'être répétée.
+ */
+function projectedTimeHtml(currentIdx, idx, arrivalTs) {
+    if (currentIdx == null || idx <= currentIdx || !Number.isFinite(arrivalTs)) return '';
+    const delayAligned = alignDelayForDisplay(STATE.currentDelay);
+    if (delayAligned === 0) return '';
+    const tone = delayAligned > 0 ? 'late' : 'early';
+    return `<span class="projected-time ${tone}">≈ ${formatTime(new Date(arrivalTs + delayAligned))}</span>`;
+}
+
+/**
+ * Liseré de progression : du haut de la timeline jusqu'à la position
+ * interpolée entre la station courante et la suivante — même avancement que
+ * la tête de lecture du HUD.
+ */
+function updateTimelineProgress(timeline, currentIdx, progress) {
+    const bar = timeline.querySelector('.timeline-progress');
+    if (!bar) return;
+    const first = timeline.querySelector('.station[data-idx="0"]');
+    if (currentIdx == null || !first) {
+        bar.style.height = '0px';
+        return;
+    }
+    const from = timeline.querySelector(`.station[data-idx="${currentIdx}"]`);
+    const to = timeline.querySelector(`.station[data-idx="${currentIdx + 1}"]`);
+    const ratio = computeSegmentRatio(progress.distanceFromSegmentStart, progress.distanceToNextPointKm);
+    const y = interpolateElementY(from, to, ratio);
+    if (y === null) {
+        bar.style.height = '0px';
+        return;
+    }
+    const top = first.offsetTop;
+    bar.style.top = `${top}px`;
+    bar.style.height = `${Math.max(0, y - top)}px`;
 }
 
 export function updateInfo(msg) {
@@ -266,6 +325,9 @@ function fitCarouselNames(trackPoints) {
 let _hudLastActiveIdx = null;
 let _hudLastRouteKey = null;
 let _hudScrollAnimId = null;
+// Distances cumulées de la route courante, recalculées au seul rebuild du
+// carousel : la géométrie ne bouge pas entre deux fixes GPS.
+let _hudCumKm = null;
 
 function formatHudDelay(delayMs) {
     if (typeof delayMs !== 'number') return '';
@@ -280,8 +342,16 @@ function formatHudDelay(delayMs) {
     return `${sign}${absMin}min`;
 }
 
-export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, userLon, speedReliable = true) {
+export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, userLon, speedReliable = true, progress = {}) {
     if (!window.matchMedia('(orientation: landscape)').matches) return;
+
+    // Avancement sur le segment courant : seule donnée qui bouge entre deux
+    // points, elle alimente la tête de lecture et les distances le long du trajet.
+    const hasProgress = Number.isFinite(progress.distanceFromSegmentStart) &&
+        Number.isFinite(progress.distanceToNextPointKm);
+    const segmentRatio = hasProgress
+        ? computeSegmentRatio(progress.distanceFromSegmentStart, progress.distanceToNextPointKm)
+        : 0;
 
     // --- Dashboard ---
     const speedEl = document.getElementById('hud-speed');
@@ -393,14 +463,11 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
         }
         const theoArrivalMs = STATE.departureTimestamp + totalSec * 1000;
         const beforeDeparture = Date.now() < STATE.departureTimestamp;
-        // L'ETA n'est ajusté que si le retard/avance est suffisant pour être affiché dans le HUD :
-        // retard > 60s ou avance >= 3 min. En dessous, l'ETA reste théorique (cohérence visuelle).
-        const delay = typeof currentDelay === 'number' ? currentDelay : 0;
-        const applyDelay = !beforeDeparture && (delay > 60_000 || delay < -180_000);
-        // On applique le même nombre de minutes entières que le badge (Math.floor) pour garantir la cohérence
-        const delayMinutes = Math.floor(Math.abs(delay) / 60_000);
-        const delayAligned = (delay >= 0 ? 1 : -1) * delayMinutes * 60_000;
-        const etaMs = theoArrivalMs + (applyDelay ? delayAligned : 0);
+        // Même règle d'affichage que la pilule retard et que les heures
+        // projetées de la timeline (alignDelayForDisplay) : sous les seuils,
+        // l'ETA reste théorique.
+        const delayAligned = alignDelayForDisplay(currentDelay);
+        const etaMs = theoArrivalMs + (beforeDeparture ? 0 : delayAligned);
         const etaDate = new Date(etaMs);
         const hh = String(etaDate.getHours()).padStart(2, '0');
         const mm = String(etaDate.getMinutes()).padStart(2, '0');
@@ -475,6 +542,8 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
         _hudLastActiveIdx = currentIdx;
         _hudLastRouteKey = routeKey;
 
+        _hudCumKm = buildCumulativeDistances(STATE.currentRoute);
+
         // Padding allows first/last points to scroll to their target position
         trackPoints.style.paddingTop = `${carouselHeight * 0.35}px`;
         trackPoints.style.paddingBottom = `${carouselHeight * 0.65}px`;
@@ -535,6 +604,8 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
             trackPoints.appendChild(div);
         }
 
+        ensureHudCursor(trackPoints);
+
         // Snap immédiat du carousel (reflow synchrone après rebuild DOM)
         // On cible .next (héros) à 40% ; fallback sur .active si pas de next
         const snapTarget = trackPoints.querySelector('.hud-point.next') || trackPoints.querySelector('.hud-point.active');
@@ -560,6 +631,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
                 const liveTarget = Math.max(0, targetEl.offsetTop + targetEl.offsetHeight / 2 - carouselHeight * 0.40);
                 carousel.scrollTop = scrollStart + (liveTarget - scrollStart) * progress;
             }
+            updateHudCursor(trackPoints, currentIdx, currentIdx + 1, segmentRatio);
             // Recalcul des bornes de la ligne bordeaux à chaque frame
             const allPts = trackPoints.querySelectorAll('.hud-point');
             if (allPts.length >= 1) {
@@ -577,16 +649,31 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
         _hudScrollAnimId = requestAnimationFrame(animateScroll);
     }
 
-    // Mise à jour des distances en temps réel (à chaque appel GPS, même sans rebuild)
+    updateHudCursor(trackPoints, currentIdx, currentIdx + 1, segmentRatio);
+
+    // Mise à jour des distances en temps réel (à chaque appel GPS, même sans rebuild).
+    // Mesure le long du trajet quand la projection est disponible — plus juste
+    // qu'un vol d'oiseau derrière une courbe ; repli sur la distance directe
+    // sinon (source sans projection valide).
+    const routeKm = _hudCumKm && hasProgress && Number.isFinite(_hudCumKm[currentIdx])
+        ? _hudCumKm[currentIdx] + progress.distanceFromSegmentStart
+        : null;
     const hasCoords = typeof userLat === 'number' && typeof userLon === 'number';
-    if (hasCoords) {
+    if (routeKm !== null || hasCoords) {
         trackPoints.querySelectorAll('.hud-point[data-idx]').forEach(div => {
             const i = parseInt(div.dataset.idx, 10);
             const point = STATE.currentRoute[i];
-            if (!point || typeof point.lat !== 'number' || typeof point.lon !== 'number') return;
+            if (!point) return;
             const distEl = div.querySelector('.hud-point-distance');
             if (!distEl) return;
-            const dist = haversineDistance(userLat, userLon, point.lat, point.lon);
+            let dist;
+            if (routeKm !== null && Number.isFinite(_hudCumKm[i])) {
+                dist = Math.abs(_hudCumKm[i] - routeKm);
+            } else if (hasCoords && typeof point.lat === 'number' && typeof point.lon === 'number') {
+                dist = haversineDistance(userLat, userLon, point.lat, point.lon);
+            } else {
+                return;
+            }
             const arrow = i <= currentIdx ? '↓' : '↑';
             distEl.textContent = `${arrow} ${dist.toFixed(1)} km`;
         });

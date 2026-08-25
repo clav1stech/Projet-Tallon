@@ -6,6 +6,8 @@
 // réutilisés depuis css/styles.css.
 
 import { CAR_ROUTES } from './car-config.js';
+import { resolveWaypointTarget } from './car-route.js';
+import { ensureHudCursor, updateHudCursor } from './hud-cursor.js';
 import { formatPk } from './linearref.js';
 
 // Icônes Font Awesome 5 par type de point de passage (widget + HUD).
@@ -56,6 +58,21 @@ export function formatRemainingDistance(km) {
 }
 
 /**
+ * Distance courte, en mètres sous le kilomètre : à l'intérieur d'un ouvrage
+ * d'art, « 0.3 km » restant à parcourir est moins parlant que « 300 m ».
+ */
+export function formatStructureDistance(km) {
+    if (!Number.isFinite(km) || km < 0) return '—';
+    return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}
+
+/** Barre de progression le long d'un ouvrage (0 → 1), bornée. */
+export function structureProgressPercent(progress) {
+    if (!Number.isFinite(progress)) return 0;
+    return Math.max(0, Math.min(1, progress)) * 100;
+}
+
+/**
  * Met à jour le widget de suivi voiture.
  * @param {object} data
  * @param {string}      data.legLabel      - libellé du tronçon courant (ex: "A40")
@@ -63,7 +80,10 @@ export function formatRemainingDistance(km) {
  * @param {string|null} data.line          - identifiant de ligne/route (ex: "A40")
  * @param {object|null} data.nextWaypoint  - prochain point de passage
  *                      ({ name, type, lengthM? } — sortie/échangeur/ouvrage/étape)
- * @param {number|null} data.nextDistanceKm
+ * @param {number|null} data.nextDistanceKm - distance jusqu'au point, ou
+ *                      jusqu'à la sortie de l'ouvrage quand on le franchit
+ * @param {boolean}     data.onStructure    - franchissement d'ouvrage en cours
+ * @param {number|null} data.structureProgress - avancement 0→1 sur l'ouvrage
  * @param {number}      data.doneKm
  * @param {number}      data.remainingKm
  * @param {number}      data.totalKm
@@ -87,12 +107,23 @@ export function updateCarWidget(data) {
         setText('car-position', '—');
     }
 
-    if (data.nextWaypoint) {
+    const nextEl = document.getElementById('car-next');
+    if (nextEl) nextEl.classList.toggle('on-structure', Boolean(data.onStructure));
+    if (data.nextWaypoint && nextEl) {
         const wp = data.nextWaypoint;
         const len = Number.isFinite(wp.lengthM) ? ` (${wp.lengthM} m)` : '';
-        const dist = Number.isFinite(data.nextDistanceKm) ? ` — ${data.nextDistanceKm.toFixed(1)} km` : '';
-        const el = document.getElementById('car-next');
-        if (el) el.innerHTML = `${waypointIconHtml(wp.type)}${wp.name}${len}${dist}`;
+        if (data.onStructure) {
+            // Sur l'ouvrage : la distance affichée est celle qui reste à
+            // parcourir DESSUS, doublée d'une jauge de franchissement.
+            const pct = structureProgressPercent(data.structureProgress);
+            nextEl.innerHTML =
+                `${waypointIconHtml(wp.type)}${wp.name}${len}` +
+                ` — sortie dans ${formatStructureDistance(data.nextDistanceKm)}` +
+                `<span class="car-structure-gauge"><span style="width:${pct.toFixed(1)}%"></span></span>`;
+        } else {
+            const dist = Number.isFinite(data.nextDistanceKm) ? ` — ${data.nextDistanceKm.toFixed(1)} km` : '';
+            nextEl.innerHTML = `${waypointIconHtml(wp.type)}${wp.name}${len}${dist}`;
+        }
     } else {
         setText('car-next', '—');
     }
@@ -149,10 +180,11 @@ function fitCarouselNames(trackPoints) {
 }
 
 let _hudLastNextIdx = null;
+let _hudLastOnStructure = false;
 let _hudLastRouteKey = null;
 let _hudScrollAnimId = null;
 
-function carHudPointClass(i, currentIdx, wp) {
+function carHudPointClass(i, currentIdx, wp, onStructure = false) {
     let cls;
     if      (i === currentIdx)     cls = 'hud-point active';
     else if (i === currentIdx + 1) cls = 'hud-point next';
@@ -163,6 +195,9 @@ function carHudPointClass(i, currentIdx, wp) {
     // Bullseye pour les points "forts" (départ/arrivée, étapes, péages),
     // petit nœud plein pour le fil de la route (sorties, ouvrages).
     if (wp && ['depart', 'arrivee', 'etape', 'peage', 'aire'].includes(wp.type)) cls += ' stop';
+    // Franchissement en cours : le point héros reste l'ouvrage, signalé par
+    // une pulsation qui le distingue d'un point simplement à venir.
+    if (onStructure && i === currentIdx + 1) cls += ' on-structure';
     return cls;
 }
 
@@ -280,28 +315,43 @@ export function updateCarHUD(data) {
     const carousel = trackPoints.closest('.hud-carousel') || trackPoints.parentElement;
     const carouselHeight = carousel ? carousel.clientHeight : window.innerHeight;
 
-    // Prochain waypoint : premier dont le routeKm est devant nous.
-    let nextIdx = waypoints.length;
-    for (let i = 0; i < waypoints.length; i++) {
-        if (waypoints[i].routeKm > data.doneKm) { nextIdx = i; break; }
+    // Point héros : le prochain waypoint, ou l'ouvrage d'art en cours de
+    // franchissement tant qu'on ne l'a pas quitté (resolveWaypointTarget).
+    const target = resolveWaypointTarget(waypoints, data.doneKm);
+    let nextIdx = target.nextIndex ?? waypoints.length;
+    let onStructure = target.onStructure;
+    if (data.arrived) {
+        nextIdx = waypoints.length;
+        onStructure = false;
     }
-    if (data.arrived) nextIdx = waypoints.length;
     const currentIdx = nextIdx - 1;
+
+    // Avancement entre le waypoint franchi et le suivant, pour la tête de
+    // lecture. Sur un ouvrage, `nextIdx` est l'ouvrage lui-même et le ratio
+    // sature à 1 : la tête se pose sur son nœud — on y est, et c'est la jauge
+    // de franchissement qui porte l'avancement fin.
+    const fromKm = waypoints[currentIdx]?.routeKm;
+    const toKm = waypoints[nextIdx]?.routeKm;
+    const spanKm = Number.isFinite(fromKm) && Number.isFinite(toKm) ? toKm - fromKm : 0;
+    const cursorRatio = spanKm > 0 ? (data.doneKm - fromKm) / spanKm : 0;
 
     const routeChanged = data.routeKey !== _hudLastRouteKey;
     const idxChanged = nextIdx !== _hudLastNextIdx;
+    const structureChanged = onStructure !== _hudLastOnStructure;
 
-    if (!routeChanged && idxChanged) {
+    if (!routeChanged && (idxChanged || structureChanged)) {
         _hudLastNextIdx = nextIdx;
+        _hudLastOnStructure = onStructure;
         trackPoints.querySelectorAll('.hud-point[data-idx]').forEach(div => {
             const i = parseInt(div.dataset.idx, 10);
-            div.className = carHudPointClass(i, currentIdx, waypoints[i]);
+            div.className = carHudPointClass(i, currentIdx, waypoints[i], onStructure);
         });
         fitCarouselNames(trackPoints);
     }
 
     if (routeChanged) {
         _hudLastNextIdx = nextIdx;
+        _hudLastOnStructure = onStructure;
         _hudLastRouteKey = data.routeKey;
 
         trackPoints.style.paddingTop = `${carouselHeight * 0.35}px`;
@@ -311,7 +361,7 @@ export function updateCarHUD(data) {
         for (let i = 0; i < waypoints.length; i++) {
             const wp = waypoints[i];
             const div = document.createElement('div');
-            div.className = carHudPointClass(i, currentIdx, wp);
+            div.className = carHudPointClass(i, currentIdx, wp, onStructure);
             div.dataset.idx = i;
 
             // Sous-ligne : longueur de l'ouvrage uniquement. Le kilométrage
@@ -320,16 +370,21 @@ export function updateCarHUD(data) {
             const meta = [];
             if (Number.isFinite(wp.lengthM)) meta.push(`${wp.lengthM} m`);
 
+            // La jauge n'existe que pour les ouvrages (seuls porteurs d'une
+            // longueur) ; le CSS ne la révèle que pendant leur franchissement.
             div.innerHTML = `
                 <div class="hud-point-dot"></div>
                 <div class="hud-point-info">
                     <div class="hud-point-name">${waypointIconHtml(wp.type)}${wp.name}</div>
                     ${meta.length ? `<div class="hud-point-time">${meta.join(' · ')}</div>` : ''}
                     <div class="hud-point-distance"></div>
+                    ${Number.isFinite(wp.lengthM) ? '<div class="hud-point-gauge"><span></span></div>' : ''}
                 </div>
             `;
             trackPoints.appendChild(div);
         }
+
+        ensureHudCursor(trackPoints);
 
         const snapTarget = trackPoints.querySelector('.hud-point.next') || trackPoints.querySelector('.hud-point.active');
         if (snapTarget && carousel) {
@@ -353,6 +408,7 @@ export function updateCarHUD(data) {
                 const liveTarget = Math.max(0, targetEl.offsetTop + targetEl.offsetHeight / 2 - carouselHeight * 0.40);
                 carousel.scrollTop = scrollStart + (liveTarget - scrollStart) * progress;
             }
+            updateHudCursor(trackPoints, currentIdx, nextIdx, cursorRatio);
             const allPts = trackPoints.querySelectorAll('.hud-point');
             if (allPts.length >= 1) {
                 const firstPt = allPts[0];
@@ -369,14 +425,23 @@ export function updateCarHUD(data) {
         _hudScrollAnimId = requestAnimationFrame(animateScroll);
     }
 
-    // Distances le long de la route (plus juste que la distance à vol
-    // d'oiseau du rail : on connaît le routeKm de chaque waypoint).
+    updateHudCursor(trackPoints, currentIdx, nextIdx, cursorRatio);
+
+    // Distances le long de la route (on connaît le routeKm de chaque waypoint).
     trackPoints.querySelectorAll('.hud-point[data-idx]').forEach(div => {
         const i = parseInt(div.dataset.idx, 10);
         const wp = waypoints[i];
         if (!wp) return;
         const distEl = div.querySelector('.hud-point-distance');
         if (!distEl) return;
+        const gaugeFill = div.querySelector('.hud-point-gauge span');
+        if (onStructure && i === nextIdx) {
+            distEl.textContent = `Sortie dans ${formatStructureDistance(target.nextDistanceKm)}`;
+            if (gaugeFill) {
+                gaugeFill.style.width = `${structureProgressPercent(target.structureProgress).toFixed(1)}%`;
+            }
+            return;
+        }
         const dist = Math.abs(wp.routeKm - data.doneKm);
         const arrow = wp.routeKm <= data.doneKm ? '↓' : '↑';
         distEl.textContent = `${arrow} ${dist.toFixed(1)} km`;
