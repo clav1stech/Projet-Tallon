@@ -30,7 +30,9 @@
             width: 0%;
             border-radius: 4px;
             background: linear-gradient(90deg, #4dd0e1, #66bb6a);
-            transition: width 0.5s ease;
+            /* Même cadence de suivi que les autres indicateurs : en `ease`,
+               la barre marquait un arrêt entre deux positions. */
+            transition: width var(--follow-duration) linear;
         }
         .car-stat-row {
             display: flex;

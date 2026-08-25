@@ -21,7 +21,7 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
     });
 
     it('intègre les recalages du fichier sur A40 et A406', () => {
-        expect(a40.waypoints.find(wp => wp.name === 'Sortie 19 – Cluses')?.pk).toBe(180.210039);
+        expect(a40.waypoints.find(wp => wp.name === 'Sortie 20 – Sallanches / Combloux / Megève')?.pk).toBe(190.95);
         expect(a40.waypoints.find(wp => wp.name === 'Tunnel de Chamoise')).toMatchObject({
             pk: 80.021323,
             reversePk: 83.387975
@@ -30,13 +30,25 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
         expect(a406.waypoints.find(wp => wp.name === 'Péage Mâcon – Val de Saône')?.pk).toBe(8.109835);
     });
 
+    it('sépare Bugey et Titans à l\'entrée du tunnel de Chamoise', () => {
+        const chamoise = a40.waypoints.find(wp => wp.name === 'Tunnel de Chamoise');
+        const bugey = a40.sectors.find(sec => sec.name === 'Bugey');
+        const titans = a40.sectors.find(sec => sec.name === 'Titans');
+        expect(a40.sectors.some(sec => sec.name === 'Bugey / Titans')).toBe(false);
+        expect(bugey.pkTo).toBe(chamoise.pk);
+        expect(titans.pkFrom).toBe(chamoise.pk);
+    });
+
     it('partage les mêmes repères corrigés avec le trajet retour', () => {
         expect(leg('COMBLOUX_MACON', 'a40-trace').waypoints).toBe(a40.waypoints);
         expect(leg('COMBLOUX_MACON', 'a406-trace').waypoints).toBe(a406.waypoints);
     });
 
-    it('supprime Scionzier et positionne l\'échangeur A40/A410 par sens', () => {
+    it('supprime Scionzier et Cluses, et positionne l\'échangeur A40/A410 par sens', () => {
         expect(a40.waypoints.some(wp => wp.name.includes('Scionzier'))).toBe(false);
+        // La sortie 19 fait doublon avec le péage de Cluses, 900 m plus loin.
+        expect(a40.waypoints.some(wp => wp.name.includes('Sortie 19'))).toBe(false);
+        expect(a40.waypoints.some(wp => wp.name === 'Péage de Cluses')).toBe(true);
         expect(a40.waypoints.find(wp => wp.name === 'Échangeur A40 / A410')).toMatchObject({
             pk: 156.095255,
             reversePk: 156.954016,
@@ -48,7 +60,7 @@ describe('CAR_ROUTES — repères cartographiques validés', () => {
     });
 
     it('intègre les corrections spécifiques au trajet retour', () => {
-        expect(a40.waypoints.find(wp => wp.name === 'Sortie 19 – Cluses')?.reversePk).toBe(181.364191);
+        expect(a40.waypoints.find(wp => wp.name === 'Sortie 20 – Sallanches / Combloux / Megève')?.reversePk).toBe(191.29068);
         expect(a40.waypoints.find(wp => wp.name === 'Tunnel du Vuache')?.reversePk).toBe(118.509711);
         const combloux = CAR_ROUTES.COMBLOUX_MACON.legs[0].points[0];
         expect(combloux).toMatchObject({ lat: 45.8903069, lon: 6.6419649 });

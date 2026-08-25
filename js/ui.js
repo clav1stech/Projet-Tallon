@@ -3,7 +3,7 @@ import { STATE } from './state.js';
 import { alignDelayForDisplay, formatTime, timeStringToDate } from './utils.js';
 import { buildCumulativeDistances, haversineDistance } from './geo.js';
 import { computeSegmentRatio } from './functions.js';
-import { ensureHudCursor, interpolateElementY, updateHudCursor } from './hud-cursor.js';
+import { ensureHudCursor, interpolateElementY, setHudRelayout, updateHudCursor } from './hud-cursor.js';
 export { MAIN_ROUTES } from './routes-config.js';
 import { MAIN_ROUTES } from './routes-config.js';
 
@@ -618,6 +618,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
     // Animation scroll + recalcul des bornes bordeaux à chaque frame
     if (routeChanged || idxChanged) {
         if (_hudScrollAnimId) cancelAnimationFrame(_hudScrollAnimId);
+        setHudRelayout(trackPoints, true);
         const scrollStart = carousel.scrollTop;
         const animStart = performance.now();
         const SCROLL_DURATION = 700;
@@ -644,6 +645,12 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
                 _hudScrollAnimId = requestAnimationFrame(animateScroll);
             } else {
                 _hudScrollAnimId = null;
+                setHudRelayout(trackPoints, false);
+                // La taille des noms transitionne pendant toute la fenêtre :
+                // l'ajustement fait au départ mesurait l'ancienne taille et
+                // laissait déborder les noms longs. On le rejoue une fois la
+                // mise en page stabilisée.
+                fitCarouselNames(trackPoints);
             }
         }
         _hudScrollAnimId = requestAnimationFrame(animateScroll);

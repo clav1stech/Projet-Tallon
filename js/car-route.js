@@ -210,6 +210,32 @@ export function buildCarRoute(routeCfg, datasetsById = {}) {
     return { points, cumKm, totalKm, legs, waypoints };
 }
 
+/**
+ * Avancement 0 → 1 entre deux points de passage, mesuré de la FIN du premier
+ * au DÉBUT du second.
+ *
+ * Un ouvrage d'art occupe une portion de trajet, pas un point : pendant sa
+ * traversée la tête de lecture reste posée sur son nœud. Si le segment suivant
+ * repartait de son repère d'entrée, la longueur de l'ouvrage compterait déjà
+ * comme parcourue et la tête sauterait d'un coup à sa sortie — 3,3 km d'avance
+ * d'un seul bond pour le tunnel de Chamoise.
+ * @returns {number} borné à [0, 1]
+ */
+export function progressBetweenWaypoints(waypoints, fromIdx, toIdx, doneKm) {
+    const from = Array.isArray(waypoints) ? waypoints[fromIdx] : null;
+    const to = Array.isArray(waypoints) ? waypoints[toIdx] : null;
+    if (!from || !to || !Number.isFinite(from.routeKm) || !Number.isFinite(to.routeKm) ||
+        !Number.isFinite(doneKm)) return 0;
+
+    const lengthKm = Number.isFinite(from.lengthM) && from.lengthM > 0 ? from.lengthM / 1000 : 0;
+    const startKm = from.routeKm + lengthKm;
+    const spanKm = to.routeKm - startKm;
+    // Ouvrages jointifs (Chamoise s'achève à 30 m du viaduc de Nantua) : pas
+    // d'intervalle à parcourir, la tête passe directement au nœud suivant.
+    if (spanKm <= 0) return doneKm >= to.routeKm ? 1 : 0;
+    return Math.max(0, Math.min(1, (doneKm - startKm) / spanKm));
+}
+
 function interpolateRoutePoint(route, routeKm) {
     const { points, cumKm } = route || {};
     if (!Array.isArray(points) || !Array.isArray(cumKm) || points.length < 2 || points.length !== cumKm.length) {

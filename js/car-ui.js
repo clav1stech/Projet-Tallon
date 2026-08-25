@@ -6,8 +6,8 @@
 // réutilisés depuis css/styles.css.
 
 import { CAR_ROUTES } from './car-config.js';
-import { resolveWaypointTarget } from './car-route.js';
-import { ensureHudCursor, updateHudCursor } from './hud-cursor.js';
+import { progressBetweenWaypoints, resolveWaypointTarget } from './car-route.js';
+import { ensureHudCursor, setHudRelayout, updateHudCursor } from './hud-cursor.js';
 import { formatPk } from './linearref.js';
 
 // Icônes Font Awesome 5 par type de point de passage (widget + HUD).
@@ -157,8 +157,10 @@ export function updateCarWidget(data) {
         const tail = nextEl.querySelector('.car-next-tail');
         if (tail) {
             tail.textContent = data.onStructure
-                // Sur l'ouvrage : la distance restante est celle à parcourir DESSUS.
-                ? ` — sortie dans ${formatStructureDistance(data.nextDistanceKm)}`
+                // Sur l'ouvrage : la distance restante est celle à parcourir
+                // DESSUS. « fin » plutôt que « sortie » : sur autoroute, une
+                // sortie est un échangeur, pas l'extrémité d'un ouvrage.
+                ? ` — fin dans ${formatStructureDistance(data.nextDistanceKm)}`
                 : (Number.isFinite(data.nextDistanceKm) ? ` — ${data.nextDistanceKm.toFixed(1)} km` : '');
         }
         const gauge = nextEl.querySelector('.car-structure-gauge > span');
@@ -375,11 +377,10 @@ export function updateCarHUD(data) {
     // Avancement entre le waypoint franchi et le suivant, pour la tête de
     // lecture. Sur un ouvrage, `nextIdx` est l'ouvrage lui-même et le ratio
     // sature à 1 : la tête se pose sur son nœud — on y est, et c'est la jauge
-    // de franchissement qui porte l'avancement fin.
-    const fromKm = waypoints[currentIdx]?.routeKm;
-    const toKm = waypoints[nextIdx]?.routeKm;
-    const spanKm = Number.isFinite(fromKm) && Number.isFinite(toKm) ? toKm - fromKm : 0;
-    const cursorRatio = spanKm > 0 ? (data.doneKm - fromKm) / spanKm : 0;
+    // de franchissement qui porte l'avancement fin. Le segment suivant repart
+    // de la FIN de l'ouvrage (progressBetweenWaypoints), sans quoi la tête
+    // sauterait à sa sortie.
+    const cursorRatio = progressBetweenWaypoints(waypoints, currentIdx, nextIdx, data.doneKm);
 
     const routeChanged = data.routeKey !== _hudLastRouteKey;
     const idxChanged = nextIdx !== _hudLastNextIdx;
@@ -442,6 +443,7 @@ export function updateCarHUD(data) {
     // Animation scroll + bornes de la ligne (identique au rail)
     if (routeChanged || idxChanged) {
         if (_hudScrollAnimId) cancelAnimationFrame(_hudScrollAnimId);
+        setHudRelayout(trackPoints, true);
         const scrollStart = carousel.scrollTop;
         const animStart = performance.now();
         const SCROLL_DURATION = 700;
@@ -466,6 +468,12 @@ export function updateCarHUD(data) {
                 _hudScrollAnimId = requestAnimationFrame(animateScroll);
             } else {
                 _hudScrollAnimId = null;
+                setHudRelayout(trackPoints, false);
+                // La taille des noms transitionne pendant toute la fenêtre :
+                // l'ajustement fait au départ mesurait l'ancienne taille et
+                // laissait déborder les noms longs. On le rejoue une fois la
+                // mise en page stabilisée.
+                fitCarouselNames(trackPoints);
             }
         }
         _hudScrollAnimId = requestAnimationFrame(animateScroll);
@@ -482,7 +490,7 @@ export function updateCarHUD(data) {
         if (!distEl) return;
         const gaugeFill = div.querySelector('.hud-point-gauge span');
         if (onStructure && i === nextIdx) {
-            distEl.textContent = `Sortie dans ${formatStructureDistance(target.nextDistanceKm)}`;
+            distEl.textContent = `Fin dans ${formatStructureDistance(target.nextDistanceKm)}`;
             if (gaugeFill) {
                 gaugeFill.style.width = `${structureProgressPercent(target.structureProgress).toFixed(1)}%`;
             }

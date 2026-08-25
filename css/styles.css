@@ -1,5 +1,21 @@
 /* Définition des variables de couleur */
+/* L'angle du compteur est écrit en JS à chaque fix. Sans cette déclaration,
+   une propriété personnalisée n'est pas interpolable et l'aiguille sauterait
+   d'un pas par seconde. Ignorée par les navigateurs sans @property : on
+   retombe alors sur l'ancien comportement. */
+@property --speed-deg {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
 :root {
+    /* Durée de suivi des indicateurs de progression. Calée sur la cadence des
+       fixes GPS (1 s) et en `linear` : une durée plus courte, ou un `ease`,
+       ferait marquer un arrêt entre deux positions au lieu d'un glissement
+       continu. */
+    --follow-duration: 1s;
+
     /* Accent de l'app, exposé en composantes pour que les transparences
        (`rgba(var(--primary-rgb), …)`) suivent toute redéfinition de mode.
        Le rail garde le bordeaux SNCF ; car.html le redéfinit en bleu nuit. */
@@ -1336,6 +1352,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
         background: var(--hud-line-veil, rgba(255, 255, 255, 0.62));
         border-radius: 3px;
         z-index: 1;
+        transition: height var(--follow-duration) linear;
     }
 
     body.non-iphone-device.tracking-active #hud-track-points::after {
@@ -1782,6 +1799,9 @@ body.non-iphone-device.tracking-active .hud-point.active .hud-point-distance {
 
 /* Jauge circulaire vitesse — arc dynamique via conic-gradient (240° comme un vrai compteur) */
 #hud-speed {
+    /* L'angle est réécrit à chaque fix : sans interpolation, l'aiguille
+       avancerait par à-coups d'une seconde. */
+    transition: --speed-deg var(--follow-duration) linear;
     width: 160px;
     height: 160px;
     border-radius: 50%;
@@ -2013,7 +2033,7 @@ body.non-iphone-device.tracking-active .hud-tunnel-image {
     width: 0;
     border-radius: 3px;
     background: #f0b35a;
-    transition: width 0.6s linear;
+    transition: width var(--follow-duration) linear;
 }
 
 /* Dans le carousel, la jauge suit l'accent du HUD plutôt que l'ambre des
@@ -2062,6 +2082,7 @@ body.non-iphone-device.tracking-active .hud-tunnel-image {
     position: absolute;
     left: calc(10% + 3px);
     top: var(--cursor-top, 0px);
+    transition: top var(--follow-duration) linear;
     transform: translate(-50%, -50%);
     width: 16px;
     height: 16px;
@@ -2083,6 +2104,13 @@ body.non-iphone-device.tracking-active .hud-cursor {
     display: none;
 }
 
+/* Pendant le réagencement du carousel, la position cible est recalculée à
+   chaque frame : une transition la ferait traîner d'une seconde. */
+#hud-track-points.is-relayout .hud-cursor,
+#hud-track-points.is-relayout::after {
+    transition: none;
+}
+
 /* ── Timeline portrait : progression et heures reprojetées ── */
 .timeline-progress {
     position: absolute;
@@ -2094,7 +2122,7 @@ body.non-iphone-device.tracking-active .hud-cursor {
     border-radius: 0 3px 3px 0;
     z-index: 1;
     pointer-events: none;
-    transition: height 0.6s linear;
+    transition: height var(--follow-duration) linear;
 }
 
 .projected-time {
@@ -2112,7 +2140,13 @@ body.non-iphone-device.tracking-active .hud-cursor {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .timeline-progress {
+    .timeline-progress,
+    .hud-cursor,
+    #hud-speed {
+        transition: none;
+    }
+
+    body.tracking-active #hud-track-points::after {
         transition: none;
     }
 }

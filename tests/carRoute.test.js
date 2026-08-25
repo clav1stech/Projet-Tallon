@@ -10,6 +10,7 @@ import {
     findSector,
     listDeclaredTunnels,
     locateRouteProgress,
+    progressBetweenWaypoints,
     projectRouteLength,
     resolveWaypointTarget,
     DEFAULT_LEG_SPEED_KMH
@@ -460,6 +461,45 @@ describe('resolveWaypointTarget', () => {
         expect(resolveWaypointTarget(waypoints, 40).nextWaypoint).toBeNull();
         expect(resolveWaypointTarget(null, 10).nextWaypoint).toBeNull();
         expect(resolveWaypointTarget(waypoints, NaN).nextWaypoint).toBeNull();
+    });
+});
+
+describe('progressBetweenWaypoints', () => {
+    const wps = [
+        { name: 'Sortie 8', routeKm: 10 },
+        { name: 'Tunnel de Chamoise', routeKm: 20, lengthM: 3300 },  // fin à 23,3
+        { name: 'Viaduc de Nantua', routeKm: 23.32, lengthM: 1003 },
+        { name: 'Sortie 9', routeKm: 30 }
+    ];
+
+    it('mesure depuis la FIN de l\'ouvrage précédent', () => {
+        // Au sortir du tunnel (23,3 km), on ne doit pas déjà être avancé vers
+        // le point suivant : la tête de lecture repart de son nœud.
+        expect(progressBetweenWaypoints(wps, 1, 2, 23.3)).toBeCloseTo(0, 6);
+        expect(progressBetweenWaypoints(wps, 2, 3, 24.323)).toBeCloseTo(0, 6);
+    });
+
+    it('progresse ensuite jusqu\'au début du point suivant', () => {
+        expect(progressBetweenWaypoints(wps, 2, 3, 27.1615)).toBeCloseTo(0.5, 3);
+        expect(progressBetweenWaypoints(wps, 2, 3, 30)).toBe(1);
+    });
+
+    it('sature pendant la traversée de l\'ouvrage visé', () => {
+        // doneKm au-delà du repère d'entrée de la cible : on est dessus.
+        expect(progressBetweenWaypoints(wps, 0, 1, 21.5)).toBe(1);
+    });
+
+    it('ouvrages jointifs : aucun intervalle à parcourir', () => {
+        const colles = [{ routeKm: 20, lengthM: 3300 }, { routeKm: 23.3 }];
+        expect(progressBetweenWaypoints(colles, 0, 1, 23.3)).toBe(1);
+        expect(progressBetweenWaypoints(colles, 0, 1, 22)).toBe(0);
+    });
+
+    it('index ou distance invalides : aucun avancement', () => {
+        expect(progressBetweenWaypoints(wps, -1, 0, 10)).toBe(0);
+        expect(progressBetweenWaypoints(wps, 0, 99, 10)).toBe(0);
+        expect(progressBetweenWaypoints(null, 0, 1, 10)).toBe(0);
+        expect(progressBetweenWaypoints(wps, 0, 1, NaN)).toBe(0);
     });
 });
 

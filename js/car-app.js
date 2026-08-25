@@ -182,7 +182,7 @@ function renderGpsLoss(now = Date.now(), force = false) {
     }
 
     if (graceChanged && estimate.inExitGrace) {
-        updateCarInfo(`<strong>Sortie de ${estimate.tunnel.name}</strong> — recherche du GPS pendant 10 secondes.`);
+        updateCarInfo(`<strong>Fin de ${estimate.tunnel.name}</strong> — recherche du GPS pendant 10 secondes.`);
     } else if (firstTunnelRender) {
         updateCarInfo(`<strong>${estimate.tunnel.name}</strong> — progression estimée à la vitesse d’entrée.`);
     } else if (firstLostRender) {

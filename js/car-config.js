@@ -141,7 +141,6 @@ const A40_WAYPOINTS = [
     },
     { pk: 162.959534, reversePk: 163.522618, km: 170, name: 'Sortie 16 – Bonneville ouest', type: 'sortie' },
     { pk: 166.56239, reversePk: 167.633486, km: 174, name: 'Sortie 17 – Bonneville est', type: 'sortie' },
-    { pk: 180.210039, reversePk: 181.364191, km: 188, name: 'Sortie 19 – Cluses', type: 'sortie' },
     // pk constaté sur la trace GPS (début de bretelle), pas le
     // PR 6 théorique — voir le commentaire du pkRange.
     { pk: 190.95, reversePk: 191.29068, km: 198, name: 'Sortie 20 – Sallanches / Combloux / Megève', type: 'sortie' },
@@ -230,17 +229,21 @@ const A40_WAYPOINTS = [
 ];
 
 // Secteurs A40 (bornes pk_cum indicatives, à affiner à l'usage) :
-// Mâconnais jusqu'à la plaine de Bresse, Bugey/"pays des Titans" pour la
-// section des grands ouvrages (Poncin → Châtillon), puis Bellegarde,
-// Genevois, vallée de l'Arve et pays du Mont-Blanc.
+// Mâconnais jusqu'à la plaine de Bresse, Bugey jusqu'à l'entrée du tunnel de
+// Chamoise, puis le "pays des Titans" pour l'enfilade de grands ouvrages
+// (Chamoise → Châtillon), Bellegarde, Genevois, vallée de l'Arve et pays du
+// Mont-Blanc. La borne Bugey/Titans est le pk d'entrée du tunnel dans le sens
+// Mâcon → Combloux ; comme toutes les bornes de secteur, elle est exprimée
+// dans le référentiel du corridor et vaut donc pour les deux sens.
 const A40_SECTORS = [
-    { name: 'Mâconnais',      pkFrom: 0,      pkTo: 18 },
-    { name: 'Bresse',         pkFrom: 18,     pkTo: 59.21 },
-    { name: 'Bugey / Titans', pkFrom: 59.21,  pkTo: 100 },
-    { name: 'Bellegarde',     pkFrom: 100,    pkTo: 118 },
-    { name: 'Genevois',       pkFrom: 118,    pkTo: 150 },
-    { name: 'Arve',           pkFrom: 150,    pkTo: 184.7 },
-    { name: 'Mont-Blanc',     pkFrom: 184.7,  pkTo: 195 }
+    { name: 'Mâconnais',  pkFrom: 0,          pkTo: 18 },
+    { name: 'Bresse',     pkFrom: 18,         pkTo: 59.21 },
+    { name: 'Bugey',      pkFrom: 59.21,      pkTo: 80.021323 },
+    { name: 'Titans',     pkFrom: 80.021323,  pkTo: 100 },
+    { name: 'Bellegarde', pkFrom: 100,        pkTo: 118 },
+    { name: 'Genevois',   pkFrom: 118,        pkTo: 150 },
+    { name: 'Arve',       pkFrom: 150,        pkTo: 184.7 },
+    { name: 'Mont-Blanc', pkFrom: 184.7,      pkTo: 195 }
 ];
 
 const A406_WAYPOINTS = [

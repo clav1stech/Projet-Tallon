@@ -1,5 +1,47 @@
 # Changelog
 
+## v3.1.7 - 2026-08-26
+
+### Continuité des animations
+
+- Les indicateurs de progression suivaient la position par sauts d'une seconde,
+  faute d'interpolation : la tête de lecture du carousel, la portion parcourue
+  de la ligne et l'aiguille du compteur n'avaient aucune transition. Elles en
+  ont désormais une, calée sur la cadence des fixes GPS et déclarée une seule
+  fois (`--follow-duration`).
+- L'angle du compteur est déclaré via `@property` : une propriété
+  personnalisée n'est pas interpolable sans cela, et l'aiguille sautait d'un
+  cran par seconde.
+- La barre de progression, les jauges d'ouvrage et le liseré de la timeline
+  passent en `linear` sur la même durée. En `ease` ou sur une durée plus courte
+  que l'intervalle entre deux positions, ils marquaient un arrêt à chaque pas.
+- Les transitions de suivi sont suspendues pendant le réagencement du carousel,
+  où la position cible est recalculée à chaque frame : sans cela la tête de
+  lecture traînait une seconde derrière la mise en page.
+- L'ajustement de la taille des noms mesurait pendant que celle-ci
+  transitionnait encore, donc sur l'ancienne valeur, et laissait déborder les
+  noms longs. Il est rejoué une fois la mise en page stabilisée.
+- Les nouvelles transitions respectent `prefers-reduced-motion`.
+
+- La tête de lecture sautait à la sortie de chaque ouvrage d'art : le segment
+  vers le point suivant était mesuré depuis le repère d'ENTRÉE de l'ouvrage,
+  donc sa longueur comptait déjà comme parcourue alors que la tête était restée
+  posée sur son nœud pendant toute la traversée. Il part désormais de sa fin.
+  Le saut au franchissement tombe de 1 nœud entier à un millième de nœud, sauf
+  entre deux ouvrages physiquement jointifs — les viaducs de Nantua et des
+  Neyrolles sont séparés d'un mètre — où la transition d'une seconde prend le
+  relais.
+
+### Vocabulaire et repères
+
+- Dans un ouvrage d'art, la distance restante est annoncée comme sa « fin » et
+  non sa « sortie » : sur autoroute, une sortie est un échangeur.
+- Le secteur « Bugey / Titans » est scindé en deux, à l'entrée du tunnel de
+  Chamoise dans le sens Mâcon → Combloux.
+- La sortie 19 – Cluses est retirée : le péage de Cluses, 900 m plus loin,
+  marque déjà ce point du trajet.
+- Mise à jour du cache hors ligne (`tallon-v27`).
+
 ## v3.1.6 - 2026-08-26
 
 ### Identité visuelle propre au mode voiture

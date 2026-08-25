@@ -39,6 +39,15 @@ export function updateHudCursor(trackPoints, fromIdx, toIdx, ratio) {
     return true;
 }
 
+/**
+ * Signale que le carousel se réagence : pendant cette fenêtre, la position
+ * cible est recalculée à chaque frame et les transitions de suivi doivent être
+ * suspendues, sinon la tête de lecture traîne une seconde derrière.
+ */
+export function setHudRelayout(trackPoints, active) {
+    trackPoints?.classList.toggle('is-relayout', Boolean(active));
+}
+
 /** Crée la tête de lecture si le carousel n'en a pas encore (rebuild complet). */
 export function ensureHudCursor(trackPoints) {
     if (!trackPoints) return null;
