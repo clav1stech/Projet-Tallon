@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.1.2 - 2026-08-25
+## v3.1.5 - 2026-08-25
 
 ### Franchissement des ouvrages d'art (mode voiture)
 
@@ -27,7 +27,7 @@
   centralisés : pilule, ETA et heures projetées suivent la même règle.
 - Le carousel du mode voiture suit le thème sombre du système, pour la conduite
   de nuit ; le mode rail conserve son thème clair.
-- Mise à jour du cache hors ligne (`tallon-v24`).
+- Mise à jour du cache hors ligne (`tallon-v25`).
 
 ## v3.1.1 - 2026-08-14
 
