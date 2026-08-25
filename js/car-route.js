@@ -254,6 +254,23 @@ export function locateRouteProgress(route, routeKm) {
 }
 
 /**
+ * Tunnels déclarés d'un itinéraire, bornés en km-route dans le sens du
+ * parcours. Consommé par l'estimation de progression sans signal et par la
+ * simulation GPS de développement, qui s'y tait pour reproduire la coupure.
+ * @returns {Array<{name:string, startKm:number, endKm:number, lengthM:number}>}
+ */
+export function listDeclaredTunnels(route) {
+    return (route?.waypoints || [])
+        .filter(wp => wp.type === 'tunnel' && Number.isFinite(wp.routeKm) && Number.isFinite(wp.lengthM) && wp.lengthM > 0)
+        .map(wp => ({
+            name: wp.name,
+            startKm: wp.routeKm,
+            endKm: wp.routeKm + wp.lengthM / 1000,
+            lengthM: wp.lengthM
+        }));
+}
+
+/**
  * Prolonge une dernière progression GPS à vitesse constante lorsqu'elle
  * atteint un tunnel déclaré. La progression continue jusqu'à la sortie puis
  * pendant le délai de raccrochage ; au-delà, la distance retournée est figée.
@@ -266,14 +283,7 @@ export function estimateDeclaredTunnelProgress(route, startRouteKm, speedKmh, el
     const exitGraceMs = Math.max(0, Number(options.exitGraceMs) || 0);
     const speedKmPerMs = speedKmh / 3_600_000;
     const predictedKm = startRouteKm + speedKmPerMs * elapsedMs;
-    const tunnels = (route.waypoints || [])
-        .filter(wp => wp.type === 'tunnel' && Number.isFinite(wp.routeKm) && Number.isFinite(wp.lengthM) && wp.lengthM > 0)
-        .map(wp => ({
-            name: wp.name,
-            startKm: wp.routeKm,
-            endKm: wp.routeKm + wp.lengthM / 1000,
-            lengthM: wp.lengthM
-        }));
+    const tunnels = listDeclaredTunnels(route);
 
     const tunnel = tunnels.find(item =>
         startRouteKm <= item.endKm &&

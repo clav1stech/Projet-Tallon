@@ -8,6 +8,7 @@ import {
     compareRouteProjections,
     estimateDeclaredTunnelProgress,
     findSector,
+    listDeclaredTunnels,
     locateRouteProgress,
     projectRouteLength,
     resolveWaypointTarget,
@@ -255,6 +256,35 @@ describe('projectRouteLength', () => {
         });
         expect(compareRouteProjections(forward, slightlyOffset, 20).withinTolerance).toBe(true);
         expect(compareRouteProjections(forward, clearlyOffset, 20).withinTolerance).toBe(false);
+    });
+});
+
+describe('listDeclaredTunnels', () => {
+    const route = {
+        waypoints: [
+            { name: 'Sortie 8', type: 'sortie', routeKm: 10 },
+            { name: 'Tunnel de Chamoise', type: 'tunnel', routeKm: 20, lengthM: 3300 },
+            { name: 'Viaduc de Nantua', type: 'viaduc', routeKm: 24, lengthM: 1003 },
+            { name: 'Tunnel sans longueur', type: 'tunnel', routeKm: 30 }
+        ]
+    };
+
+    it('borne chaque tunnel de son entrée à sa sortie', () => {
+        const tunnels = listDeclaredTunnels(route);
+        expect(tunnels).toHaveLength(1);
+        expect(tunnels[0]).toMatchObject({ name: 'Tunnel de Chamoise', startKm: 20, lengthM: 3300 });
+        expect(tunnels[0].endKm).toBeCloseTo(23.3, 6);
+    });
+
+    it('ignore les ouvrages à ciel ouvert et les tunnels sans longueur', () => {
+        const noms = listDeclaredTunnels(route).map(t => t.name);
+        expect(noms).not.toContain('Viaduc de Nantua');
+        expect(noms).not.toContain('Tunnel sans longueur');
+    });
+
+    it('itinéraire vide ou absent : liste vide', () => {
+        expect(listDeclaredTunnels(null)).toEqual([]);
+        expect(listDeclaredTunnels({})).toEqual([]);
     });
 });
 

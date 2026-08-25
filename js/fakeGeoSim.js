@@ -7,7 +7,7 @@ const ENABLE_FAKE_GPS = false
 // ----------------------
 
 import { STATE } from './state.js';
-import { haversineDistance } from './geo.js';
+import { buildCumulativeDistances, haversineDistance } from './geo.js';
 
 (function () {
     if (!ENABLE_FAKE_GPS) {
@@ -61,6 +61,56 @@ import { haversineDistance } from './geo.js';
     window.resetFakeGpsStartTime = resetFakeGpsStartTime;
     window.FAKE_GPS_SPEED_MULTIPLIER = SPEED_MULTIPLIER;
 
+    // Km cumulés de la route courante, recalculés au seul changement de route.
+    let cachedRoute = null;
+    let cachedCumKm = [];
+    function routeCumKm(route) {
+        if (cachedRoute !== route) {
+            cachedRoute = route;
+            cachedCumKm = buildCumulativeDistances(route);
+        }
+        return cachedCumKm;
+    }
+
+    // Zones sans signal déclarées par le mode courant (tunnels du mode voiture).
+    // La simulation s'y tait au lieu d'émettre : c'est la seule façon de
+    // rejouer la péremption du signal, donc la progression estimée et
+    // l'affichage « tunnel », sans prendre la route.
+    let currentGap = null;
+    function signalGapAt(routeKm) {
+        const gaps = window.FAKE_GPS_SIGNAL_GAPS;
+        if (!Array.isArray(gaps) || !Number.isFinite(routeKm)) return null;
+        return gaps.find(g => routeKm >= g.startKm && routeKm <= g.endKm) || null;
+    }
+
+    /** @returns {boolean} true si la position a été émise, false si sous tunnel */
+    function emitUnlessInGap(success, pos) {
+        const gap = signalGapAt(pos.routeKm);
+        if (gap) {
+            if (currentGap !== gap.name) {
+                currentGap = gap.name;
+                console.log(`🚇 [MOCK] Entrée dans ${gap.name} — plus aucune position jusqu'à la sortie.`);
+            }
+            return false;
+        }
+        if (currentGap) {
+            console.log(`🚇 [MOCK] Sortie de ${currentGap} — émission reprise.`);
+            currentGap = null;
+        }
+        success({
+            coords: {
+                latitude: pos.latitude,
+                longitude: pos.longitude,
+                accuracy: 10,
+                speed: 30,
+                heading: null,
+                altitude: null
+            },
+            timestamp: Date.now()
+        });
+        return true;
+    }
+
     function getSimulatedPosition() {
         const route = STATE.currentRoute;
 
@@ -90,7 +140,12 @@ import { haversineDistance } from './geo.js';
                     `[FAKE GPS] segment=${currentSegment}, elapsed=${(timeElapsed / 1000).toFixed(1)}s, dur=${(segmentDuration / 1000).toFixed(1)}s, lat=${lat.toFixed(5)}, lon=${lon.toFixed(5)}`
                 );
 
-                return { latitude: lat, longitude: lon, finished: false };
+                const cumKm = routeCumKm(route);
+                const routeKm = Number.isFinite(cumKm[currentSegment])
+                    ? cumKm[currentSegment] + progress * (cumKm[currentSegment + 1] - cumKm[currentSegment])
+                    : null;
+
+                return { latitude: lat, longitude: lon, routeKm, finished: false };
             }
 
             timeElapsed -= segmentDuration;
@@ -98,8 +153,14 @@ import { haversineDistance } from './geo.js';
         }
 
         const lastPt = route[route.length - 1];
+        const cumKm = routeCumKm(route);
         console.log("[FAKE GPS] Terminus atteint, position finale.");
-        return { latitude: lastPt.lat, longitude: lastPt.lon, finished: true };
+        return {
+            latitude: lastPt.lat,
+            longitude: lastPt.lon,
+            routeKm: cumKm[cumKm.length - 1] ?? null,
+            finished: true
+        };
     }
 
     const mockGeoLocation = {
@@ -108,46 +169,15 @@ import { haversineDistance } from './geo.js';
             console.log(
                 `📍 [MOCK] getCurrentPosition -> Lat: ${pos.latitude.toFixed(5)} Lon: ${pos.longitude.toFixed(5)}`
             );
-            success({
-                coords: {
-                    latitude: pos.latitude,
-                    longitude: pos.longitude,
-                    accuracy: 10,
-                    speed: 30,
-                    heading: null,
-                    altitude: null
-                },
-                timestamp: Date.now()
-            });
+            emitUnlessInGap(success, pos);
         },
         watchPosition: function (success, _error, _options) {
             console.log("👀 [MOCK] watchPosition démarré (simulation GPS)...");
-            const firstPos = getSimulatedPosition();
-            success({
-                coords: {
-                    latitude: firstPos.latitude,
-                    longitude: firstPos.longitude,
-                    accuracy: 10,
-                    speed: 30,
-                    heading: null,
-                    altitude: null
-                },
-                timestamp: Date.now()
-            });
+            emitUnlessInGap(success, getSimulatedPosition());
 
             const intervalId = setInterval(() => {
                 const p = getSimulatedPosition();
-                success({
-                    coords: {
-                        latitude: p.latitude,
-                        longitude: p.longitude,
-                        accuracy: 10,
-                        speed: 30,
-                        heading: null,
-                        altitude: null
-                    },
-                    timestamp: Date.now()
-                });
+                emitUnlessInGap(success, p);
 
                 if (p.finished) {
                     console.log("🏁 [MOCK] Terminus (fin du trajet simulé) !");

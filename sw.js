@@ -4,7 +4,7 @@
 // immédiatement (zéro latence même sans réseau), puis rafraîchie en arrière-plan
 // pour la prochaine visite. Incrémenter CACHE_VERSION pour forcer une purge.
 
-const CACHE_VERSION = 'tallon-v25';
+const CACHE_VERSION = 'tallon-v26';
 
 // Coquille applicative pré-cachée à l'installation.
 const PRECACHE_URLS = [

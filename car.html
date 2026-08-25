@@ -19,7 +19,9 @@
             width: 100%;
             height: 8px;
             border-radius: 4px;
-            background: rgba(255, 255, 255, 0.12);
+            /* Accent du mode (bleu nuit) : un blanc translucide serait
+               invisible sur la carte claire qui porte la barre. */
+            background: rgba(var(--primary-rgb), 0.14);
             overflow: hidden;
             margin: 8px 0;
         }

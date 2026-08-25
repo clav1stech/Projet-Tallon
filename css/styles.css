@@ -1,6 +1,10 @@
 /* Définition des variables de couleur */
 :root {
-    --primary: rgb(135,44,59); /* Nouveau rouge bordeaux */
+    /* Accent de l'app, exposé en composantes pour que les transparences
+       (`rgba(var(--primary-rgb), …)`) suivent toute redéfinition de mode.
+       Le rail garde le bordeaux SNCF ; car.html le redéfinit en bleu nuit. */
+    --primary-rgb: 135, 44, 59;
+    --primary: rgb(var(--primary-rgb)); /* Rouge bordeaux SNCF */
     --secondary: rgb(53,53,52); /* Gris foncé */
     --background: #f3f6fb;
     --surface: rgba(255,255,255,0.7);
@@ -944,7 +948,7 @@ label input[type="radio"] {
 .location-section {
     background: var(--widget-glass);
     border-radius: 14px;
-    box-shadow: 0 2px 8px 0 rgba(135,44,59,0.08);
+    box-shadow: 0 2px 8px 0 rgba(var(--primary-rgb), 0.08);
     padding: 16px 18px;
     margin-bottom: 18px;
     display: flex;
@@ -1014,7 +1018,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     gap: 18px;
     background: var(--widget-glass, #fff);
     border-radius: 12px;
-    box-shadow: 0 2px 8px 0 rgba(135,44,59,0.08);
+    box-shadow: 0 2px 8px 0 rgba(var(--primary-rgb), 0.08);
     padding: 10px 18px;
     margin-bottom: 12px;
 }
@@ -1025,7 +1029,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     margin-bottom: 0;
     margin-top: 0;
     font-weight: 600;
-    color: var(--primary, rgb(135,44,59));
+    color: var(--primary);
     gap: 6px;
 }
 
@@ -1036,7 +1040,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     min-width: 120px;
     text-align: right;
     border-radius: 7px;
-    border: 1.5px solid var(--primary, rgb(135,44,59));
+    border: 1.5px solid var(--primary);
     padding: 8px 10px;
     font-size: 1em;
     background: #fff;
@@ -1068,7 +1072,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
 }
 .latlon-group input[type="number"] {
     border-radius: 7px;
-    border: 1.5px solid var(--primary, rgb(135,44,59));
+    border: 1.5px solid var(--primary);
     padding: 8px 10px;
     font-size: 1em;
     background: #fff;
@@ -1101,7 +1105,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
-    border: 1.5px solid var(--primary, rgb(135,44,59));
+    border: 1.5px solid var(--primary);
     border-radius: 10px;
     background: #fff;
     font-weight: 600;
@@ -1109,7 +1113,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
 }
 
 .checkbox-pill input[type="checkbox"] {
-    accent-color: var(--primary, rgb(135,44,59));
+    accent-color: var(--primary);
 }
 
 .checkbox-group .hint {
@@ -1149,7 +1153,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
     transition: transform 0.2s;
 }
 .toggle-switch input:checked + .toggle-slider {
-    background: var(--primary, rgb(135,44,59));
+    background: var(--primary);
 }
 .toggle-switch input:checked + .toggle-slider::before {
     transform: translateX(20px);
@@ -1318,8 +1322,10 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
         border-radius: 3px;
     }
 
-    /* Portion déjà parcourue : posée par-dessus la ligne, jusqu'à la tête de
-       lecture. Sous les nœuds (z-index 2) pour ne jamais les masquer. */
+    /* Portion déjà parcourue : un voile de la couleur du FOND posé sur la
+       ligne, jusqu'à la tête de lecture. Un voile de l'accent serait invisible,
+       la ligne étant déjà opaque dans cette teinte. Sous les nœuds
+       (z-index 2) pour ne jamais les masquer. */
     body.tracking-active #hud-track-points::after {
         content: '';
         position: absolute;
@@ -1327,7 +1333,7 @@ a, .fas, .far, .fa-location-arrow, .fa-route, .fa-map-marker-alt, .fa-edit {
         height: max(0px, calc(var(--cursor-top, 0px) - var(--line-top, 0px)));
         left: 10%;
         width: 6px;
-        background: rgba(135, 44, 59, 0.22);
+        background: var(--hud-line-veil, rgba(255, 255, 255, 0.62));
         border-radius: 3px;
         z-index: 1;
     }
@@ -1631,20 +1637,20 @@ body.non-iphone-device.tracking-active .hud-point.next {
     left: calc(10% + 3px - 12px);
     background: var(--primary);
     border: none;
-    box-shadow: 0 0 0 8px rgba(135,44,59,0.18);
+    box-shadow: 0 0 0 8px rgba(var(--primary-rgb), 0.18);
 }
 
 body.non-iphone-device.tracking-active .hud-point.next .hud-point-dot {
     width: 30px;
     height: 30px;
     left: calc(10% + 4px - 15px);
-    box-shadow: 0 0 0 10px rgba(135,44,59,0.18);
+    box-shadow: 0 0 0 10px rgba(var(--primary-rgb), 0.18);
 }
 
 .hud-point.next.stop .hud-point-dot {
     background: #fff;
     border: 6px solid var(--primary);
-    box-shadow: 0 0 0 8px rgba(135,44,59,0.18);
+    box-shadow: 0 0 0 8px rgba(var(--primary-rgb), 0.18);
 }
 
 .hud-point.next .hud-point-name {
@@ -1699,20 +1705,20 @@ body.non-iphone-device.tracking-active .hud-point.active {
     left: calc(10% + 3px - 8px);
     background: var(--primary);
     border: none;
-    box-shadow: 0 0 0 4px rgba(135,44,59,0.12);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.12);
 }
 
 body.non-iphone-device.tracking-active .hud-point.active .hud-point-dot {
     width: 20px;
     height: 20px;
     left: calc(10% + 4px - 10px);
-    box-shadow: 0 0 0 5px rgba(135,44,59,0.12);
+    box-shadow: 0 0 0 5px rgba(var(--primary-rgb), 0.12);
 }
 
 .hud-point.active.stop .hud-point-dot {
     background: #fff;
     border: 4px solid var(--primary);
-    box-shadow: 0 0 0 4px rgba(135,44,59,0.12);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.12);
 }
 
 .hud-point.active .hud-point-name {
@@ -1903,7 +1909,7 @@ body.tracking-active #hud-speed-graph {
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin-top: 15px;
-    background: rgba(135, 44, 59, 0.12);
+    background: rgba(var(--primary-rgb), 0.12);
     color: var(--primary);
     transition: background 0.3s, color 0.3s;
 }
@@ -1975,8 +1981,8 @@ body.non-iphone-device.tracking-active .hud-tunnel-image {
 }
 
 @keyframes structure-halo {
-    0%, 100% { box-shadow: 0 0 0 8px rgba(135, 44, 59, 0.18); }
-    50%      { box-shadow: 0 0 0 14px rgba(135, 44, 59, 0.06); }
+    0%, 100% { box-shadow: 0 0 0 8px rgba(var(--primary-rgb), 0.18); }
+    50%      { box-shadow: 0 0 0 14px rgba(var(--primary-rgb), 0.06); }
 }
 
 /* Widget portrait : même teinte ambre que les autres états « on estime la
@@ -1988,18 +1994,16 @@ body.non-iphone-device.tracking-active .hud-tunnel-image {
     animation: structure-pulse 2.4s ease-in-out infinite;
 }
 
+/* Le rail de la jauge se pose sur une carte claire : une teinte de la charte,
+   pas un blanc translucide qui y serait invisible. */
 .car-structure-gauge,
 .hud-point-gauge {
     display: block;
     margin-top: 6px;
     height: 3px;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(var(--primary-rgb), 0.15);
     overflow: hidden;
-}
-
-.hud-point-gauge {
-    background: rgba(135, 44, 59, 0.15);
 }
 
 .car-structure-gauge > span,
@@ -2012,6 +2016,8 @@ body.non-iphone-device.tracking-active .hud-tunnel-image {
     transition: width 0.6s linear;
 }
 
+/* Dans le carousel, la jauge suit l'accent du HUD plutôt que l'ambre des
+   états estimés du widget. */
 .hud-point-gauge > span {
     background: var(--primary);
 }
@@ -2062,7 +2068,7 @@ body.non-iphone-device.tracking-active .hud-tunnel-image {
     border-radius: 50%;
     background: #fff;
     border: 4px solid var(--primary);
-    box-shadow: 0 0 0 4px rgba(135, 44, 59, 0.14);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.14);
     z-index: 3;
 }
 
@@ -2112,92 +2118,170 @@ body.non-iphone-device.tracking-active .hud-cursor {
 }
 
 /* ===========================
-   Mode voiture — thème nuit
+   Mode voiture — identité visuelle
    ===========================
-   Suit l'apparence du système (qui bascule au coucher du soleil sur iOS) et
-   ne concerne que car.html : le mode rail garde son identité SNCF claire.
-   Toutes les règles sont donc préfixées par body.car-page. */
-@media (prefers-color-scheme: dark) {
-    body.car-page {
-        background-color: #14161a;
-        color: #e6e8ec;
-    }
+   car.html se distingue du rail par son accent : bleu nuit au lieu du bordeaux
+   SNCF. Une seule redéfinition du triplet suffit — toutes les transparences en
+   dérivent. */
+body.car-page {
+    --primary-rgb: 31, 58, 95;              /* #1F3A5F, bleu nuit */
+    /* `--primary` doit être redéclaré ici, pas seulement `--primary-rgb` : une
+       propriété personnalisée est substituée là où elle est déclarée, donc
+       celle de :root resterait figée sur le bordeaux. */
+    --primary: rgb(var(--primary-rgb));
 
-    body.car-page .container,
-    body.car-page .settings-panel {
-        background: #1c1f25;
-        color: #e6e8ec;
-    }
+    /* Le carousel paysage est sombre en permanence (identité de mode, pas
+       thème système) : l'accent y est éclairci pour rester lisible. */
+    --hud-night-bg-rgb: 27, 29, 31;         /* plus sombre que le gris du dashboard */
+    --hud-night-bg: rgb(var(--hud-night-bg-rgb));
+    --hud-night-bg-center: #23262a;
+    --hud-night-accent-rgb: 110, 155, 209;  /* #6E9BD1 */
+}
 
-    body.car-page .car-stat-label {
-        opacity: 0.65;
-    }
+/* Le plafond de 220 px des form-rows tronque « -- Choisir l'itinéraire -- ».
+   Sur car.html la ligne ne porte qu'un seul champ : il peut prendre toute la
+   place restante, avec une cible tactile dimensionnée pour la conduite. */
+body.car-page .form-row > select {
+    max-width: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 11px 12px;
+    font-size: 1.02em;
+}
 
-    body.car-page .car-structure-gauge {
-        background: rgba(255, 255, 255, 0.12);
-    }
+/* ===========================
+   Mode voiture — carousel sombre
+   ===========================
+   Le tableau de bord de gauche garde son gris ; le carousel descend plus bas
+   encore et ses textes passent au clair. Le fond du conteneur suit la même
+   teinte : le masque en dégradé du carousel le laisse voir en haut et en bas,
+   une couleur différente y dessinerait deux bandes. */
+body.car-page.tracking-active #landscape-hud {
+    background: var(--hud-night-bg);
+}
 
-    /* Carousel : c'est lui qui occupe tout l'écran en conduite de nuit. */
-    body.car-page .hud-carousel,
-    body.car-page #hud-track-points {
-        background: #14161a;
-    }
+body.car-page .hud-carousel {
+    background: radial-gradient(ellipse at center, var(--hud-night-bg-center) 30%, var(--hud-night-bg) 100%);
 
-    body.car-page .hud-dashboard {
-        border-right-color: rgba(255, 255, 255, 0.10);
-    }
+    /* Recalibrage local de la palette : ligne, nœuds, noms et distances
+       lisent ces variables, aucun n'a besoin d'une règle dédiée. */
+    --primary-rgb: var(--hud-night-accent-rgb);
+    --primary: rgb(var(--hud-night-accent-rgb));
+    --hud-line-veil: rgba(var(--hud-night-bg-rgb), 0.62);
+    --text-main: #f2f5f9;
+    --text-muted: #aab2bd;
+}
 
-    /* Bordeaux éclairci : le bordeaux de jour disparaît sur fond sombre. */
-    body.car-page.tracking-active #hud-track-points::before,
-    body.car-page .hud-point-dot,
-    body.car-page .hud-point.next .hud-point-dot,
-    body.car-page .hud-point.active .hud-point-dot {
-        background: #c9707f;
-    }
+/* Cœur des nœuds « bullseye » et de la tête de lecture : la couleur du fond,
+   pas le blanc, sinon ils brillent comme des pastilles pleines. */
+body.car-page .hud-point.stop .hud-point-dot,
+body.car-page .hud-point.passed.stop .hud-point-dot,
+body.car-page .hud-point.passed-1.stop .hud-point-dot,
+body.car-page .hud-point.future.stop .hud-point-dot,
+body.car-page .hud-point.future-1.stop .hud-point-dot,
+body.car-page .hud-point.active.stop .hud-point-dot,
+body.car-page .hud-point.next.stop .hud-point-dot,
+body.car-page .hud-cursor {
+    background: var(--hud-night-bg);
+}
 
-    body.car-page.tracking-active #hud-track-points::after {
-        background: rgba(201, 112, 127, 0.25);
-    }
+body.car-page .hud-point.next .hud-point-name {
+    color: #ffffff;
+}
 
-    /* Cœur des nœuds « bullseye » et de la tête de lecture : la couleur du
-       fond, pas le blanc, sinon ils brillent comme des pastilles pleines. */
-    body.car-page .hud-point.stop .hud-point-dot,
-    body.car-page .hud-point.next.stop .hud-point-dot,
-    body.car-page .hud-point.active.stop .hud-point-dot,
-    body.car-page .hud-cursor {
-        background: #14161a;
-        border-color: #c9707f;
-    }
+/* Pilule secteur : elle vit sur le tableau de bord sombre, donc accent
+   éclairci et texte foncé plutôt que l'inverse. */
+body.car-page.tracking-active #hud-sector {
+    background: rgb(var(--hud-night-accent-rgb));
+    color: #16181b;
+}
 
-    body.car-page .hud-cursor {
-        box-shadow: 0 0 0 4px rgba(201, 112, 127, 0.18);
-    }
+/* ===========================
+   Mode voiture — hiérarchie adoucie du carousel
+   ===========================
+   L'échelle du rail va de 0,82em à 2,8em (3,4×) et de 0,2 à 1 d'opacité : sur
+   une timeline de gares, cet écart guide l'œil ; sur une liste de sorties
+   d'autoroute presque équivalentes entre elles, il écrase tout ce qui n'est
+   pas le point suivant. Ici le rapport tombe à ~1,9× et les points lointains
+   restent lisibles. */
+body.car-page .hud-point .hud-point-info {
+    opacity: 0.5;
+}
 
-    body.car-page .hud-point-name,
-    body.car-page .hud-point.next .hud-point-name {
-        color: #f2f4f7;
-    }
+/* Le héros et le dernier point franchi restent pleinement opaques : la règle
+   ci-dessus, plus spécifique que celle du rail, les atteindrait sinon. */
+body.car-page .hud-point.next .hud-point-info,
+body.car-page .hud-point.active .hud-point-info {
+    opacity: 1;
+}
 
-    body.car-page .hud-point.active .hud-point-name,
-    body.car-page .hud-point-time,
-    body.car-page .hud-point-distance {
-        color: #9aa2ae;
-    }
+body.car-page .hud-point.passed-1 .hud-point-info,
+body.car-page .hud-point.future-1 .hud-point-info,
+body.car-page .hud-point.passed.stop .hud-point-info,
+body.car-page .hud-point.future.stop .hud-point-info {
+    opacity: 0.72;
+}
 
-    body.car-page .hud-point.next .hud-point-distance {
-        color: #c9707f;
-    }
+body.car-page .hud-point-name {
+    font-size: 0.95em;
+}
 
-    body.car-page .hud-point-gauge {
-        background: rgba(255, 255, 255, 0.14);
-    }
+body.car-page .hud-point.passed-1 .hud-point-name,
+body.car-page .hud-point.future-1 .hud-point-name,
+body.car-page .hud-point.passed.stop .hud-point-name,
+body.car-page .hud-point.future.stop .hud-point-name {
+    font-size: 1.12em;
+}
 
-    body.car-page .hud-point-gauge > span {
-        background: #c9707f;
-    }
+body.car-page .hud-point.active .hud-point-name {
+    font-size: 1.35em;
+}
 
-    body.car-page.tracking-active #hud-sector {
-        background: #c9707f;
-        color: #14161a;
-    }
+body.car-page .hud-point.next .hud-point-name {
+    font-size: 1.85em;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+}
+
+body.car-page .hud-point.next .hud-point-time {
+    font-size: 1.02em;
+}
+
+body.car-page .hud-point.next .hud-point-distance {
+    font-size: 1em;
+}
+
+/* Le nœud héros suit la même compression que le texte. */
+body.car-page .hud-point.next .hud-point-dot {
+    width: 18px;
+    height: 18px;
+    left: calc(10% + 3px - 9px);
+    box-shadow: 0 0 0 6px rgba(var(--primary-rgb), 0.16);
+}
+
+body.car-page .hud-point.next.stop .hud-point-dot {
+    border-width: 4px;
+    box-shadow: 0 0 0 6px rgba(var(--primary-rgb), 0.16);
+}
+
+/* Hors iPhone, le rail agrandit encore (3,35em, nœud de 30 px) : mêmes
+   proportions comprimées. */
+body.car-page.non-iphone-device.tracking-active .hud-point.next .hud-point-name {
+    font-size: 2.1em;
+}
+
+body.car-page.non-iphone-device.tracking-active .hud-point.active .hud-point-name {
+    font-size: 1.5em;
+}
+
+body.car-page.non-iphone-device.tracking-active .hud-point.next .hud-point-time,
+body.car-page.non-iphone-device.tracking-active .hud-point.next .hud-point-distance {
+    font-size: 1.12em;
+}
+
+body.car-page.non-iphone-device.tracking-active .hud-point.next .hud-point-dot {
+    width: 22px;
+    height: 22px;
+    left: calc(10% + 4px - 11px);
+    box-shadow: 0 0 0 7px rgba(var(--primary-rgb), 0.16);
 }

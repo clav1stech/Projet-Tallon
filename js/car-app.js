@@ -21,6 +21,7 @@ import {
     buildCarRoute,
     estimateDeclaredTunnelProgress,
     findSector,
+    listDeclaredTunnels,
     locateRouteProgress,
     resolveWaypointTarget
 } from './car-route.js';
@@ -222,8 +223,12 @@ async function loadCarRoute(routeKey) {
     engine.reset();
 
     // Compat fakeGeoSim (dev) : la simulation lit STATE.currentRoute et les
-    // durationEffective par point — buildCarRoute les fournit.
+    // durationEffective par point — buildCarRoute les fournit. Les bornes des
+    // tunnels lui permettent en plus de se taire à l'intérieur, seule façon de
+    // rejouer la coupure de signal sans monter en voiture. Sans simulateur
+    // chargé, personne ne lit cette valeur.
     STATE.currentRoute = CAR.route.points;
+    window.FAKE_GPS_SIGNAL_GAPS = listDeclaredTunnels(CAR.route);
 }
 
 function onPosition(position) {

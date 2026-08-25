@@ -24,6 +24,11 @@ const WAYPOINT_ICONS = {
     arrivee:   'fas fa-flag-checkered'
 };
 
+// Points « forts » du carousel : nœud en anneau et nom lisible même loin
+// devant. Réservé aux endroits où l'on s'arrête vraiment — sorties,
+// échangeurs et ouvrages restent le fil de la route.
+const STRONG_WAYPOINT_TYPES = ['depart', 'arrivee', 'peage'];
+
 export function waypointIconHtml(type) {
     const cls = WAYPOINT_ICONS[type];
     return cls ? `<i class="${cls} wp-icon" aria-hidden="true"></i>` : '';
@@ -32,6 +37,32 @@ export function waypointIconHtml(type) {
 export function tunnelImageHtml(className = '') {
     const classes = ['tunnel-image', className].filter(Boolean).join(' ');
     return `<img src="assets/tunnel.png" class="${classes}" alt="Tunnel">`;
+}
+
+/**
+ * Clé d'état de l'afficheur de vitesse : deux rendus successifs partageant la
+ * même clé sont identiques au pixel près.
+ * @param {object} data - renderData du mode voiture
+ * @param {{unreliableAsLost?: boolean}} options - le HUD affiche l'icône « pas
+ *        de signal » dès que la vitesse n'est pas fiable, le widget se contente
+ *        d'un « (?) » derrière la valeur.
+ */
+export function speedDisplayKey(data, { unreliableAsLost = false } = {}) {
+    if (data.inTunnel) return `tunnel:${data.tunnelName || ''}`;
+    if (data.gpsLost || (unreliableAsLost && !data.speedReliable)) return 'lost';
+    return `speed:${Math.round(data.speedKmh)}:${data.speedReliable ? 'ok' : '?'}`;
+}
+
+/**
+ * N'écrit dans le DOM que si l'affichage change réellement. La boucle de
+ * fraîcheur rejoue le rendu deux fois par seconde, y compris à l'arrêt du
+ * signal : réécrire l'innerHTML recréerait l'<img> du tunnel à chaque passage,
+ * ce qui la fait scintiller.
+ */
+function renderSpeedDisplay(el, key, html) {
+    if (!el || el.dataset.speedKey === key) return;
+    el.dataset.speedKey = key;
+    el.innerHTML = html;
 }
 
 export function populateCarRouteSelect() {
@@ -112,19 +143,28 @@ export function updateCarWidget(data) {
     if (data.nextWaypoint && nextEl) {
         const wp = data.nextWaypoint;
         const len = Number.isFinite(wp.lengthM) ? ` (${wp.lengthM} m)` : '';
-        if (data.onStructure) {
-            // Sur l'ouvrage : la distance affichée est celle qui reste à
-            // parcourir DESSUS, doublée d'une jauge de franchissement.
-            const pct = structureProgressPercent(data.structureProgress);
+        // Le nom et la jauge ne sont reconstruits qu'au changement de cible :
+        // seule la distance bouge d'un fix à l'autre, et recréer la jauge à
+        // chaque tick redémarrerait sa transition, qui n'aboutirait jamais.
+        const shellKey = `${wp.name}|${data.onStructure ? 'on' : 'off'}`;
+        if (nextEl.dataset.shellKey !== shellKey) {
+            nextEl.dataset.shellKey = shellKey;
             nextEl.innerHTML =
                 `${waypointIconHtml(wp.type)}${wp.name}${len}` +
-                ` — sortie dans ${formatStructureDistance(data.nextDistanceKm)}` +
-                `<span class="car-structure-gauge"><span style="width:${pct.toFixed(1)}%"></span></span>`;
-        } else {
-            const dist = Number.isFinite(data.nextDistanceKm) ? ` — ${data.nextDistanceKm.toFixed(1)} km` : '';
-            nextEl.innerHTML = `${waypointIconHtml(wp.type)}${wp.name}${len}${dist}`;
+                '<span class="car-next-tail"></span>' +
+                (data.onStructure ? '<span class="car-structure-gauge"><span></span></span>' : '');
         }
+        const tail = nextEl.querySelector('.car-next-tail');
+        if (tail) {
+            tail.textContent = data.onStructure
+                // Sur l'ouvrage : la distance restante est celle à parcourir DESSUS.
+                ? ` — sortie dans ${formatStructureDistance(data.nextDistanceKm)}`
+                : (Number.isFinite(data.nextDistanceKm) ? ` — ${data.nextDistanceKm.toFixed(1)} km` : '');
+        }
+        const gauge = nextEl.querySelector('.car-structure-gauge > span');
+        if (gauge) gauge.style.width = `${structureProgressPercent(data.structureProgress).toFixed(1)}%`;
     } else {
+        if (nextEl) delete nextEl.dataset.shellKey;
         setText('car-next', '—');
     }
 
@@ -133,12 +173,15 @@ export function updateCarWidget(data) {
     setText('car-km', `${data.doneKm.toFixed(1)} km / ${data.totalKm.toFixed(1)} km`);
     const speed = document.getElementById('car-speed');
     if (speed) {
+        const key = speedDisplayKey(data);
         if (data.inTunnel) {
-            speed.innerHTML = tunnelImageHtml('car-tunnel-image');
+            renderSpeedDisplay(speed, key, tunnelImageHtml('car-tunnel-image'));
         } else if (data.gpsLost) {
-            speed.innerHTML = '<span class="car-gps-lost"><i class="fas fa-signal-slash" aria-hidden="true"></i> Signal perdu</span>';
+            renderSpeedDisplay(speed, key,
+                '<span class="car-gps-lost"><i class="fas fa-signal-slash" aria-hidden="true"></i> Signal perdu</span>');
         } else {
-            speed.textContent = `${Math.round(data.speedKmh)} km/h${data.speedReliable ? '' : ' (?)'}`;
+            renderSpeedDisplay(speed, key,
+                `${Math.round(data.speedKmh)} km/h${data.speedReliable ? '' : ' (?)'}`);
         }
     }
 
@@ -184,7 +227,7 @@ let _hudLastOnStructure = false;
 let _hudLastRouteKey = null;
 let _hudScrollAnimId = null;
 
-function carHudPointClass(i, currentIdx, wp, onStructure = false) {
+export function carHudPointClass(i, currentIdx, wp, onStructure = false, lastIdx = null) {
     let cls;
     if      (i === currentIdx)     cls = 'hud-point active';
     else if (i === currentIdx + 1) cls = 'hud-point next';
@@ -192,9 +235,11 @@ function carHudPointClass(i, currentIdx, wp, onStructure = false) {
     else if (i === currentIdx + 2) cls = 'hud-point future-1';
     else if (i < currentIdx)       cls = 'hud-point passed';
     else                           cls = 'hud-point future';
-    // Bullseye pour les points "forts" (départ/arrivée, étapes, péages),
-    // petit nœud plein pour le fil de la route (sorties, ouvrages).
-    if (wp && ['depart', 'arrivee', 'etape', 'peage', 'aire'].includes(wp.type)) cls += ' stop';
+    // Les deux extrémités du trajet sont repérées par leur POSITION : selon
+    // que l'itinéraire se termine sur un leg 'points' ou sur un repère
+    // synthétique, le terminus est typé 'etape' ou 'arrivee'.
+    const isTerminus = i === 0 || (Number.isInteger(lastIdx) && i === lastIdx);
+    if (isTerminus || (wp && STRONG_WAYPOINT_TYPES.includes(wp.type))) cls += ' stop';
     // Franchissement en cours : le point héros reste l'ouvrage, signalé par
     // une pulsation qui le distingue d'un point simplement à venir.
     if (onStructure && i === currentIdx + 1) cls += ' on-structure';
@@ -222,26 +267,27 @@ export function updateCarHUD(data) {
     // --- Dashboard : compteur ---
     const speedEl = document.getElementById('hud-speed');
     if (speedEl) {
+        const speedKey = speedDisplayKey(data, { unreliableAsLost: true });
         if (data.inTunnel) {
             speedEl.style.setProperty('--speed-deg', '0deg');
-            speedEl.innerHTML = `
+            renderSpeedDisplay(speedEl, speedKey, `
                 <span class="hud-speed-value hud-tunnel-icon" title="${data.tunnelName || 'Tunnel'} — progression estimée">
                     ${tunnelImageHtml('hud-tunnel-image')}
                 </span>
                 <span class="hud-speed-unit">tunnel</span>
-            `;
+            `);
         } else if (data.gpsLost || !data.speedReliable) {
             speedEl.style.setProperty('--speed-deg', '0deg');
-            speedEl.innerHTML = `<span class="hud-speed-value"><i class="fas fa-signal-slash"></i></span>`;
+            renderSpeedDisplay(speedEl, speedKey, '<span class="hud-speed-value"><i class="fas fa-signal-slash"></i></span>');
         } else {
             const displaySpeed = Math.round(data.speedKmh);
             const arcSpeed = Math.min(displaySpeed, CAR_HUD_MAX_SPEED_KMH);
             const speedDeg = Math.round((arcSpeed / CAR_HUD_MAX_SPEED_KMH) * 240);
             speedEl.style.setProperty('--speed-deg', `${speedDeg}deg`);
-            speedEl.innerHTML = `
+            renderSpeedDisplay(speedEl, speedKey, `
                 <span class="hud-speed-value">${displaySpeed}</span>
                 <span class="hud-speed-unit">km/h</span>
-            `;
+            `);
         }
     }
 
@@ -344,7 +390,7 @@ export function updateCarHUD(data) {
         _hudLastOnStructure = onStructure;
         trackPoints.querySelectorAll('.hud-point[data-idx]').forEach(div => {
             const i = parseInt(div.dataset.idx, 10);
-            div.className = carHudPointClass(i, currentIdx, waypoints[i], onStructure);
+            div.className = carHudPointClass(i, currentIdx, waypoints[i], onStructure, waypoints.length - 1);
         });
         fitCarouselNames(trackPoints);
     }
@@ -361,7 +407,7 @@ export function updateCarHUD(data) {
         for (let i = 0; i < waypoints.length; i++) {
             const wp = waypoints[i];
             const div = document.createElement('div');
-            div.className = carHudPointClass(i, currentIdx, wp, onStructure);
+            div.className = carHudPointClass(i, currentIdx, wp, onStructure, waypoints.length - 1);
             div.dataset.idx = i;
 
             // Sous-ligne : longueur de l'ouvrage uniquement. Le kilométrage

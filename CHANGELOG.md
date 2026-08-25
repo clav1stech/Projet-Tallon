@@ -1,5 +1,48 @@
 # Changelog
 
+## v3.1.6 - 2026-08-26
+
+### Identité visuelle propre au mode voiture
+
+- L'accent du mode voiture passe du bordeaux SNCF au bleu nuit, pour distinguer
+  les deux modes d'un coup d'œil. L'accent est désormais déclaré en composantes
+  (`--primary-rgb`) : les quatorze transparences jusqu'ici codées en dur en
+  dérivent, et un mode redéfinit toute sa palette en une ligne.
+- Le carousel paysage du mode voiture est sombre en permanence — gris plus
+  profond que le tableau de bord, textes clairs, accent éclairci — au lieu de
+  suivre le thème du système, qui donnait une page à moitié claire.
+- La hiérarchie du carousel est adoucie : le rapport de taille entre le point
+  suivant et un point lointain tombe de 3,4× à 1,9×, et les opacités de
+  0,2–1 à 0,5–1. Les points lointains restent lisibles.
+- Seuls les deux extrémités du trajet et les barrières de péage sont mis en
+  évidence de loin ; sorties, échangeurs, aires et ouvrages redeviennent le fil
+  de la route. Les extrémités sont repérées par leur position, leur type
+  déclaré variant selon la construction de l'itinéraire.
+- Le sélecteur d'itinéraire n'est plus plafonné à 220 px, qui tronquaient son
+  libellé.
+
+### Corrections d'affichage
+
+- La portion parcourue de la ligne du carousel n'était jamais visible : elle
+  était peinte dans l'accent, par-dessus une ligne déjà opaque de la même
+  teinte. Elle utilise désormais un voile de la couleur du fond.
+- La barre de progression et le rail de la jauge d'ouvrage étaient en blanc
+  translucide sur une carte blanche, donc invisibles.
+- L'icône de tunnel scintillait : la boucle de fraîcheur réécrivant l'affichage
+  deux fois par seconde, l'image était recréée à chaque passage. Le DOM n'est
+  plus réécrit que lorsque l'affichage change réellement.
+- La jauge de franchissement d'ouvrage ne s'animait jamais : le bloc qui la
+  porte était reconstruit à chaque position, ce qui redémarrait sa transition
+  avant qu'elle n'aboutisse.
+
+### Simulation GPS (développement)
+
+- `fakeGeoSim` cesse d'émettre à l'intérieur des tunnels déclarés, seule façon
+  de rejouer la coupure de signal — et donc la progression estimée et
+  l'affichage « tunnel » — sans prendre la route. Les bornes proviennent de
+  `listDeclaredTunnels`, désormais partagé avec le moteur de suivi.
+- Mise à jour du cache hors ligne (`tallon-v26`).
+
 ## v3.1.5 - 2026-08-25
 
 ### Franchissement des ouvrages d'art (mode voiture)
