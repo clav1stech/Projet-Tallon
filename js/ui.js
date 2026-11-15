@@ -307,8 +307,11 @@ export function renderTrainTracking({ relayout = false, nowTs = Date.now(), rail
     setText('km-left', kmText(model.progress.leftKm));
     setText('speed-average', hasEstimate ? Math.round(model.stats.avgKmh) : '—');
     setText('speed-max', hasEstimate ? Math.round(model.stats.maxKmh) : '—');
-    const source = model.location.source === 'sncf' ? window.IS_SCRIPTABLE_BRIDGE ? 'Bridge SNCF' : 'WiFi SNCF' : 'GPS';
-    const locationText = `${source} · ${signalLabels[model.location.signal]}${model.location.accuracyM != null ? ` · ±${Math.round(model.location.accuracyM)} m` : ''}`;
+    // Repli GPS d'une configuration WiFi SNCF : la source affichée le dit.
+    const source = model.location.source === 'sncf' ? window.IS_SCRIPTABLE_BRIDGE ? 'Bridge SNCF' : 'WiFi SNCF'
+        : STATE.appliedConfig?.locationMethod === 'sncf' ? 'GPS (repli WiFi SNCF)' : 'GPS';
+    const ageS = model.location.ageMs != null ? Math.floor(model.location.ageMs / 1000) : 0;
+    const locationText = `${source} · ${signalLabels[model.location.signal]}${ageS >= 3 ? ` · il y a ${ageS} s` : ''}${model.location.accuracyM != null ? ` · ±${Math.round(model.location.accuracyM)} m` : ''}`;
     setText('location-status', locationText);
     el('location-status').dataset.signal = model.location.signal;
     el('journey-progress').setAttribute('aria-valuenow', Math.round(model.progress.ratio * 100));

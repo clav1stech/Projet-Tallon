@@ -39,6 +39,15 @@ avec message dans la barre de debug (`SNCF KO (...) → GPS`).
 
 ## Solutions sur iPhone, de la plus simple à la plus lourde
 
+### Option 0 — App iOS Tallon (conteneur natif, `ios/`)
+
+L'app iOS affiche la même interface en plein écran et interroge l'API par
+`URLSession`, hors du contexte CORS de la page. Elle contrôle la fraîcheur de la
+télémétrie, se replie sur le GPS natif et revient seule au WiFi SNCF. Pas de
+bandeau Scriptable, pages embarquées (aucun réseau requis au lancement).
+Contrepartie : signature gratuite à renouveler tous les 7 jours depuis un PC
+avec Sideloadly. Procédure complète : [ios-sideloadly.md](ios-sideloadly.md).
+
 ### Option A (recommandée) — Bridge Scriptable : `tools/scriptable-sncf-bridge.js`
 
 L'app [Scriptable](https://scriptable.app) (gratuite) exécute du JavaScript
@@ -110,6 +119,7 @@ l'option A, sans serveur.
 
 | Option | Position en tunnel | Batterie | Mise en place |
 |---|---|---|---|
+| 0. App iOS (Sideloadly) | ✅ oui | ✅ faible | 15 min, puis renouvellement tous les 7 jours |
 | A. Bridge Scriptable | ✅ oui | ✅ faible | 5 min, une fois |
 | B. PWA + GPS natif | ❌ interpolée | ⚠️ GPS actif | 30 s |
 | C. Proxy distant | — | — | impossible (réseau local) |

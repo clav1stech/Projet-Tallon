@@ -4,7 +4,7 @@
 // immédiatement (zéro latence même sans réseau), puis rafraîchie en arrière-plan
 // pour la prochaine visite. Incrémenter CACHE_VERSION pour forcer une purge.
 
-const CACHE_VERSION = 'tallon-v30';
+const CACHE_VERSION = 'tallon-v31';
 
 // Coquille applicative pré-cachée à l'installation.
 const PRECACHE_URLS = [
@@ -38,6 +38,7 @@ const PRECACHE_URLS = [
     './js/ui.js',
     './js/utils.js',
     './js/routes-config.js',
+    './js/sncf-telemetry.js',
     './js/fakeGeoSim.js',
     './js/csv.js',
     './js/linearref.js',

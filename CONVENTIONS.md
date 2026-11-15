@@ -24,6 +24,7 @@
   - Config de trajets partagée entre l'app et l'éditeur → `js/routes-config.js` (`MAIN_ROUTES`), jamais dupliquée localement dans `ui.js` ou `master-editor.js`.
   - Utilitaires génériques sans dépendance métier (formatage, sélecteurs DOM courts) → `js/utils.js`.
   - Simulation/outillage de dev → fichier dédié explicitement toggé (`js/fakeGeoSim.js`, `ENABLE_FAKE_GPS`), jamais mélangé au code de prod.
+  - Code natif iOS → `ios/Tallon/*.swift`, limité au chargement des pages et au transport réseau ; toute logique (analyse, bascule de source) reste en JS testable par Vitest.
   - Script Python one-off (migration, extraction, export) → `python/`, avec docstring d'usage en tête de fichier.
 
 ## Imports et dépendances

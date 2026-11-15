@@ -7,6 +7,17 @@ export const TRACKING_TICK_MS = 1000;
 
 export const GEOLOCATION_OPTIONS = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
 
+// Télémétrie WiFi SNCF. Certaines rames ne servent le routeur qu'en clair :
+// essais dans cet ordre, le premier endpoint qui répond est conservé. Une page
+// web HTTPS ne peut joindre que le premier (contenu mixte bloqué).
+export const SNCF_GPS_URLS = ['https://wifi.sncf/router/api/train/gps', 'http://wifi.sncf/router/api/train/gps'];
+export const SNCF_TIMEOUT_MS = 3000;
+// Horodatage routeur figé depuis ce délai : position périmée, repli GPS.
+// Inférieur à SIGNAL_LOSS_MIN_MS pour basculer avant l'alerte de perte.
+export const SNCF_STALE_MS = 10_000;
+// En repli GPS, intervalle entre deux tentatives de retour au WiFi SNCF.
+export const SNCF_RETRY_MS = 15_000;
+
 // Fenêtre de positions servant à la vitesse médiane (≈ 10 s à 1 fix/s).
 export const POSITION_WINDOW_SIZE = 10;
 

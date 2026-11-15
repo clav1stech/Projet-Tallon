@@ -24,7 +24,12 @@ pour l'historique complet.
   - API WiFi SNCF (`wifi.sncf/router/api/train/gps`) avec bascule automatique
     vers le GPS natif en cas d'échec,
   - pont [Scriptable](https://scriptable.app/) pour iPhone (bypass CORS,
-    voir listener `SNCF_GPS_BRIDGE` dans `js/app.js`).
+    voir listener `SNCF_GPS_BRIDGE` dans `js/app.js`),
+  - **app iOS** (`ios/`) : la même interface dans une WKWebView, avec accès
+    natif à l'API WiFi SNCF (sans CORS), contrôle de fraîcheur, repli GPS et
+    retour automatique au WiFi SNCF. IPA non signé produit par GitHub Actions,
+    installé depuis Windows avec Sideloadly — voir
+    [docs/ios-sideloadly.md](docs/ios-sideloadly.md).
 - **Calcul de retard/avance** en continu par rapport à l'horaire théorique,
   avec pénalité d'arrêt en gare (6 min par arrêt intermédiaire) et lissage
   physique (accélération/décélération) sur les micro-trajets entre arrêts.
@@ -133,7 +138,9 @@ js/
   train-profile.js       Réduction du tracé de vitesse par colonne de pixels
   ui.js                  Accueil éditable, cockpit, carousel responsive, historique
   app.js                 Orchestration rail : écouteurs DOM, boucle de tracking,
-                          bascule GPS / WiFi SNCF / bridge Scriptable
+                          bascule GPS / WiFi SNCF / bridge Scriptable / bridge iOS
+  sncf-telemetry.js      Télémétrie WiFi SNCF pure : lecture des réponses, fraîcheur,
+                          repli GPS et retour au WiFi SNCF
   routes-config.js        MAIN_ROUTES — source unique des trajets rail proposés,
                           partagée entre l'app et l'éditeur
   car-config.js           CAR_ROUTES — source unique des itinéraires voiture (aller/retour)
@@ -167,6 +174,10 @@ python/
   migrate_v2_to_v3.py      Migration ponctuelle du schéma de données (référence)
 
 tests/                    Suite Vitest (fonctions pures : moteur, corridors, route voiture)
+
+ios/                      Conteneur iOS (Swift + WKWebView, projet XcodeGen) :
+                          pages embarquées depuis la liste de précache de sw.js,
+                          bridge natif wifi.sncf — voir docs/ios-sideloadly.md
 ```
 
 Voir [agent.md](agent.md) et [CONVENTIONS.md](CONVENTIONS.md) pour les

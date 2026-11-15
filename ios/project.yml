@@ -1,0 +1,33 @@
+# Projet Xcode décrit en YAML, généré par XcodeGen sur le runner macOS
+# (.github/workflows/ios.yml) : aucun .xcodeproj versionné, éditable sous Windows.
+# Prérequis : `node ios/copy-web.mjs` a rempli ios/www.
+name: Tallon
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "0.0.0"      # remplacé par la version du CHANGELOG en CI
+    CURRENT_PROJECT_VERSION: "1"    # remplacé par le numéro d'exécution en CI
+targets:
+  Tallon:
+    type: application
+    platform: iOS
+    sources:
+      - path: Tallon
+      # Référence de dossier : l'arborescence www/ est copiée telle quelle dans l'app.
+      - path: www
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        # Sideloadly peut le préfixer selon le compte : le garder identique
+        # d'une signature à l'autre préserve les réglages (localStorage).
+        PRODUCT_BUNDLE_IDENTIFIER: fr.projet-tallon.app
+        INFOPLIST_FILE: Tallon/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    scheme: {}

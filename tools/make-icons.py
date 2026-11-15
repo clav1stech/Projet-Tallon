@@ -7,6 +7,7 @@ après un changement de charte. Le rendu se fait en suréchantillonnage ×4 puis
 réduction Lanczos — PIL ne lisse pas les primitives.
 
 Usage : python3 tools/make-icons.py  (dépendance : pillow)
+Produit aussi l'icône de l'app iOS (ios/Tallon/Assets.xcassets).
 """
 
 from pathlib import Path
@@ -14,6 +15,11 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
+# Icône unique 1024 px du conteneur iOS (Xcode dérive les autres tailles).
+IOS_ICON = (
+    Path(__file__).resolve().parent.parent
+    / "ios" / "Tallon" / "Assets.xcassets" / "AppIcon.appiconset" / "AppIcon-1024.png"
+)
 SIZES = (180, 192, 512)  # 180 = apple-touch-icon, 192/512 = manifest
 SS = 4                   # facteur de suréchantillonnage
 CANVAS = 512 * SS
@@ -124,6 +130,10 @@ def main():
             path = OUT_DIR / f"{name}-{size}.png"
             out.save(path, optimize=True)
             print(f"{path.relative_to(OUT_DIR.parent.parent)} ({size}×{size})")
+        if name == "train":
+            IOS_ICON.parent.mkdir(parents=True, exist_ok=True)
+            master.resize((1024, 1024), Image.LANCZOS).convert("RGB").save(IOS_ICON, optimize=True)
+            print(f"{IOS_ICON.relative_to(OUT_DIR.parent.parent)} (1024×1024)")
 
 
 if __name__ == "__main__":

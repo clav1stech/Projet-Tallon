@@ -14,3 +14,10 @@ data/raw/*
 # Caches Python
 __pycache__/
 *.pyc
+
+# Conteneur iOS : ressources copiées, projet Xcode et IPA générés en CI.
+ios/www/
+ios/build/
+ios/build.log
+ios/*.xcodeproj/
+*.ipa

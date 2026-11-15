@@ -15,8 +15,11 @@ import { loadDataset } from './csv.js';
 import { buildCorridor, locateOnCorridor } from './linearref.js';
 import {
     DELTA_MAX_MINUTES, DELTA_MIN_MINUTES, DELTA_REPEAT_DELAY_MS, DELTA_REPEAT_INTERVAL_MS,
-    GEOLOCATION_OPTIONS, TRACKING_TICK_MS
+    GEOLOCATION_OPTIONS, SNCF_GPS_URLS, SNCF_TIMEOUT_MS, TRACKING_TICK_MS
 } from './train-config.js';
+import {
+    createSncfTracker, describeSncfFailures, noteSncfFix, parseSncfResponse, pickLocationSource
+} from './sncf-telemetry.js';
 
 // Boucle d'acquisition : créée au lancement d'une session, détruite à sa
 // clôture. Ni la navigation ni une reconfiguration n'y touchent.
@@ -343,15 +346,74 @@ document.addEventListener('DOMContentLoaded', async () => {
 let acquisitionPending = false;
 let pendingRequest = null;
 
-async function fetchSncfPosition(session, source) {
+// Suivi de la télémétrie SNCF, propre à une session (endpoint retenu,
+// fraîcheur, dernier échec).
+let sncfTracker = null;
+let sncfTrackerSession = null;
+function getSncfTracker(session) {
+    if (sncfTrackerSession !== session) {
+        sncfTracker = createSncfTracker();
+        sncfTrackerSession = session;
+    }
+    return sncfTracker;
+}
+
+// Bridge natif du conteneur iOS (ios/Tallon/SncfBridge.swift) : requête
+// URLSession hors du contexte CORS de la page.
+const nativeBridge = () => window.webkit?.messageHandlers?.tallonNative;
+
+async function requestSncf(url) {
+    const bridge = nativeBridge();
+    if (bridge) {
+        try {
+            return await bridge.postMessage({ op: 'sncf', url, timeoutMs: SNCF_TIMEOUT_MS });
+        } catch (error) {
+            return { ok: false, kind: 'refused', detail: error.message };
+        }
+    }
+    try {
+        const response = await fetch(url, { signal: AbortSignal.timeout(SNCF_TIMEOUT_MS) });
+        return { ok: true, status: response.status, body: await response.text() };
+    } catch (error) {
+        // Le navigateur ne distingue pas un blocage CORS d'un réseau absent.
+        return { ok: false, kind: error.name === 'TimeoutError' ? 'timeout' : 'blocked' };
+    }
+}
+
+/**
+ * Interroge le routeur et ingère la position si elle est neuve.
+ * @param {string} active - source active au lancement de la requête : 'geo'
+ *   quand il s'agit d'une tentative de retour depuis le repli GPS.
+ */
+async function fetchSncfPosition(session, active) {
     if (window.IS_SCRIPTABLE_BRIDGE || navigator.userAgent.includes('Scriptable')) return;
-    const response = await fetch('https://wifi.sncf/router/api/train/gps', { signal: AbortSignal.timeout(3000) });
-    if (!response.ok) throw new Error('API injoignable');
-    const data = await response.json();
-    if (!data.success) throw new Error('Données invalides');
-    if (STATE.session !== session || STATE.locationMethod !== source) return;
-    const speedKmh = data.speed != null && Number.isFinite(Number(data.speed)) ? Number(data.speed) * 3.6 : undefined;
-    showPosition({ coords: { latitude: data.latitude, longitude: data.longitude, accuracy: 15, speed: speedKmh }, timestamp: data.timestamp ? data.timestamp * 1000 : Date.now() });
+    const tracker = getSncfTracker(session);
+    const urls = tracker.url ? [tracker.url] : (nativeBridge() ? SNCF_GPS_URLS : SNCF_GPS_URLS.slice(0, 1));
+    const failures = [];
+    let result = null;
+    for (const url of urls) {
+        const attempt = parseSncfResponse(await requestSncf(url));
+        if (attempt.ok) { result = attempt; tracker.url = url; break; }
+        failures.push(attempt);
+    }
+    if (!result) {
+        tracker.url = null;
+        throw new Error(describeSncfFailures(failures));
+    }
+    if (STATE.session !== session || STATE.locationMethod !== active) return;
+    const freshness = noteSncfFix(tracker, result.routerTs, Date.now());
+    if (freshness === 'stale') throw new Error(parseSncfResponse({ ok: false, kind: 'stale' }).message);
+    if (freshness === 'duplicate') return;
+    if (active !== 'sncf') {
+        STATE.locationMethod = 'sncf';
+        // La requête GPS encore en vol sera ignorée : elle ne doit pas retenir
+        // l'acquisition SNCF jusqu'à son délai d'expiration.
+        pendingRequest = null;
+        acquisitionPending = false;
+        updateInfo('WiFi SNCF rétabli, retour à la télémétrie du train.');
+    }
+    tracker.lastError = null;
+    showPosition(result.fix);
 }
 
 function processCurrentPosition() {
@@ -360,19 +422,36 @@ function processCurrentPosition() {
     // perte de signal, arrêt en gare). Une seule acquisition peut être en vol.
     recordSignalLossTick(STATE);
     renderTracking();
-    if (acquisitionPending) return;
     const session = STATE.session;
-    const source = STATE.locationMethod;
-    const request = pendingRequest = {};
-    acquisitionPending = true;
-    const isCurrent = () => STATE.session === session && STATE.locationMethod === source;
-    const finish = () => { if (pendingRequest === request) acquisitionPending = false; };
-    if (source === 'sncf') {
-        fetchSncfPosition(session, source).catch(error => {
-            if (!isCurrent()) return;
+    const active = STATE.locationMethod;
+    const tracker = getSncfTracker(session);
+    const isCurrent = () => STATE.session === session && STATE.locationMethod === active;
+    const onSncfError = error => {
+        if (!isCurrent()) return;
+        tracker.failedAt = Date.now();
+        if (active === 'sncf') {
             STATE.locationMethod = 'geo';
             updateInfo(`WiFi SNCF indisponible (${error.message}), bascule sur GPS natif.`);
-        }).finally(finish);
+        } else if (tracker.lastError !== error.message) {
+            updateInfo(`WiFi SNCF toujours indisponible (${error.message}), GPS natif conservé.`);
+        }
+        tracker.lastError = error.message;
+    };
+    // En repli GPS, la tentative de retour au WiFi SNCF court en parallèle de
+    // l'acquisition : un routeur muet ne prive pas le suivi de ses fix GPS.
+    // FakeGeoSim impose le GPS : aucune tentative.
+    if (active !== 'sncf' && !tracker.probing && !window.FAKE_GPS_SPEED_MULTIPLIER && pickLocationSource({
+        preferred: STATE.appliedConfig?.locationMethod, active, failedAt: tracker.failedAt
+    }, Date.now()) === 'sncf') {
+        tracker.probing = true;
+        fetchSncfPosition(session, active).catch(onSncfError).finally(() => { tracker.probing = false; });
+    }
+    if (acquisitionPending) return;
+    const request = pendingRequest = {};
+    acquisitionPending = true;
+    const finish = () => { if (pendingRequest === request) acquisitionPending = false; };
+    if (active === 'sncf') {
+        fetchSncfPosition(session, active).catch(onSncfError).finally(finish);
     } else if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(position => {
             if (isCurrent()) showPosition(position);
