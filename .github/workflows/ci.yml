@@ -1,0 +1,39 @@
+name: CI
+
+# Contrôle uniquement : la publication GitHub Pages reste hors de ce workflow.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Détecte une erreur de syntaxe dans un module non couvert par les tests
+      # (app.js, ui.js…) avant qu'elle ne casse l'application publiée.
+      - name: Syntaxe des modules
+        run: npm run check:syntax
+
+      # Inclut tests/dataIntegrity.test.js (cohérence des JSON, patterns,
+      # trajets, datasets et précache du service worker).
+      - name: Tests
+        run: npm test

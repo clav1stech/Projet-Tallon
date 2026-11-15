@@ -6,7 +6,8 @@
   "description": "Suivi de trajet TGV — position, retard et HUD temps réel",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check:syntax": "for f in js/*.js sw.js; do node --check \"$f\" || exit 1; done"
   },
   "devDependencies": {
     "vitest": "^2.1.9"

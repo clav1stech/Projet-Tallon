@@ -115,3 +115,5 @@ Dans les trois cas, utiliser uniquement les fichiers liés au travail en cours, 
 - La détection iPhone (`isIPhoneDevice` dans `app.js`, équivalent dans `car-app.js`) ne doit jamais reposer sur le seul user-agent : une WebView hôte peut l'altérer et faire basculer la page sur la mise en page non-iPhone. Se replier sur `navigator.platform`.
 
 **Suite de tests** : Vitest (`npm test`), fonctions pures uniquement. Vérification manuelle complémentaire via `js/fakeGeoSim.js` (simulation GPS de dev) ou test réel en conditions.
+
+**CI** : `.github/workflows/ci.yml` (GitHub Actions, Node 22) exécute `npm ci`, `npm run check:syntax` puis `npm test` sur chaque push et pull request vers `main`. Contrôle uniquement : la publication GitHub Pages reste hors workflow. `tests/dataIntegrity.test.js` vérifie la cohérence référentielle des données (patterns, `MAIN_ROUTES`, datasets, précache `sw.js`) ; ses `KNOWN_ANOMALIES` listent les écarts de données connus, à corriger sur demande explicite puis à retirer de la liste. Toute nouvelle vérification de données se greffe sur cette suite plutôt que sur un nouveau job.
