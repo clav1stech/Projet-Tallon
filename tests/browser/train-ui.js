@@ -1,0 +1,131 @@
+const frame = document.getElementById('frame');
+const status = document.getElementById('status');
+const output = document.getElementById('result');
+const pause = () => new Promise(resolve => setTimeout(resolve, 80));
+const waitFor = async predicate => { for (let i = 0; i < 100; i++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 50)); } throw new Error('Chargement expiré'); };
+let logs = [];
+const assert = (value, text) => { logs.push(`${value ? '✓' : '✗'} ${text}`);output.textContent = logs.join('\n'); if (!value) throw new Error(text); };
+const source = await (await fetch('../../index.html')).text();
+const base = new URL('../../', location.href).href;
+const injected = `<base href="${base}"><script>
+const preferences = new Map(); Object.defineProperty(window, 'localStorage', {value: {getItem:key=>preferences.get(key)??null,setItem:(key,value)=>preferences.set(key,String(value))}});
+window.__now = new Date(2026,10,15,9,58).getTime(); Date.now=()=>window.__now;
+window.__requests=0;window.__starts=0;window.__stops=0;window.__wifiCalls=0;window.__wifiMode='ok';
+const nativeFetch=window.fetch.bind(window);
+window.fetch=(input,options)=>{
+ if(!String(input).startsWith('https://wifi.sncf/'))return nativeFetch(input,options);
+ window.__wifiCalls++;if(window.__wifiMode==='fail')return Promise.reject(new Error('Test hors réseau'));
+ const fix=window.__modules.STATE.trackingSnapshot;
+ return Promise.resolve({ok:true,json:async()=>({success:true,latitude:fix.lat,longitude:fix.lon,speed:80})});
+};
+navigator.geolocation.getCurrentPosition=(success,error)=>{window.__requests++;window.__pending={success,error}};
+window.setInterval=callback=>{window.__starts++;window.__tick=callback;return window.__starts};window.clearInterval=()=>window.__stops++;
+window.addEventListener('error',event=>parent.postMessage({testError:event.message},location.origin));
+</script><script type="module">
+import {STATE} from '${base}js/state.js';import * as ui from '${base}js/ui.js';import * as session from '${base}js/tracking-session.js';import * as fixtures from '${base}tests/fixtures.js';window.__modules={STATE,ui,session,fixtures};
+</script>`;
+frame.srcdoc = source.replace('<head>', `<head>${injected}`).replace("if ('serviceWorker' in navigator", "if (false && 'serviceWorker' in navigator");
+await waitFor(() => frame.contentWindow.__modules?.STATE.trajets.length);
+const win = frame.contentWindow, doc = frame.contentDocument;
+const {STATE, ui, session, fixtures} = win.__modules;
+const $ = id => doc.getElementById(id);
+const change = (id, value) => { $(id).value = value;$(id).dispatchEvent(new win.Event('input', {bubbles:true}));$(id).dispatchEvent(new win.Event('change', {bubbles:true})); };
+const sizes = [[320,568],[568,320],[375,667],[667,375],[393,852],[852,393],[440,956],[956,440],[834,1194],[1194,834],[1440,900]];
+const resize = async (w,h) => {
+    frame.width=w;frame.height=h;
+    await pause();ui.renderTrainTracking({relayout:true,nowTs:win.__now});await pause();
+};
+const visible = node => {const r=node.getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=0&&r.right<=win.innerWidth+1&&r.top>=0&&r.bottom<=win.innerHeight+1;};
+const render = () => {ui.renderNavigation();ui.renderTrainTracking({relayout:true,nowTs:win.__now});};
+const seed = () => {
+    const fixes = fixtures.fixesAlongRoute(STATE.currentRoute,STATE.departureTimestamp,{toSeconds:3600,stepSeconds:5,lateSeconds:120});
+    for(const fix of fixes) session.ingestFix(STATE,fix.position,fix.ts,{locationMethod:'geo'});
+    win.__now=fixes.at(-1).ts;render();
+};
+async function run() {
+    logs=[];
+    try {
+        assert(STATE.view==='home'&&!STATE.session.active,'Première ouverture sur l’accueil');
+        assert($('start-btn').disabled,'Lancement désactivé sans trajet');
+        doc.querySelector('input[name="route-group"][value="PARIS_TO_MARSEILLE"]').click();
+        assert($('start-btn').disabled,'Horaire manquant : lancement désactivé');
+        change('departure-time','23:58');
+        assert($('service-rest').textContent.includes('J+1'),'Passage de minuit indiqué');
+        change('departure-time','09:58');
+        const before = $('service-meta').textContent;
+        doc.querySelector('[data-stop-action="add"]').click();
+        assert($('service-meta').textContent!==before,'Ajout d’arrêt : recalcul immédiat');
+        doc.querySelector('[data-stop-action="remove"]').click();
+        for(let i=0;i<35;i++)$('delta-plus').click();
+        assert(STATE.draftConfig.globalDeltaSeconds===1800&&$('delta-plus').disabled,'ΔT : appuis répétés et borne haute');
+        change('global-delta','0');
+        for(const [w,h] of sizes){await resize(w,h);assert(doc.documentElement.scrollWidth<=w+1,`Accueil sans débordement ${w}×${h}`);assert(visible($('start-btn')),`Action principale accessible ${w}×${h}`);}
+        $('start-btn').click();
+        assert(STATE.view==='tracking'&&STATE.session.active,'Lancer ouvre le cockpit');
+        assert(win.__starts===1&&win.__requests===1,'Une boucle, une acquisition');
+        win.__tick();win.__tick();assert(win.__requests===1,'Aucune accumulation de requêtes en attente');
+        const pending = win.__pending;
+        pending.success({coords:{latitude:STATE.currentRoute[0].lat,longitude:STATE.currentRoute[0].lon,accuracy:10},timestamp:win.__now});
+        seed();
+        const raw=STATE.session.samples;const passages=JSON.stringify(STATE.passageTimes);const sessionRef=STATE.session;
+        const node=$('train-points').children[0];
+        for(const [w,h] of sizes){
+            await resize(w,h);
+            assert(doc.documentElement.scrollWidth<=w+1,`Cockpit sans débordement ${w}×${h}`);
+            for(const id of ['settings-btn','train-carousel','speed-gauge','arrival-time','speed-profile']) assert(visible($(id)),`${id} visible ${w}×${h}`);
+            assert($('train-points').children[0]===node,`Carousel conservé après rotation ${w}×${h}`);
+            const next=doc.querySelector('.train-point.next');const a=next.getBoundingClientRect(),b=$('train-carousel').getBoundingClientRect();
+            assert(a.top+a.height/2>b.top&&a.top+a.height/2<b.bottom,`Prochain point centré ${w}×${h}`);
+        }
+        $('settings-btn').click();
+        win.__tick();
+        assert(win.__starts===1&&STATE.session===sessionRef,'Réglages : aucune recréation de session ou boucle');
+        const nextPending=win.__pending;const sampleCount=raw.length;
+        nextPending.success({coords:{latitude:STATE.trackingSnapshot.lat,longitude:STATE.trackingSnapshot.lon,accuracy:10},timestamp:win.__now});
+        assert(raw.length===sampleCount+1,'Acquisition conservée pendant les réglages');
+        $('start-btn').click();
+        assert(STATE.session.samples===raw&&JSON.stringify(STATE.passageTimes)===passages,'Reprise : acquisitions et observations conservées');
+        $('settings-btn').click();$('delta-plus').click();
+        assert($('start-btn').dataset.mode==='apply'&&STATE.globalDeltaSeconds===0,'Modification provisoire indépendante du trajet suivi');
+        $('secondary-btn').click();assert(STATE.draftConfig.globalDeltaSeconds===0,'Annulation reprend la configuration appliquée');
+        $('delta-plus').click();const acquired=raw.length;const times=JSON.stringify(STATE.passageTimes);$('start-btn').click();
+        assert(STATE.globalDeltaSeconds===60&&STATE.session.samples===raw&&raw.length===acquired,'Application explicite conserve l’historique brut');
+        assert(JSON.stringify(STATE.passageTimes)===times,'Application horaire conserve les instants observés');
+        $('details-btn').click();assert($('trip-details').open&&$('passage-log').rows.length>1,'Détail du profil et journal observé');
+        $('trip-details').querySelector('[data-close-dialog]').click();
+        $('train-carousel').dispatchEvent(new win.Event('wheel'));assert(!$('recenter-btn').hidden,'Défilement libre avec recentrage explicite');
+        $('recenter-btn').click();assert($('recenter-btn').hidden,'Recentrage du carousel');
+        $('settings-btn').click();
+        doc.querySelector('input[name="location-method"][value="sncf"]').click();
+        assert(STATE.locationMethod==='geo','Source provisoire : acquisition GPS inchangée');
+        $('start-btn').click();const sourceSamples=raw.length;win.__tick();await pause();
+        assert(STATE.locationMethod==='sncf'&&raw.length===sourceSamples+1&&win.__wifiCalls===1,'WiFi SNCF : position et vitesse reçues');
+        win.__wifiMode='fail';win.__tick();await pause();
+        assert(STATE.locationMethod==='geo'&&STATE.session===sessionRef,'WiFi indisponible : repli GPS sans nouvelle session');
+        const bridgeSamples=raw.length;
+        win.dispatchEvent(new win.MessageEvent('message',{data:{type:'SNCF_GPS_BRIDGE',coords:{latitude:STATE.trackingSnapshot.lat,longitude:STATE.trackingSnapshot.lon,accuracy:15,speed:288},timestamp:win.__now}}));
+        assert(STATE.locationMethod==='sncf'&&win.IS_SCRIPTABLE_BRIDGE&&raw.length===bridgeSamples+1,'Bridge Scriptable : acquisition et source adoptées');
+        const calls=win.__wifiCalls;win.__tick();await pause();
+        assert(win.__wifiCalls===calls&&win.__starts===1,'Bridge : aucun polling réseau ni double intervalle');
+        $('settings-btn').click();$('secondary-btn').click();
+        assert($('end-session').open&&STATE.session.active&&win.__stops===0,'Clôture : confirmation préalable, acquisition maintenue');
+        $('end-session').querySelector('[data-close-dialog]').click();assert(STATE.session.active,'Annuler la clôture conserve le suivi');
+        $('secondary-btn').click();$('confirm-end-btn').click();
+        assert(!STATE.session.active&&STATE.session.samples.length===0&&win.__stops===1,'Clôture confirmée : une boucle arrêtée, historique effacé');
+        // Prépare un état relisible pour l’inspection visuelle, sans GPS réel.
+        $('start-btn').click();seed();
+        const newCount=STATE.session.samples.length;
+        pending.success({coords:{latitude:STATE.currentRoute[0].lat,longitude:STATE.currentRoute[0].lon,accuracy:10},timestamp:win.__now});
+        assert(STATE.session.samples.length===newCount,'Réponse GPS tardive ignorée après une nouvelle session');
+        await resize(393,852);
+        document.getElementById('size').value='393,852';
+        status.textContent=`${logs.length} vérifications réussies · prêt pour la revue visuelle`;
+        fetch(`./train-ui.html?result=success&checks=${logs.length}`);
+    }catch(error){status.textContent=`ÉCHEC : ${error.message}`;console.error(error);fetch(`./train-ui.html?result=failure&message=${encodeURIComponent(error.message)}`);}
+}
+document.getElementById('run').onclick=()=>location.reload();
+document.getElementById('size').onchange=event=>resize(...event.target.value.split(',').map(Number));
+document.getElementById('home').onclick=()=>$('settings-btn').click();
+document.getElementById('track').onclick=()=>$('start-btn').click();
+window.addEventListener('message',event=>{if(event.data.testError){logs.push(`ERREUR JS : ${event.data.testError}`);output.textContent=logs.join('\n');}});
+await run();

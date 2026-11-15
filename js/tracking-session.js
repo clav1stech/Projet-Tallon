@@ -469,3 +469,27 @@ export function buildCockpitModel(state, nowTs = Date.now()) {
         location
     };
 }
+
+/**
+ * Points du carousel : l'heure théorique, la prévision et l'observation sont
+ * distinctes. Aucun passage n'est inventé avant le premier fix ou lorsqu'un
+ * suivi a démarré en cours de route.
+ */
+export function buildCarouselModel(state, cockpit = buildCockpitModel(state), nowTs = Date.now()) {
+    if (!cockpit || !state.tripPlan) return [];
+    const { route, offsetsSeconds, cumKm, departureTimestamp } = state.tripPlan;
+    const canForecast = !!state.trackingSnapshot && cockpit.location.signal === 'ok' && cockpit.phase !== 'before-departure';
+    return route.map((point, index) => {
+        const theoreticalTs = departureTimestamp + offsetsSeconds[index] * 1000;
+        const observedTs = state.passageTimes[point.id] ?? null;
+        const estimatedTs = observedTs == null && index > cockpit.progress.currentIdx && canForecast
+            ? theoreticalTs + cockpit.displayDelayMs : null;
+        return {
+            id: point.id, name: point.name, isStop: !!point.isStop, index,
+            theoreticalTs, observedTs, estimatedTs,
+            delayMs: observedTs == null ? null : state.passedPoints[point.id],
+            distanceKm: cockpit.progress.doneKm == null ? null : Math.abs(cumKm[index] - cockpit.progress.doneKm),
+            remainingSeconds: estimatedTs == null ? null : Math.max(0, (estimatedTs - nowTs) / 1000)
+        };
+    });
+}

@@ -1,0 +1,29 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><title>Tallon · Non-régression voiture</title><style>body{font:14px system-ui;background:#eee;margin:16px}iframe{border:1px solid #aaa;transform-origin:top left}pre{white-space:pre-wrap}</style><h1>Vérification du mode voiture</h1><p id="status" role="status">Chargement…</p><pre id="log"></pre><iframe id="frame" width="852" height="393" title="Mode voiture en test"></iframe><script type="module">
+const frame=document.getElementById('frame'),status=document.getElementById('status'),log=document.getElementById('log');
+const base=new URL('../../',location.href).href;
+const source=await(await fetch(base+'car.html')).text();
+const injected=`<base href="${base}"><script>window.__now=Date.now();Date.now=()=>window.__now;navigator.geolocation.watchPosition=callback=>{window.__fix=callback;return 1};window.setInterval=()=>1;window.clearInterval=()=>{};<\/script><script type="module">import{STATE}from'${base}js/state.js';window.__state=STATE;<\/script>`;
+frame.srcdoc=source.replace('<head>',`<head>${injected}`).replace("if ('serviceWorker' in navigator","if (false && 'serviceWorker' in navigator");
+const wait=async predicate=>{for(let i=0;i<100;i++){if(predicate())return;await new Promise(resolve=>setTimeout(resolve,100));}throw Error('Chargement expiré');};
+let count=0;const check=(value,text)=>{log.textContent+=`${value?'✓':'✗'} ${text}\n`;if(!value)throw Error(text);count++;};
+try{
+ await wait(()=>frame.contentDocument.getElementById('car-route-select')?.options.length>1);
+ const win=frame.contentWindow,doc=frame.contentDocument,$=id=>doc.getElementById(id);
+ check(!doc.querySelector('link[href="css/train.css"]'),'Styles du train absents');
+ $('car-route-select').selectedIndex=1;
+ $('car-start-btn').click();await wait(()=>win.__fix&&win.__state.currentRoute.length);
+ check(doc.body.classList.contains('tracking-active'),'Lancement du suivi voiture');
+ const point=win.__state.currentRoute[0];
+ win.__fix({coords:{latitude:point.lat,longitude:point.lon,accuracy:10,speed:25},timestamp:win.__now});
+ check($('car-speed').textContent.includes('90'),'Vitesse native 25 m/s → 90 km/h');
+ check($('car-remaining').textContent.includes('km'),'Distance restante affichée');
+ check($('hud-track-points').children.length>1,'Carousel voiture renseigné');
+ check(win.getComputedStyle($('landscape-hud')).display!=='none','HUD voiture visible en paysage');
+ frame.width=393;frame.height=852;await new Promise(resolve=>setTimeout(resolve,100));
+ check(win.getComputedStyle($('landscape-hud')).display==='none','Présentation portrait voiture conservée');
+ check(doc.documentElement.scrollWidth<=393,'Portrait voiture sans débordement horizontal');
+ frame.width=852;frame.height=393;
+ status.textContent=`${count} vérifications voiture réussies`;
+ fetch(`./car-ui.html?result=success&checks=${count}`);
+}catch(error){status.textContent=`ÉCHEC : ${error.message}`;fetch(`./car-ui.html?result=failure&message=${encodeURIComponent(error.message)}`);}
+</script></html>

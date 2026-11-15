@@ -104,7 +104,7 @@ export function restoreSettings() {
             globalDeltaSeconds: storedGlobalDelta !== null && !Number.isNaN(Number(storedGlobalDelta))
                 ? Number(storedGlobalDelta)
                 : 0,
-            locationMethod: STATE.draftConfig.locationMethod
+            locationMethod: localStorage.getItem('locationMethod') === 'sncf' ? 'sncf' : 'geo'
         };
     } catch (e) {
         console.error('Erreur lors de la restauration des paramètres :', e);
@@ -119,6 +119,7 @@ export function saveSettings() {
         localStorage.setItem('globalDeltaSeconds', String(draft.globalDeltaSeconds || 0));
         localStorage.setItem('selectedMainRouteKey', draft.mainRouteKey || '');
         localStorage.setItem('selectedStopIds', (draft.stopIds || []).join(','));
+        localStorage.setItem('locationMethod', draft.locationMethod);
     } catch (e) {
         console.error('Erreur lors de la sauvegarde des paramètres :', e);
     }

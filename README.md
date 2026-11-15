@@ -130,7 +130,8 @@ js/
   tracking-session.js    Session de tracking sans DOM : acquisition, accrochage au trajet,
                           rejeu, modèles de données (cockpit, profil de vitesse)
   train-controller.js    Transitions navigation / configuration provisoire / appliquée / session
-  ui.js                  Rendu DOM rail (timeline, widget, HUD paysage)
+  train-profile.js       Réduction du tracé de vitesse par colonne de pixels
+  ui.js                  Accueil éditable, cockpit, carousel responsive, historique
   app.js                 Orchestration rail : écouteurs DOM, boucle de tracking,
                           bascule GPS / WiFi SNCF / bridge Scriptable
   routes-config.js        MAIN_ROUTES — source unique des trajets rail proposés,

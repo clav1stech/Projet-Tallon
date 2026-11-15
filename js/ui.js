@@ -1,771 +1,395 @@
-// js/ui.js
 import { STATE } from './state.js';
-import { alignDelayForDisplay, formatTime, timeStringToDate } from './utils.js';
-import { buildCumulativeDistances, haversineDistance } from './geo.js';
-import { computeSegmentRatio } from './functions.js';
-import { ensureHudCursor, interpolateElementY, setHudRelayout, updateHudCursor } from './hud-cursor.js';
-export { MAIN_ROUTES } from './routes-config.js';
 import { MAIN_ROUTES } from './routes-config.js';
+import { buildCockpitModel, buildCarouselModel, buildSpeedProfile } from './tracking-session.js';
+import { computeSegmentRatio } from './functions.js';
+import { buildProfileEnvelope } from './train-profile.js';
+import { formatTime } from './utils.js';
+import { formatPk } from './linearref.js';
+import { CAROUSEL_ANIMATION_MS, CAROUSEL_HERO_RATIO, DELTA_MAX_MINUTES, DELTA_MIN_MINUTES, INFO_DISPLAY_MS, MAX_TRAIN_SPEED_KMH, PROFILE_MAX_COLUMNS } from './train-config.js';
 
-// -- FONCTIONS UI PRINCIPALES --
+const el = id => document.getElementById(id);
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const setText = (id, text) => { const node = el(id); if (node && node.textContent !== String(text)) node.textContent = text; };
+const clock = ts => Number.isFinite(ts) ? formatTime(new Date(ts)) : '––:––';
+const kmText = km => Number.isFinite(km) ? km.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) : '—';
+const duration = seconds => {
+    const minutes = Math.max(0, Math.round(seconds / 60));
+    return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}` : `${minutes} min`;
+};
+const dateTime = ts => new Date(ts).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const delayText = ms => {
+    const seconds = Math.round(Math.abs(ms) / 1000);
+    return `${ms < 0 ? '−' : '+'}${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, '0')} s`;
+};
 
-export function populateTrajetDropdown(selectedKey = '') {
-    const trajetSelect = document.getElementById('routeSelect');
-    if (!trajetSelect) return;
-
-    trajetSelect.innerHTML = '';
-
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = '-- Choisir la destination --';
-    trajetSelect.appendChild(placeholder);
-
+/** Les deux sens d'une même liaison viennent de MAIN_ROUTES, sans catalogue parallèle. */
+export function populateRouteChoices(selectedKey = '') {
+    const container = el('route-choices');
+    const focus = document.activeElement?.dataset.focusKey;
+    const groups = new Map();
     Object.entries(MAIN_ROUTES).forEach(([key, route]) => {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = route.label;
-        trajetSelect.appendChild(opt);
+        const id = [route.startPointId, route.endPointId].sort().join('|');
+        if (!groups.has(id)) groups.set(id, []);
+        groups.get(id).push({ key, ...route });
     });
-
-    trajetSelect.value = selectedKey || '';
-}
-
-// Affiche les cases à cocher des arrêts intermédiaires pour la route sélectionnée
-export function renderStopCheckboxes(mainRouteKey, selectedStopIds = [], onChange = null) {
-    const container = document.getElementById('stopCheckboxes');
-    const wrapper = document.getElementById('stopsRow');
-    if (!container || !wrapper) return;
-
-    container.innerHTML = '';
-    const config = MAIN_ROUTES[mainRouteKey];
-
-    if (!config) {
-        wrapper.style.display = 'flex';
-        container.innerHTML = '<span class="hint">Sélectionnez une destination pour afficher les arrêts.</span>';
-        return;
-    }
-
-    wrapper.style.display = 'flex';
-
-    config.stopOptions.forEach(stop => {
-        const labelEl = document.createElement('label');
-        labelEl.className = 'checkbox-pill';
-
-        const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.value = stop.id;
-        input.checked = selectedStopIds.includes(stop.id);
-
-        input.addEventListener('change', () => {
-            const values = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(el => el.value);
-            if (typeof onChange === 'function') {
-                onChange(values);
-            }
-        });
-
-        const span = document.createElement('span');
-        span.textContent = stop.label;
-
-        labelEl.appendChild(input);
-        labelEl.appendChild(span);
-        container.appendChild(labelEl);
+    const selected = MAIN_ROUTES[selectedKey];
+    const endpointCounts = new Map();
+    Object.values(MAIN_ROUTES).forEach(route => {
+        [route.startPointId, route.endPointId].forEach(id => endpointCounts.set(id, (endpointCounts.get(id) || 0) + 1));
     });
+    const hub = [...endpointCounts].sort((a, b) => b[1] - a[1])[0]?.[0];
+    const selectedGroup = [...groups.values()].find(routes => routes.some(r => r.key === selectedKey));
+    const groupHtml = [...groups.values()].map(routes => {
+        const route = routes.find(r => selected && (r.endPointId === hub) === (selected.endPointId === hub)) || routes[0];
+        const parts = routes[0].label.split(' → ');
+        const label = parts.find(part => part !== 'Paris') || parts.join(' ↔ ');
+        return `<label><input type="radio" name="route-group" value="${route.key}" data-focus-key="group-${routes[0].key}" ${routes === selectedGroup ? 'checked' : ''}><span>${escapeHtml(label)}</span></label>`;
+    }).join('');
+    const directions = selectedGroup ? `<fieldset class="segments"><legend class="sr-only">Sens du trajet</legend>${selectedGroup.map(route => `<label><input type="radio" name="route-direction" value="${route.key}" data-focus-key="direction-${route.key}" ${route.key === selectedKey ? 'checked' : ''}><span>${escapeHtml(route.label)}</span></label>`).join('')}</fieldset>` : '';
+    container.innerHTML = `<fieldset class="segments"><legend class="sr-only">Liaison depuis ou vers Paris</legend>${groupHtml}</fieldset>${directions}`;
+    if (focus) [...container.querySelectorAll('input')].find(input => input.dataset.focusKey === focus)?.focus({ preventScroll: true });
 }
 
-
-// Clés de la dernière timeline rendue — pour détecter si un rebuild complet est nécessaire
-let _timelineLastRouteKey = null;
-let _timelineLastDepartureTime = null;
-
-// Affichage principal de la timeline à partir de STATE.currentRoute
-// `progress` = { distanceFromSegmentStart, distanceToNextPointKm } : même
-// objet que le HUD, il porte le liseré de progression entre deux stations.
-export function displayTimeline(currentIdx = null, progress = {}) {
-    const timeline = document.getElementById('timeline');
-    if (!timeline) return;
-
-    // Si pas de route ou pas d'heure de départ, on vide juste
-    if (!STATE.currentRoute || !STATE.currentRoute.length || !STATE.departureTime) {
-        timeline.replaceChildren();
-        _timelineLastRouteKey = null;
-        _timelineLastDepartureTime = null;
-        return;
-    }
-
-    // Un plan installé = une révision : couvre trajet, arrêts, départ et ΔT.
-    const routeKey = STATE.planRevision;
-
-    // Rebuild complet uniquement si la route ou l'heure de départ a changé
-    if (routeKey !== _timelineLastRouteKey || STATE.departureTime !== _timelineLastDepartureTime) {
-        _timelineLastRouteKey = routeKey;
-        _timelineLastDepartureTime = STATE.departureTime;
-
-        const headerDiv = document.createElement('div');
-        headerDiv.className = 'station header';
-        headerDiv.innerHTML = `<span>TIME</span><span>WAYPOINT</span><span>DELAY</span>`;
-
-        let currentDate = timeStringToDate(STATE.departureTime);
-        const progressBar = document.createElement('div');
-        progressBar.className = 'timeline-progress';
-        const nodes = [headerDiv, progressBar];
-
-        STATE.currentRoute.forEach((point, idx) => {
-            const stationDiv = document.createElement('div');
-            stationDiv.className = 'station';
-            stationDiv.dataset.idx = idx;
-
-            if (idx > 0) {
-                const prevPoint = STATE.currentRoute[idx - 1];
-                const durSec = Number(prevPoint.durationEffective ?? prevPoint.baseDurationToNext ?? 0);
-                currentDate = new Date(currentDate.getTime() + durSec * 1000);
-            }
-            const arrivalTimeStr = formatTime(currentDate);
-            stationDiv.dataset.arrivalTime = arrivalTimeStr;
-            // Timestamp conservé pour reprojeter l'heure d'arrivée à chaque
-            // tick sans reconstruire le cumul des durées.
-            stationDiv.dataset.arrivalTs = String(currentDate.getTime());
-
-            const isStop = !!point.isStop;
-            const nameHtml = isStop ? `<strong>${point.name}</strong>` : point.name;
-
-            const isNextPoint = currentIdx != null && idx === currentIdx + 1;
-            let delayText = '';
-            if (STATE.passedPoints && Object.prototype.hasOwnProperty.call(STATE.passedPoints, point.id)) {
-                delayText = formatDelayMs(STATE.passedPoints[point.id]);
-            } else if (isNextPoint && typeof STATE.currentDelay === 'number') {
-                delayText = formatDelayMs(STATE.currentDelay);
-            }
-
-            const timeSpan = isNextPoint && delayText
-                ? `<span>${arrivalTimeStr} <span class="delay-inline">${delayText}</span></span>`
-                : `<span>${arrivalTimeStr}</span>`;
-
-            const delayCellHtml = isNextPoint
-                ? ''
-                : (delayText || projectedTimeHtml(currentIdx, idx, currentDate.getTime()));
-
-            stationDiv.innerHTML = `
-                ${timeSpan}
-                <span>${nameHtml}</span>
-                <span class="delay">${delayCellHtml}</span>
-            `;
-
-            if (currentIdx !== null && idx === currentIdx) {
-                stationDiv.classList.add('current-station');
-            } else if (currentIdx !== null && idx < currentIdx) {
-                stationDiv.classList.add('passed');
-            }
-
-            nodes.push(stationDiv);
-        });
-
-        // Remplacement atomique : pas d'état vide intermédiaire, évite le flash visuel
-        timeline.replaceChildren(...nodes);
-        updateTimelineProgress(timeline, currentIdx, progress);
-        return;
-    }
-
-    // Mise à jour différentielle : seulement les classes et les retards changent
-    timeline.querySelectorAll('.station[data-idx]').forEach(stationDiv => {
-        const idx = parseInt(stationDiv.dataset.idx, 10);
-        const point = STATE.currentRoute[idx];
-        if (!point) return;
-
-        // Classes de progression
-        stationDiv.classList.remove('current-station', 'passed');
-        if (currentIdx !== null && idx === currentIdx) {
-            stationDiv.classList.add('current-station');
-        } else if (currentIdx !== null && idx < currentIdx) {
-            stationDiv.classList.add('passed');
-        }
-
-        // Retard
-        const isNextPoint = currentIdx != null && idx === currentIdx + 1;
-        let delayText = '';
-        if (STATE.passedPoints && Object.prototype.hasOwnProperty.call(STATE.passedPoints, point.id)) {
-            delayText = formatDelayMs(STATE.passedPoints[point.id]);
-        } else if (isNextPoint && typeof STATE.currentDelay === 'number') {
-            delayText = formatDelayMs(STATE.currentDelay);
-        }
-
-        const arrivalTimeStr = stationDiv.dataset.arrivalTime;
-        const timeCell = stationDiv.children[0];
-        const delayCell = stationDiv.children[2];
-
-        if (timeCell) {
-            if (isNextPoint && delayText) {
-                timeCell.innerHTML = `${arrivalTimeStr} <span class="delay-inline">${delayText}</span>`;
-            } else {
-                timeCell.textContent = arrivalTimeStr;
-            }
-        }
-        if (delayCell) {
-            const html = isNextPoint
-                ? ''
-                : (delayText || projectedTimeHtml(currentIdx, idx, Number(stationDiv.dataset.arrivalTs)));
-            if (delayCell.innerHTML !== html) delayCell.innerHTML = html;
-        }
-    });
-
-    updateTimelineProgress(timeline, currentIdx, progress);
+export function syncFormControls(draft) {
+    populateRouteChoices(draft.mainRouteKey);
+    el('departure-time').value = draft.departureTime;
+    el('global-delta').min = DELTA_MIN_MINUTES;
+    el('global-delta').max = DELTA_MAX_MINUTES;
+    el('global-delta').value = Math.round(draft.globalDeltaSeconds / 60);
+    syncLocationControls();
 }
 
-/**
- * Heure d'arrivée reprojetée d'un point encore à venir, affichée dans la
- * colonne DELAY (vide pour ces points jusqu'ici). Rien tant que le retard
- * reste sous les seuils d'affichage : une heure théorique inchangée n'a pas
- * besoin d'être répétée.
- */
-function projectedTimeHtml(currentIdx, idx, arrivalTs) {
-    if (currentIdx == null || idx <= currentIdx || !Number.isFinite(arrivalTs)) return '';
-    const delayAligned = alignDelayForDisplay(STATE.currentDelay);
-    if (delayAligned === 0) return '';
-    const tone = delayAligned > 0 ? 'late' : 'early';
-    return `<span class="projected-time ${tone}">≈ ${formatTime(new Date(arrivalTs + delayAligned))}</span>`;
+export function syncLocationControls() {
+    const method = STATE.draftConfig.locationMethod;
+    document.querySelectorAll('input[name="location-method"]').forEach(input => { input.checked = input.value === method; });
+    setText('location-hint', method === 'sncf'
+        ? (window.IS_SCRIPTABLE_BRIDGE ? 'WiFi SNCF via le bridge Scriptable.' : 'À bord, sur le réseau WiFi SNCF. Repli GPS si indisponible.')
+        : 'Localisation de cet appareil.');
 }
-
-/**
- * Liseré de progression : du haut de la timeline jusqu'à la position
- * interpolée entre la station courante et la suivante — même avancement que
- * la tête de lecture du HUD.
- */
-function updateTimelineProgress(timeline, currentIdx, progress) {
-    const bar = timeline.querySelector('.timeline-progress');
-    if (!bar) return;
-    const first = timeline.querySelector('.station[data-idx="0"]');
-    if (currentIdx == null || !first) {
-        bar.style.height = '0px';
-        return;
-    }
-    const from = timeline.querySelector(`.station[data-idx="${currentIdx}"]`);
-    const to = timeline.querySelector(`.station[data-idx="${currentIdx + 1}"]`);
-    const ratio = computeSegmentRatio(progress.distanceFromSegmentStart, progress.distanceToNextPointKm);
-    const y = interpolateElementY(from, to, ratio);
-    if (y === null) {
-        bar.style.height = '0px';
-        return;
-    }
-    const top = first.offsetTop;
-    bar.style.top = `${top}px`;
-    bar.style.height = `${Math.max(0, y - top)}px`;
-}
-
-// -- ACCUEIL --
 
 const SUMMARY_MESSAGES = {
-    'no-route': 'Choisissez une liaison pour afficher la desserte.',
-    'data-unavailable': 'Données de ligne indisponibles : les horaires ne peuvent pas être calculés.',
+    loading: 'Chargement des horaires…',
+    'no-route': 'Choisissez une liaison pour préparer votre desserte.',
+    'data-unavailable': 'Données de ligne indisponibles. Rechargez la page pour réessayer.',
     'no-departure': 'Indiquez l’heure de départ pour calculer les horaires.'
 };
 
-/**
- * Synthèse de desserte de l'accueil : gares desservies et horaires, tels que
- * fournis par buildServiceSummary (trip-config.js). Aucun calcul d'horaire ici.
- */
 export function renderServiceSummary(summary) {
-    const container = document.getElementById('service-summary');
-    if (!container) return;
+    const container = el('service-rest');
+    const focusId = document.activeElement?.dataset.stopId;
+    const hadFocus = container.contains(document.activeElement);
+    el('service-summary').hidden = summary.stops.length === 0;
+    setText('service-notice', SUMMARY_MESSAGES[summary.status] || '');
+    el('service-notice').hidden = summary.status === 'ok';
+    setText('departure-display', STATE.draftConfig.departureTime || '––:––');
+    const first = summary.stops[0];
+    setText('origin-name', first?.name || 'Gare de départ');
+    setText('service-meta', summary.stops.length ? `${summary.intermediateStopCount ? `${summary.intermediateStopCount} arrêt${summary.intermediateStopCount > 1 ? 's' : ''}` : 'Direct'} · ${duration(summary.totalSeconds)}` : '');
     const nodes = [];
-
-    if (summary.stops.length) {
-        const list = document.createElement('ol');
-        list.className = 'service-stops';
-        summary.stops.forEach(stop => {
-            const item = document.createElement('li');
-            item.className = `service-stop ${stop.role}`;
-            const time = document.createElement('time');
-            time.textContent = stop.time ?? '––:––';
-            const name = document.createElement('span');
-            name.textContent = stop.name;
-            item.append(time, name);
-            if (stop.dayOffset > 0) {
-                const day = document.createElement('small');
-                day.textContent = `J+${stop.dayOffset}`;
-                item.append(day);
-            }
-            list.append(item);
-        });
-        nodes.push(list);
+    for (let i = 1; i < summary.stops.length; i++) {
+        const stop = summary.stops[i];
+        const previous = summary.stops[i - 1];
+        const options = summary.stopOptions.filter(option => !option.selected && option.routeIndex > previous.routeIndex && option.routeIndex < stop.routeIndex);
+        nodes.push(`<div class="service-leg" style="--leg-weight:${stop.legSeconds}"><span></span><i class="line-dot" aria-hidden="true"></i><div class="leg-content"><small>${duration(stop.legSeconds)} · ${kmText(stop.legKm)} km</small>${options.length ? `<div class="optional-stops">${options.map(option => `<button type="button" data-stop-id="${escapeHtml(option.id)}" data-stop-action="add" aria-label="Ajouter l’arrêt ${escapeHtml(option.label)}">${escapeHtml(option.label)}</button>`).join('')}</div>` : ''}</div></div>`);
+        nodes.push(`<div class="service-stop ${stop.role}"><time ${stop.timestamp != null ? `datetime="${new Date(stop.timestamp).toISOString()}"` : ''}>${stop.time || '––:––'}${stop.dayOffset > 0 ? `<sup>J+${stop.dayOffset}</sup>` : ''}</time><i class="line-dot" aria-hidden="true"></i><div><strong>${escapeHtml(stop.name)}</strong><small>${stop.role === 'terminus' ? 'Arrivée' : 'Arrêt commercial'}</small></div>${stop.role === 'stop' ? `<button type="button" class="remove-stop" data-stop-id="${escapeHtml(stop.id)}" data-stop-action="remove" aria-label="Retirer l’arrêt ${escapeHtml(stop.name)}">×</button>` : ''}</div>`);
     }
-    if (SUMMARY_MESSAGES[summary.status]) {
-        const note = document.createElement('p');
-        note.className = 'hint';
-        note.textContent = SUMMARY_MESSAGES[summary.status];
-        nodes.push(note);
-    }
-    container.dataset.status = summary.status;
-    container.replaceChildren(...nodes);
+    container.innerHTML = nodes.join('');
+    if (hadFocus) ([...container.querySelectorAll('button')].find(button => button.dataset.stopId === focusId) || el('departure-time')).focus({ preventScroll: true });
+    setText('journey-summary', summary.status === 'ok' ? `${duration(summary.totalSeconds)} · ${kmText(summary.totalKm)} km · arrivée ${summary.stops.at(-1).time}${summary.stops.at(-1).dayOffset > 0 ? ` J+${summary.stops.at(-1).dayOffset}` : ''}` : 'Votre voyage commence ici.');
+    const delta = STATE.draftConfig.globalDeltaSeconds / 60;
+    el('delta-minus').disabled = delta <= DELTA_MIN_MINUTES;
+    el('delta-plus').disabled = delta >= DELTA_MAX_MINUTES;
 }
 
-const HOME_ACTION_LABELS = { launch: 'Lancer le suivi', apply: 'Appliquer et reprendre', resume: 'Reprendre le suivi' };
-const HOME_SECONDARY_LABELS = { cancel: 'Annuler', end: 'Terminer' };
-
-/** Boutons de l'accueil, d'après getHomeAction (train-controller.js). */
 export function renderHomeActions(action) {
-    const primary = document.getElementById('start-btn');
-    if (primary) {
-        primary.textContent = HOME_ACTION_LABELS[action.mode];
-        primary.disabled = !action.enabled;
-        primary.dataset.mode = action.mode;
+    setText('start-btn', { launch: 'Lancer le suivi →', apply: 'Appliquer et reprendre →', resume: 'Reprendre le suivi →' }[action.mode]);
+    el('start-btn').disabled = !action.enabled;
+    el('start-btn').dataset.mode = action.mode;
+    el('secondary-btn').hidden = !action.secondary;
+    setText('secondary-btn', { cancel: 'Annuler les modifications', end: 'Terminer' }[action.secondary] || '');
+    setText('draft-status', action.mode === 'apply' ? 'Modifications non appliquées. Le suivi continue sur les réglages précédents.' : STATE.session.active ? 'La localisation continue pendant les réglages.' : 'Horaires théoriques, décalage ΔT inclus.');
+}
+
+let infoTimer;
+let lastInfo = '';
+export function updateInfo(message) {
+    // Les coordonnées sont affichables dans les détails, pas annoncées par le
+    // lecteur d'écran à chaque seconde. Seuls les événements utiles sont notifiés.
+    if (message === lastInfo) return;
+    lastInfo = message;
+    const node = el('info');
+    node.textContent = message;
+    node.hidden = false;
+    clearTimeout(infoTimer);
+    infoTimer = setTimeout(() => { node.hidden = true; }, INFO_DISPLAY_MS);
+}
+
+let previousView = 'home';
+export function renderNavigation() {
+    const tracking = STATE.view === 'tracking';
+    if (!STATE.session.active) {
+        currentModel = null;
+        currentProfile = null;
+        renderedSession = null;
+        currentRailLabel = '';
+        profileLayouts = new WeakMap();
+        routeRevision = null;
+        activeIndex = null;
+        following = true;
+        el('recenter-btn').hidden = true;
     }
-    const secondary = document.getElementById('secondary-btn');
-    if (secondary) {
-        secondary.hidden = !action.secondary;
-        secondary.textContent = HOME_SECONDARY_LABELS[action.secondary] || '';
+    el('home-view').hidden = tracking;
+    el('tracking-view').hidden = !tracking;
+    el('session-status').hidden = !STATE.session.active;
+    document.body.classList.toggle('tracking-active', tracking);
+    if (!tracking && scrollFrame) { cancelAnimationFrame(scrollFrame); scrollFrame = null; }
+    if (STATE.view !== previousView) {
+        (tracking ? el('tracking-view') : el('home-title')).focus({ preventScroll: true });
+        previousView = STATE.view;
     }
 }
 
-export function updateInfo(msg) {
-    const infoEl = document.getElementById('info');
-    if (infoEl) infoEl.innerHTML = msg;
+const signalLabels = { waiting: 'En attente de localisation', lost: 'Signal perdu · dernière position conservée', recovering: 'Signal instable · récupération', 'off-route': 'Position hors du trajet', ok: 'Signal actif', idle: 'Localisation arrêtée' };
+let currentModel;
+let currentProfile;
+let currentRailLabel = '';
+let profileLayouts = new WeakMap();
+let renderedSession = null;
+let routeRevision = null;
+let activeIndex = null;
+let following = true;
+let scrollFrame = null;
+let lastPassageKey = '';
+
+export function pauseCarouselFollow() {
+    following = false;
+    el('recenter-btn').hidden = false;
+    if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    scrollFrame = null;
 }
 
-// -- FONCTIONS WIDGET --
+export function recenterCarousel() {
+    following = true;
+    el('recenter-btn').hidden = true;
+    layoutCarousel(true);
+}
 
-export function updateTrackingWidget(lastPassedPoint, nextPoint, lastPointDistanceKm, nextPointDistanceKm) {
-    const lastLineEl = document.getElementById('last-line');
-    const nextLineEl = document.getElementById('next-line');
-    const currentTimeEl = document.getElementById('current-time');
-
-    if (lastLineEl) {
-        lastLineEl.innerHTML = lastPassedPoint
-            ? `<span class="label-last">Last :</span> <span class="point">${lastPassedPoint.name}</span> <span class="distance-inline">· ${lastPointDistanceKm.toFixed(2)} km</span>`
-            : `<span class="label-last">Last :</span> <span class="distance-inline">—</span>`;
-    }
-
-    if (nextLineEl) {
-        nextLineEl.innerHTML = nextPoint
-            ? `<span class="label-next">Next :</span> <span class="point">${nextPoint.name}</span> <span class="distance-inline">· ${nextPointDistanceKm.toFixed(2)} km</span>`
-            : `<span class="label-next">Next :</span> <span class="distance-inline">Route ended</span>`;
-    }
-
-    if (!currentTimeEl) return;
-
-    const setStatus = (value, tone) => {
-        currentTimeEl.innerHTML = `
-            <span class="status-label">Statut</span>
-            <span class="status-value">${value}</span>
-        `;
-        currentTimeEl.classList.toggle('red', tone === 'red');
-        currentTimeEl.classList.toggle('green', tone === 'green');
+function layoutCarousel(animate = false) {
+    const points = el('train-points');
+    const carousel = el('train-carousel');
+    if (!currentModel || !carousel.clientHeight) return;
+    const first = points.querySelector('.train-point');
+    if (!first) return;
+    const y = node => node.offsetTop + node.offsetHeight / 2;
+    const all = points.querySelectorAll('.train-point');
+    const lastPoint = all[all.length - 1];
+    points.style.setProperty('--line-top', `${y(first)}px`);
+    points.style.setProperty('--line-height', `${y(lastPoint) - y(first)}px`);
+    const from = all[currentModel.progress.currentIdx];
+    const to = all[currentModel.progress.currentIdx + 1];
+    const progress = STATE.trackingSnapshot?.progress;
+    const ratio = progress ? computeSegmentRatio(progress.distanceFromSegmentStart, progress.distanceToNextPointKm) : 0;
+    points.style.setProperty('--cursor-top', `${from ? y(from) + (to ? (y(to) - y(from)) * ratio : 0) : y(first)}px`);
+    points.querySelector('.train-cursor').hidden = !STATE.trackingSnapshot;
+    if (!following) return;
+    const target = to || from || first;
+    const top = Math.max(0, y(target) - carousel.clientHeight * CAROUSEL_HERO_RATIO);
+    if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!animate || reducedMotion) { carousel.scrollTop = top; scrollFrame = null; return; }
+    const start = carousel.scrollTop;
+    const startTime = performance.now();
+    const step = now => {
+        const t = Math.min(1, (now - startTime) / CAROUSEL_ANIMATION_MS);
+        carousel.scrollTop = start + (top - start) * (1 - (1 - t) ** 3);
+        scrollFrame = t < 1 ? requestAnimationFrame(step) : null;
     };
-
-    if (!nextPoint || typeof STATE.currentDelay !== 'number') {
-        currentTimeEl.textContent = '';
-        currentTimeEl.classList.remove('red', 'green');
-        return;
-    }
-
-    if (STATE.currentDelay > 30_000) {
-        const minutes = Math.floor(STATE.currentDelay / 60000);
-        setStatus(`Delay ${minutes} min`, 'red');
-    } else {
-        setStatus('On Time', 'green');
-    }
+    scrollFrame = requestAnimationFrame(step);
 }
 
-// -- LANDSCAPE HUD --
-
-// Réduit le font-size de chaque .hud-point-name pour qu'il tienne sur une ligne en paysage.
-// Utilise un ratio (scrollWidth / clientWidth) pour approcher la bonne taille en une passe.
-function fitCarouselNames(trackPoints) {
-    if (!window.matchMedia('(orientation: landscape)').matches) return;
-    trackPoints.querySelectorAll('.hud-point-name').forEach(nameEl => {
-        nameEl.style.fontSize = ''; // réinitialise un éventuel inline précédent
-        nameEl.style.whiteSpace = 'nowrap'; // force une seule ligne pour que scrollWidth reflète la largeur réelle
-        const info = nameEl.parentElement;
-        if (!info) return;
-        const available = info.clientWidth;
-        if (available <= 0 || nameEl.scrollWidth <= available) return;
-        // Ratio : proportion disponible / contenu (avec 2 % de marge)
-        const ratio = (available / nameEl.scrollWidth) * 0.98;
-        const fitted = parseFloat(getComputedStyle(nameEl).fontSize) * ratio;
-        nameEl.style.fontSize = fitted + 'px';
-        // Passe de vérification si ça déborde encore (non-linéarités rares)
-        if (nameEl.scrollWidth > available) {
-            nameEl.style.fontSize = (fitted * (available / nameEl.scrollWidth) * 0.98) + 'px';
-        }
+function renderCarousel(model, nowTs, relayout) {
+    const container = el('train-points');
+    const changed = routeRevision !== STATE.planRevision;
+    const idxChanged = activeIndex !== model.progress.currentIdx;
+    if (changed) {
+        routeRevision = STATE.planRevision;
+        lastPassageKey = '';
+        el('profile-readout').hidden = true;
+        setText('details-readout', 'Survolez ou touchez le profil pour lire une mesure. Au clavier, utilisez les flèches.');
+        container.innerHTML = STATE.currentRoute.map((point, index) => `<article class="train-point${point.isStop ? ' stop' : ''}" data-index="${index}"><i class="point-dot" aria-hidden="true"></i><div class="point-name">${escapeHtml(point.name)}</div><div class="point-meta"><span class="theory"></span><span class="point-result"></span></div><div class="point-detail"></div></article>`).join('') + '<i class="train-cursor" aria-hidden="true" hidden></i>';
+    }
+    const points = buildCarouselModel(STATE, model, nowTs);
+    points.forEach(point => {
+        const node = container.children[point.index];
+        const active = point.index === model.progress.currentIdx;
+        const next = point.index === model.progress.currentIdx + 1;
+        const className = `train-point${point.isStop ? ' stop' : ''}${active ? ' active' : next ? ' next' : point.index < model.progress.currentIdx ? ' past' : ''}`;
+        if (node.className !== className) node.className = className;
+        if (active && STATE.trackingSnapshot) node.setAttribute('aria-current', 'step');
+        else node.removeAttribute('aria-current');
+        const theory = node.querySelector('.theory');
+        theory.textContent = clock(point.theoreticalTs);
+        theory.title = `Horaire théorique : ${dateTime(point.theoreticalTs)}`;
+        const result = node.querySelector('.point-result');
+        let text = '';
+        if (point.observedTs != null) text = `Observé ${clock(point.observedTs)} · ${delayText(point.delayMs)}`;
+        else if (point.estimatedTs != null) text = `Prévu ≈ ${clock(point.estimatedTs)}`;
+        else if (point.index < model.progress.currentIdx) text = 'Passage non observé';
+        else text = 'Théorique';
+        if (result.textContent !== text) result.textContent = text;
+        result.className = `point-result${point.observedTs != null ? point.delayMs > 0 ? ' late' : ' observed' : ''}`;
+        const detail = node.querySelector('.point-detail');
+        const info = next && point.distanceKm != null ? `${kmText(point.distanceKm)} km${point.remainingSeconds != null ? ` · ${duration(point.remainingSeconds)}` : ''}${point.isStop ? ' · arrêt commercial' : ''}` : active && STATE.trackingSnapshot ? model.phase === 'arrived' ? 'Voyage arrivé' : 'Dernier repère · position sur le segment' : point.isStop ? 'Arrêt commercial' : '';
+        if (detail.textContent !== info) detail.textContent = info;
     });
+    activeIndex = model.progress.currentIdx;
+    // La géométrie peut changer avec les libellés, la taille du texte et la rotation.
+    // Un tick ordinaire ne reprend jamais la main sur un défilement libre.
+    layoutCarousel(!changed && idxChanged && !relayout);
 }
 
-let _hudLastActiveIdx = null;
-let _hudLastRouteKey = null;
-let _hudScrollAnimId = null;
-// Distances cumulées de la route courante, recalculées au seul rebuild du
-// carousel : la géométrie ne bouge pas entre deux fixes GPS.
-let _hudCumKm = null;
-
-function formatHudDelay(delayMs) {
-    if (typeof delayMs !== 'number') return '';
-    const absMin = Math.floor(Math.abs(delayMs) / 60_000);
-    if (absMin < 1) return '';
-    const sign = delayMs > 0 ? '+' : '-';
-    if (absMin >= 60) {
-        const h = Math.floor(absMin / 60);
-        const m = absMin % 60;
-        return `${sign}${h}h${m > 0 ? m + 'm' : ''}`;
+/** Un seul modèle alimente tous les formats ; aucun abonnement GPS dans le rendu. */
+export function renderTrainTracking({ relayout = false, nowTs = Date.now(), railLocation } = {}) {
+    if (railLocation !== undefined) currentRailLabel = railLocation ? `PK ${formatPk(railLocation.pk)}${railLocation.line ? ` (${railLocation.line})` : ''}` : '';
+    if (!STATE.session.active || STATE.view !== 'tracking') return;
+    if (renderedSession !== STATE.session) {
+        renderedSession = STATE.session;
+        following = true;
+        el('recenter-btn').hidden = true;
     }
-    return `${sign}${absMin}min`;
+    const model = currentModel = buildCockpitModel(STATE, nowTs);
+    if (!model) return;
+    currentProfile = buildSpeedProfile(STATE);
+    setText('tracking-route', MAIN_ROUTES[STATE.appliedConfig.mainRouteKey]?.label || 'Votre voyage');
+    const speedReliable = model.speedReliable && model.location.signal === 'ok';
+    setText('speed-value', speedReliable ? Math.round(model.speedKmh) : '—');
+    el('speed-gauge').setAttribute('aria-label', speedReliable ? `${Math.round(model.speedKmh)} kilomètres par heure` : 'Vitesse indisponible');
+    el('gauge-value').style.strokeDasharray = `${speedReliable ? Math.min(1, model.speedKmh / MAX_TRAIN_SPEED_KMH) * 222 : 0} 333`;
+    const hasEstimate = !!STATE.trackingSnapshot;
+    setText('arrival-label', model.phase === 'arrived' ? 'Arrivée observée' : hasEstimate ? 'Arrivée prévue' : 'Arrivée théorique');
+    const arrivalTs = model.phase === 'arrived' ? STATE.passageTimes[STATE.currentRoute.at(-1).id] : hasEstimate ? model.arrival.estimatedTs : model.arrival.theoreticalTs;
+    setText('arrival-time', clock(arrivalTs));
+    const departureDate = new Date(model.departure.theoreticalTs).toDateString();
+    setText('arrival-date', new Date(arrivalTs).toDateString() !== departureDate ? new Date(arrivalTs).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '');
+    const uncertain = model.phase !== 'arrived' && (!hasEstimate || model.location.signal !== 'ok');
+    setText('delay-chip', uncertain ? hasEstimate ? 'Dernière estimation' : 'En attente' : model.phase === 'before-departure' ? 'Avant départ' : model.displayDelayMs ? `${model.displayDelayMs > 0 ? '+' : '−'}${Math.abs(model.displayDelayMs) / 60000} min` : 'À l’heure');
+    el('delay-chip').className = `delay-chip ${uncertain ? '' : model.displayDelayMs > 0 ? 'late' : model.displayDelayMs < 0 ? 'early' : 'ok'}`;
+    setText('arrival-theory', `Théo. ${clock(model.arrival.theoreticalTs)}`);
+    const next = model.nextStop;
+    setText('next-stop-name', next?.name || 'Arrivée atteinte');
+    setText('next-stop-time', next ? `${hasEstimate ? '≈ ' : ''}${clock(next.estimatedTs)}` : '');
+    setText('next-stop-info', next ? `${next.distanceKm != null ? `${kmText(next.distanceKm)} km · ` : ''}${hasEstimate ? `${duration(next.remainingSeconds)} · ` : ''}théo. ${clock(next.theoreticalTs)}` : 'Les passages restent consultables dans les détails.');
+    setText('km-done', kmText(model.progress.doneKm));
+    setText('km-left', kmText(model.progress.leftKm));
+    setText('speed-average', hasEstimate ? Math.round(model.stats.avgKmh) : '—');
+    setText('speed-max', hasEstimate ? Math.round(model.stats.maxKmh) : '—');
+    const source = model.location.source === 'sncf' ? window.IS_SCRIPTABLE_BRIDGE ? 'Bridge SNCF' : 'WiFi SNCF' : 'GPS';
+    const locationText = `${source} · ${signalLabels[model.location.signal]}${model.location.accuracyM != null ? ` · ±${Math.round(model.location.accuracyM)} m` : ''}`;
+    setText('location-status', locationText);
+    el('location-status').dataset.signal = model.location.signal;
+    el('journey-progress').setAttribute('aria-valuenow', Math.round(model.progress.ratio * 100));
+    el('journey-progress').firstElementChild.style.width = `${model.progress.ratio * 100}%`;
+    setText('progress-label', model.progress.doneKm == null ? 'Position en attente' : `${kmText(model.progress.doneKm)} / ${kmText(model.progress.totalKm)} km · ${Math.round(model.progress.ratio * 100)} %`);
+    renderCarousel(model, nowTs, relayout);
+    drawSpeedProfile(el('speed-profile'), currentProfile, true);
+    if (el('trip-details').open) renderTripDetails();
 }
 
-export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, userLon, speedReliable = true, progress = {}) {
-    if (!window.matchMedia('(orientation: landscape)').matches) return;
-
-    // Avancement sur le segment courant : seule donnée qui bouge entre deux
-    // points, elle alimente la tête de lecture et les distances le long du trajet.
-    const hasProgress = Number.isFinite(progress.distanceFromSegmentStart) &&
-        Number.isFinite(progress.distanceToNextPointKm);
-    const segmentRatio = hasProgress
-        ? computeSegmentRatio(progress.distanceFromSegmentStart, progress.distanceToNextPointKm)
-        : 0;
-
-    // --- Dashboard ---
-    const speedEl = document.getElementById('hud-speed');
-    const etaEl = document.getElementById('hud-eta');
-    const delayEl = document.getElementById('hud-delay');
-
-    if (speedEl) {
-        if (!speedReliable) {
-            speedEl.style.setProperty('--speed-deg', '0deg');
-            speedEl.innerHTML = `<span class="hud-speed-value"><i class="fas fa-signal-slash"></i></span>`;
-        } else {
-            const displaySpeed = Math.round(speed);
-            const arcSpeed = Math.min(displaySpeed, 320);
-            const speedDeg = Math.round((arcSpeed / 320) * 240);
-            speedEl.style.setProperty('--speed-deg', `${speedDeg}deg`);
-            speedEl.innerHTML = `
-                <span class="hud-speed-value">${displaySpeed}</span>
-                <span class="hud-speed-unit">km/h</span>
-            `;
+/** Le canvas est dimensionné en pixels physiques après chaque changement de surface. */
+function drawSpeedProfile(canvas, profile, dark = false) {
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const dpr = window.devicePixelRatio || 1;
+    const width = rect.width, height = rect.height;
+    if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+        canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    const detailed = height >= 90;
+    const left = detailed ? 30 : 1, right = 12, bottom = detailed ? 23 : 3, top = 8;
+    const w = Math.max(1, width - left - right), h = Math.max(1, height - top - bottom);
+    let max = Math.max(MAX_TRAIN_SPEED_KMH, profile.maxKmh);
+    for (const segment of profile.planned) max = Math.max(max, segment.kmh);
+    const x = km => left + km / (profile.totalKm || 1) * w;
+    const y = v => top + h - v / max * h;
+    ctx.font = '11px system-ui';ctx.lineWidth = 1;
+    ctx.strokeStyle = dark ? '#ffffff20' : '#211d1e20';ctx.fillStyle = dark ? '#c8c1c3' : '#71676a';
+    if (detailed) {
+        for (const v of [0, max / 2, max]) {
+            ctx.beginPath();ctx.moveTo(left, y(v));ctx.lineTo(width - right, y(v));ctx.stroke();ctx.fillText(String(Math.round(v)), 0, y(v) + 4);
+        }
+        ctx.fillText('0', left, height - 4);ctx.textAlign = 'right';ctx.fillText(`${kmText(profile.totalKm)} km`, width - right, height - 4);ctx.textAlign = 'left';
+    }
+    ctx.strokeStyle = dark ? '#c8c1c3' : '#8a777e';ctx.setLineDash([4, 4]);ctx.beginPath();
+    for (const segment of profile.planned) { ctx.moveTo(x(segment.fromKm), y(segment.kmh));ctx.lineTo(x(segment.toKm), y(segment.kmh)); }
+    ctx.stroke();ctx.setLineDash([]);
+    const envelope = buildProfileEnvelope(profile, Math.min(PROFILE_MAX_COLUMNS, w));
+    profileLayouts.set(canvas, { envelope, totalKm: profile.totalKm, left, width: w });
+    ctx.strokeStyle = dark ? '#fff' : '#8b2a3f';ctx.lineWidth = 1.7;ctx.beginPath();
+    let previous = null;
+    for (const bucket of envelope) {
+        const points = [bucket.first, bucket.min, bucket.max, bucket.last].sort((a, b) => a.ts - b.ts);
+        if (!previous || bucket.gap || previous.gap) ctx.moveTo(x(points[0].routeKm), y(points[0].v));
+        else ctx.lineTo(x(points[0].routeKm), y(points[0].v));
+        for (const point of points) ctx.lineTo(x(point.routeKm), y(point.v));
+        previous = bucket;
+    }
+    ctx.stroke();
+    if (profile.currentKm != null) {
+        ctx.strokeStyle = dark ? '#f0b9c4' : '#8b2a3f';ctx.lineWidth = 1;ctx.beginPath();ctx.moveTo(x(profile.currentKm), top);ctx.lineTo(x(profile.currentKm), top + h);ctx.stroke();
+    }
+    if (detailed) {
+        for (const stop of profile.stops) {
+            ctx.strokeStyle = dark ? '#ffffff30' : '#211d1e20';ctx.beginPath();ctx.moveTo(x(stop.km), top);ctx.lineTo(x(stop.km), top + h);ctx.stroke();
+        }
+        for (const passage of profile.passages) {
+            ctx.fillStyle = passage.delayMs > 0 ? dark ? '#ff8a73' : '#b8371f' : dark ? '#6fd9a8' : '#1f7a52';ctx.beginPath();ctx.arc(x(passage.km), top + h, 3, 0, Math.PI * 2);ctx.fill();
         }
     }
-
-    const graphCanvas = document.getElementById('hud-speed-graph');
-    if (graphCanvas) {
-        const ctx = graphCanvas.getContext('2d');
-        const w = graphCanvas.width;
-        const h = graphCanvas.height;
-        const history = STATE.session.samples;
-        const maxSpeed = Math.max(...history.slice(Math.max(0, history.length - 1200)).map(p => p.v), 1);
-
-        ctx.clearRect(0, 0, w, h);
-
-        if (history.length >= 2) {
-            const total = 1200;
-            const startIdx = Math.max(0, history.length - total);
-            const points = history.slice(startIdx);
-            const n = points.length;
-
-            const xScale = w / (n - 1);
-
-            // Remplissage (aire sous la courbe, toujours en valeur .v)
-            const grad = ctx.createLinearGradient(0, 0, 0, h);
-            grad.addColorStop(0, 'rgba(255, 255, 255, 0.20)');
-            grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-            ctx.beginPath();
-            for (let i = 0; i < n; i++) {
-                const x = i * xScale;
-                const y = h - (Math.min(points[i].v, maxSpeed) / maxSpeed) * h;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.lineTo((n - 1) * xScale, h);
-            ctx.lineTo(0, h);
-            ctx.closePath();
-            ctx.fillStyle = grad;
-            ctx.fill();
-
-            // Ligne segment par segment selon fiabilité
-            ctx.lineJoin = 'round';
-            ctx.lineWidth = 1.5;
-            for (let i = 1; i < n; i++) {
-                const prev = points[i - 1];
-                const curr = points[i];
-                const reliable = curr.reliable !== false && prev.reliable !== false;
-                ctx.beginPath();
-                ctx.strokeStyle = reliable ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.35)';
-                ctx.setLineDash(reliable ? [] : [4, 4]);
-                const x0 = (i - 1) * xScale;
-                const y0 = h - (Math.min(prev.v, maxSpeed) / maxSpeed) * h;
-                const x1 = i * xScale;
-                const y1 = h - (Math.min(curr.v, maxSpeed) / maxSpeed) * h;
-                ctx.moveTo(x0, y0);
-                ctx.lineTo(x1, y1);
-                ctx.stroke();
-            }
-            ctx.setLineDash([]);
-
-            // Marqueurs des points passés
-            const nowTs = Date.now();
-            for (const marker of (STATE.passedPointMarkers || [])) {
-                const secsAgo = Math.round((nowTs - marker.ts) / 1000);
-                const markerIdx = (history.length - 1 - secsAgo) - startIdx;
-                if (markerIdx < 0 || markerIdx >= n) continue;
-                const x = markerIdx * xScale;
-                const y = h - (Math.min(points[markerIdx].v, maxSpeed) / maxSpeed) * h;
-
-                // Trait vertical
-                ctx.beginPath();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-                ctx.lineWidth = 1;
-                ctx.moveTo(x, y);
-                ctx.lineTo(x, h);
-                ctx.stroke();
-
-                // Point blanc
-                ctx.beginPath();
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-                ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-    }
-
-    if (etaEl && STATE.currentRoute.length && STATE.departureTimestamp) {
-        let totalSec = 0;
-        for (let i = 0; i < STATE.currentRoute.length - 1; i++) {
-            totalSec += Number(STATE.currentRoute[i].durationEffective ?? STATE.currentRoute[i].baseDurationToNext ?? 0);
-        }
-        const theoArrivalMs = STATE.departureTimestamp + totalSec * 1000;
-        const beforeDeparture = Date.now() < STATE.departureTimestamp;
-        // Même règle d'affichage que la pilule retard et que les heures
-        // projetées de la timeline (alignDelayForDisplay) : sous les seuils,
-        // l'ETA reste théorique.
-        const delayAligned = alignDelayForDisplay(currentDelay);
-        const etaMs = theoArrivalMs + (beforeDeparture ? 0 : delayAligned);
-        const etaDate = new Date(etaMs);
-        const hh = String(etaDate.getHours()).padStart(2, '0');
-        const mm = String(etaDate.getMinutes()).padStart(2, '0');
-        etaEl.innerHTML = `
-            <span class="hud-eta-label">ETA</span>
-            <span class="hud-eta-time">${hh}:${mm}</span>
-        `;
-    }
-
-    if (delayEl) {
-        const delayMinutes = Math.floor(Math.abs(currentDelay) / 60_000);
-        let label;
-        if (currentDelay > 60_000) {
-            label = `+ ${delayMinutes} min LATE`;
-            delayEl.className = 'late';
-        } else if (currentDelay < -180_000) {
-            label = `- ${delayMinutes} min EARLY`;
-            delayEl.className = 'early';
-        } else {
-            label = 'ON TIME';
-            delayEl.className = '';
-        }
-        delayEl.textContent = label;
-    }
-
-    // --- Carousel ---
-    const trackPoints = document.getElementById('hud-track-points');
-    if (!trackPoints || !STATE.currentRoute.length) return;
-
-    const carousel = trackPoints.closest('.hud-carousel') || trackPoints.parentElement;
-    const carouselHeight = carousel ? carousel.clientHeight : window.innerHeight;
-
-    const routeKey = STATE.planRevision;
-    const routeChanged = routeKey !== _hudLastRouteKey;
-    const idxChanged = currentIdx !== _hudLastActiveIdx;
-
-    if (!routeChanged && idxChanged) {
-        _hudLastActiveIdx = currentIdx;
-
-        // Mise à jour des classes sur les vrais éléments (CSS transitions démarrent)
-        trackPoints.querySelectorAll('.hud-point[data-idx]').forEach(div => {
-            const i = parseInt(div.dataset.idx, 10);
-            let cls = 'hud-point';
-            if      (i === currentIdx)     cls += ' active';
-            else if (i === currentIdx + 1) cls += ' next';
-            else if (i === currentIdx - 1) cls += ' passed-1';
-            else if (i === currentIdx + 2) cls += ' future-1';
-            else if (i < currentIdx)       cls += ' passed';
-            else                           cls += ' future';
-            if (STATE.currentRoute[i] && STATE.currentRoute[i].isStop) cls += ' stop';
-            div.className = cls;
-
-            // Badge de retard pour le point nouvellement actif
-            if (i <= currentIdx && STATE.passedPoints && Object.prototype.hasOwnProperty.call(STATE.passedPoints, STATE.currentRoute[i].id)) {
-                const timeEl = div.querySelector('.hud-point-time');
-                if (timeEl && !timeEl.querySelector('.hud-point-delay')) {
-                    const delayStr = formatHudDelay(STATE.passedPoints[STATE.currentRoute[i].id]);
-                    if (delayStr) {
-                        const cls2 = STATE.passedPoints[STATE.currentRoute[i].id] < 0 ? 'hud-point-delay early' : 'hud-point-delay';
-                        const badge = document.createElement('span');
-                        badge.className = cls2;
-                        badge.textContent = delayStr;
-                        timeEl.appendChild(badge);
-                    }
-                }
-            }
-        });
-        fitCarouselNames(trackPoints);
-    }
-
-    if (routeChanged) {
-        _hudLastActiveIdx = currentIdx;
-        _hudLastRouteKey = routeKey;
-
-        _hudCumKm = buildCumulativeDistances(STATE.currentRoute);
-
-        // Padding allows first/last points to scroll to their target position
-        trackPoints.style.paddingTop = `${carouselHeight * 0.35}px`;
-        trackPoints.style.paddingBottom = `${carouselHeight * 0.65}px`;
-
-        trackPoints.innerHTML = '';
-
-        // Pré-calcul des heures d'arrivée théoriques pour tous les points
-        const arrivalTimes = [];
-        let cumMs = STATE.departureTimestamp || 0;
-        arrivalTimes.push(cumMs);
-        for (let i = 0; i < STATE.currentRoute.length - 1; i++) {
-            cumMs += Number(STATE.currentRoute[i].durationEffective ?? STATE.currentRoute[i].baseDurationToNext ?? 0) * 1000;
-            arrivalTimes.push(cumMs);
-        }
-
-        for (let i = 0; i < STATE.currentRoute.length; i++) {
-            const point = STATE.currentRoute[i];
-
-            // Hiérarchie des classes : active > next > passed-1/future-1 > passed/future
-            let cls;
-            if      (i === currentIdx)     cls = 'hud-point active';
-            else if (i === currentIdx + 1) cls = 'hud-point next';
-            else if (i === currentIdx - 1) cls = 'hud-point passed-1';
-            else if (i === currentIdx + 2) cls = 'hud-point future-1';
-            else if (i < currentIdx)       cls = 'hud-point passed';
-            else                           cls = 'hud-point future';
-
-            if (point.isStop) cls += ' stop';
-
-            const div = document.createElement('div');
-            div.className = cls;
-            div.dataset.idx = i;
-
-            const arrivalDate = arrivalTimes[i] ? new Date(arrivalTimes[i]) : null;
-            const timeStr = arrivalDate
-                ? `${String(arrivalDate.getHours()).padStart(2, '0')}:${String(arrivalDate.getMinutes()).padStart(2, '0')}`
-                : '';
-
-            // Delay badge for passed points and active point
-            let delayHtml = '';
-            if (i <= currentIdx && STATE.passedPoints && Object.prototype.hasOwnProperty.call(STATE.passedPoints, point.id)) {
-                const delayStr = formatHudDelay(STATE.passedPoints[point.id]);
-                if (delayStr) {
-                    const cls2 = STATE.passedPoints[point.id] < 0 ? 'hud-point-delay early' : 'hud-point-delay';
-                    delayHtml = `<span class="${cls2}">${delayStr}</span>`;
-                }
-            }
-
-            div.innerHTML = `
-                <div class="hud-point-dot"></div>
-                <div class="hud-point-info">
-                    <div class="hud-point-name">${point.name}</div>
-                    ${timeStr ? `<div class="hud-point-time">${timeStr}${delayHtml}</div>` : ''}
-                    <div class="hud-point-distance"></div>
-                </div>
-            `;
-
-            trackPoints.appendChild(div);
-        }
-
-        ensureHudCursor(trackPoints);
-
-        // Snap immédiat du carousel (reflow synchrone après rebuild DOM)
-        // On cible .next (héros) à 40% ; fallback sur .active si pas de next
-        const snapTarget = trackPoints.querySelector('.hud-point.next') || trackPoints.querySelector('.hud-point.active');
-        if (snapTarget && carousel) {
-            carousel.scrollTop = Math.max(0, snapTarget.offsetTop + snapTarget.offsetHeight / 2 - carouselHeight * 0.40);
-        }
-        fitCarouselNames(trackPoints);
-    }
-
-    // Animation scroll + recalcul des bornes bordeaux à chaque frame
-    if (routeChanged || idxChanged) {
-        if (_hudScrollAnimId) cancelAnimationFrame(_hudScrollAnimId);
-        setHudRelayout(trackPoints, true);
-        const scrollStart = carousel.scrollTop;
-        const animStart = performance.now();
-        const SCROLL_DURATION = 700;
-        function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-        function animateScroll(now) {
-            const elapsed = Math.min(now - animStart, SCROLL_DURATION);
-            const progress = easeOutCubic(elapsed / SCROLL_DURATION);
-            // On cible .next (héros) à 40% ; fallback sur .active si dernier point
-            const targetEl = trackPoints.querySelector('.hud-point.next') || trackPoints.querySelector('.hud-point.active');
-            if (targetEl) {
-                const liveTarget = Math.max(0, targetEl.offsetTop + targetEl.offsetHeight / 2 - carouselHeight * 0.40);
-                carousel.scrollTop = scrollStart + (liveTarget - scrollStart) * progress;
-            }
-            updateHudCursor(trackPoints, currentIdx, currentIdx + 1, segmentRatio);
-            // Recalcul des bornes de la ligne bordeaux à chaque frame
-            const allPts = trackPoints.querySelectorAll('.hud-point');
-            if (allPts.length >= 1) {
-                const firstPt = allPts[0];
-                const lastPt = allPts[allPts.length - 1];
-                trackPoints.style.setProperty('--line-top', `${firstPt.offsetTop + firstPt.offsetHeight / 2}px`);
-                trackPoints.style.setProperty('--line-bottom', `${trackPoints.scrollHeight - lastPt.offsetTop - lastPt.offsetHeight / 2}px`);
-            }
-            if (elapsed < SCROLL_DURATION) {
-                _hudScrollAnimId = requestAnimationFrame(animateScroll);
-            } else {
-                _hudScrollAnimId = null;
-                setHudRelayout(trackPoints, false);
-                // La taille des noms transitionne pendant toute la fenêtre :
-                // l'ajustement fait au départ mesurait l'ancienne taille et
-                // laissait déborder les noms longs. On le rejoue une fois la
-                // mise en page stabilisée.
-                fitCarouselNames(trackPoints);
-            }
-        }
-        _hudScrollAnimId = requestAnimationFrame(animateScroll);
-    }
-
-    updateHudCursor(trackPoints, currentIdx, currentIdx + 1, segmentRatio);
-
-    // Mise à jour des distances en temps réel (à chaque appel GPS, même sans rebuild).
-    // Mesure le long du trajet quand la projection est disponible — plus juste
-    // qu'un vol d'oiseau derrière une courbe ; repli sur la distance directe
-    // sinon (source sans projection valide).
-    const routeKm = _hudCumKm && hasProgress && Number.isFinite(_hudCumKm[currentIdx])
-        ? _hudCumKm[currentIdx] + progress.distanceFromSegmentStart
-        : null;
-    const hasCoords = typeof userLat === 'number' && typeof userLon === 'number';
-    if (routeKm !== null || hasCoords) {
-        trackPoints.querySelectorAll('.hud-point[data-idx]').forEach(div => {
-            const i = parseInt(div.dataset.idx, 10);
-            const point = STATE.currentRoute[i];
-            if (!point) return;
-            const distEl = div.querySelector('.hud-point-distance');
-            if (!distEl) return;
-            let dist;
-            if (routeKm !== null && Number.isFinite(_hudCumKm[i])) {
-                dist = Math.abs(_hudCumKm[i] - routeKm);
-            } else if (hasCoords && typeof point.lat === 'number' && typeof point.lon === 'number') {
-                dist = haversineDistance(userLat, userLon, point.lat, point.lon);
-            } else {
-                return;
-            }
-            const arrow = i <= currentIdx ? '↓' : '↑';
-            distEl.textContent = `${arrow} ${dist.toFixed(1)} km`;
-        });
-    }
+    canvas.setAttribute('aria-label', `Vitesse sur ${kmText(profile.totalKm)} kilomètres. Maximum mesuré ${Math.round(profile.maxKmh)} km/h. ${profile.passages.length} passages observés. Mesures pleines, moyennes horaires théoriques en pointillés. Détails dans le journal des passages.`);
 }
 
-// -- UTILITAIRES LOCAUX --
-
-function formatDelayMs(delayMs) {
-    if (typeof delayMs !== 'number') return '';
-
-    // On n'affiche pas les retards négatifs (avance) ni les retards inférieurs à 1 minute
-    if (delayMs < 60000) return '';
-
-    const totalMinutes = Math.floor(delayMs / 60000);
-    if (totalMinutes >= 60) {
-        const h = Math.floor(totalMinutes / 60);
-        const m = totalMinutes % 60;
-        return m > 0 ? `+${h}h${m}min` : `+${h}h`;
+export function renderTripDetails() {
+    if (!currentModel || !currentProfile) return;
+    drawSpeedProfile(el('details-profile'), currentProfile);
+    let lastFix = null;
+    for (let i = STATE.session.samples.length - 1; i >= 0 && !lastFix; i--) {
+        if (Number.isFinite(STATE.session.samples[i].lat)) lastFix = STATE.session.samples[i];
     }
-    return `+${totalMinutes}min`;
+    setText('details-location', `${el('location-status').textContent}${lastFix ? ` · ${lastFix.lat.toFixed(5)}, ${lastFix.lon.toFixed(5)}` : ''}${currentRailLabel ? ` · ${currentRailLabel}` : ''}`);
+    const key = `${STATE.planRevision}|${currentProfile.passages.length}`;
+    if (key === lastPassageKey) return;
+    lastPassageKey = key;
+    el('passage-log').innerHTML = currentProfile.passages.length ? currentProfile.passages.map(passage => `<tr><th scope="row">${escapeHtml(passage.name)}${passage.isStop ? ' · arrêt' : ''}</th><td>${dateTime(passage.theoreticalTs)}</td><td>${dateTime(passage.ts)}</td><td>${delayText(passage.delayMs)}</td></tr>`).join('') : '<tr><td colspan="4">Aucun passage observé pour le moment.</td></tr>';
+}
+
+/** Inspection au doigt, à la souris et au clavier, depuis les mesures du tracé. */
+export function inspectSpeedProfile(canvas, event) {
+    const layout = profileLayouts.get(canvas);
+    if (!layout || !layout.envelope.length) return;
+    const rect = canvas.getBoundingClientRect();
+    let ratio;
+    if (event.type === 'keydown') {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const index = Math.max(0, Math.min(layout.envelope.length - 1,
+            event.key === 'Home' ? 0 : event.key === 'End' ? layout.envelope.length - 1 : Number(canvas.dataset.readIndex || 0) + (event.key === 'ArrowRight' ? 1 : -1)));
+        canvas.dataset.readIndex = index;
+        ratio = layout.envelope[index].last.routeKm / (layout.totalKm || 1);
+    } else {
+        ratio = Math.max(0, Math.min(1, (event.clientX - rect.left - layout.left) / layout.width));
+    }
+    const targetKm = ratio * layout.totalKm;
+    let sample = null;
+    for (const bucket of layout.envelope) {
+        for (const point of [bucket.first, bucket.min, bucket.max, bucket.last]) {
+            if (!sample || Math.abs(point.routeKm - targetKm) < Math.abs(sample.routeKm - targetKm)) sample = point;
+        }
+    }
+    if (!sample) return;
+    const readout = el(canvas.id === 'details-profile' ? 'details-readout' : 'profile-readout');
+    readout.hidden = false;
+    readout.textContent = `${kmText(sample.routeKm)} km · ${Math.round(sample.v)} km/h mesurés · ${dateTime(sample.ts)}`;
 }

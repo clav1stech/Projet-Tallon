@@ -1,22 +1,24 @@
 import { STATE, restoreSettings, saveSettings } from './state.js';
 import { buildServiceSummary, createTripConfig } from './trip-config.js';
-import { ingestFix, recordSignalLossTick, getLocationStatus } from './tracking-session.js';
+import { ingestFix, recordSignalLossTick } from './tracking-session.js';
 import {
     adoptLocationMethod, applyDraft, buildDraftPlan, getHomeAction, launchSession,
     revertDraft, setDraft, showView, stopSession
 } from './train-controller.js';
 import {
-    populateTrajetDropdown, renderStopCheckboxes, displayTimeline, updateInfo, updateTrackingWidget,
-    updateLandscapeHUD, renderServiceSummary, renderHomeActions
+    populateRouteChoices, syncFormControls, syncLocationControls, updateInfo,
+    renderTrainTracking, renderServiceSummary, renderHomeActions, renderNavigation,
+    pauseCarouselFollow, recenterCarousel, renderTripDetails, inspectSpeedProfile
 } from './ui.js';
 import { geoErrorMessage } from './geo.js';
 import { loadDataset } from './csv.js';
-import { buildCorridor, locateOnCorridor, formatPk } from './linearref.js';
+import { buildCorridor, locateOnCorridor } from './linearref.js';
 import { DELTA_MAX_MINUTES, DELTA_MIN_MINUTES, GEOLOCATION_OPTIONS, TRACKING_TICK_MS } from './train-config.js';
 
 // Boucle d'acquisition : créée au lancement d'une session, détruite à sa
 // clôture. Ni la navigation ni une reconfiguration n'y touchent.
 let trackingInterval = null;
+let coreDataLoading = true;
 
 // La détection ne peut pas reposer sur le seul user-agent : dans une WebView
 // hôte (Scriptable), l'UA peut ne pas contenir « iPhone », ce qui basculerait
@@ -26,22 +28,6 @@ function isIPhoneDevice() {
     if (typeof navigator === 'undefined') return false;
     if (/iPhone|iPod/i.test(navigator.userAgent || '')) return true;
     return navigator.platform === 'iPhone' || navigator.platform === 'iPod touch';
-}
-
-function updateDebugBar(status) {
-    const el = document.getElementById('debug-bar');
-    if (!el) return;
-    const ua = navigator.userAgent;
-    let agentLabel;
-    if (window.IS_SCRIPTABLE_BRIDGE || ua.includes('Scriptable'))               agentLabel = 'Scriptable';
-    else if (/iPhone/i.test(ua))                                               agentLabel = 'iPhone Safari';
-    else if (/iPad/i.test(ua))                                                 agentLabel = 'iPad Safari';
-    else if (/Macintosh|Mac OS X/.test(ua) && !ua.includes('Mobile'))         agentLabel = 'Mac Safari';
-    else                                                                        agentLabel = 'Autre';
-    const fakeGps = window.FAKE_GPS_SPEED_MULTIPLIER
-        ? `⚡ FakeGPS ×${window.FAKE_GPS_SPEED_MULTIPLIER}`
-        : (typeof ENABLE_FAKE_GPS !== 'undefined' && !ENABLE_FAKE_GPS ? 'FakeGPS OFF' : '');
-    el.innerHTML = `Agent: ${agentLabel} | Mode: ${STATE.locationMethod}${fakeGps ? ' | ' + fakeGps : ''}${status ? ' | ' + status : ''}<br><small style="opacity:0.6">${ua}</small>`;
 }
 
 // Charge masterRoutes.normalized.json et servicePatterns.json
@@ -95,29 +81,10 @@ const el = (id) => document.getElementById(id);
 
 /** Aperçu de desserte et actions de l'accueil, depuis la configuration provisoire. */
 function renderHome() {
-    renderServiceSummary(buildServiceSummary(buildDraftPlan(STATE)));
+    const summary = buildServiceSummary(buildDraftPlan(STATE));
+    if (coreDataLoading && summary.status === 'data-unavailable') summary.status = 'loading';
+    renderServiceSummary(summary);
     renderHomeActions(getHomeAction(STATE));
-}
-
-/** Aligne les champs du formulaire sur la configuration provisoire. */
-function syncFormFromDraft() {
-    const draft = STATE.draftConfig;
-    const routeSelect = el('routeSelect');
-    if (routeSelect) routeSelect.value = draft.mainRouteKey;
-    renderStopCheckboxes(draft.mainRouteKey, draft.stopIds, (stopIds) => updateDraft({ stopIds }));
-    const departureInput = el('departure-time');
-    if (departureInput && departureInput.value !== draft.departureTime) departureInput.value = draft.departureTime;
-    const deltaInput = el('global-delta');
-    if (deltaInput) deltaInput.value = Math.round(draft.globalDeltaSeconds / 60).toString();
-    syncLocationControls();
-}
-
-function syncLocationControls(bridge = false) {
-    const toggle = el('location-mode-toggle');
-    const label = el('location-mode-label');
-    const sncf = STATE.draftConfig.locationMethod === 'sncf';
-    if (toggle) toggle.checked = sncf;
-    if (label) label.textContent = sncf ? (bridge ? 'WiFi SNCF (Bridge)' : 'WiFi SNCF') : 'GPS natif';
 }
 
 function updateDraft(patch) {
@@ -126,49 +93,14 @@ function updateDraft(patch) {
     renderHome();
 }
 
-/**
- * Redessine le suivi depuis l'état, sans attendre de fix : appelé après
- * chaque position, mais aussi au retour des réglages, après une
- * reconfiguration et lors d'une rotation.
- */
-function renderTracking() {
-    if (!STATE.session.active) {
-        displayTimeline();
-        return;
-    }
-    const snapshot = STATE.trackingSnapshot;
-    if (!snapshot) {
-        // Trajet connu, position pas encore accrochée : le suivi montre déjà
-        // le parcours et l'heure d'arrivée théorique.
-        displayTimeline();
-        if (STATE.view === 'tracking') updateLandscapeHUD(0, 0, 0, undefined, undefined, false);
-        return;
-    }
-
-    const route = STATE.currentRoute;
-    const idx = snapshot.displayIdx;
-    displayTimeline(idx, snapshot.progress);
-    updateTrackingWidget(
-        route[idx] || null,
-        idx < route.length - 1 ? route[idx + 1] : null,
-        snapshot.lastPointDistanceKm,
-        snapshot.progress.distanceToNextPointKm
-    );
-    // Le HUD mesure son conteneur : inutile et faux tant qu'il est masqué.
-    if (STATE.view === 'tracking') {
-        const signalLost = getLocationStatus(STATE).signal === 'lost';
-        updateLandscapeHUD(idx, snapshot.speedKmh, snapshot.currentDelayMs, snapshot.lat, snapshot.lon,
-            snapshot.speedReliable && !signalLost, snapshot.progress);
-    }
+function renderTracking(options) {
+    renderTrainTracking(options);
 }
 
-/** Reflète l'état de navigation et de session dans la page. */
 function syncView() {
-    document.body.classList.toggle('tracking-active', STATE.view === 'tracking');
-    document.body.classList.toggle('session-active', STATE.session.active);
+    renderNavigation();
     renderHome();
-    renderTracking();
-    updateDebugBar();
+    renderTracking({ relayout: true });
 }
 
 // ───────────────────────── Session ─────────────────────────
@@ -188,6 +120,8 @@ function stopTrackingLoop() {
     if (!trackingInterval) return;
     clearInterval(trackingInterval);
     trackingInterval = null;
+    acquisitionPending = false;
+    pendingRequest = null;
 }
 
 function onPrimaryAction() {
@@ -214,23 +148,20 @@ function onSecondaryAction() {
     if (action.secondary === 'cancel') {
         revertDraft(STATE);
         saveSettings();
-        syncFormFromDraft();
+        syncFormControls(STATE.draftConfig);
         renderHome();
     } else if (action.secondary === 'end') {
-        stopTrackingLoop();
-        stopSession(STATE);
-        syncView();
+        el('end-session').showModal();
     }
 }
 
 // Bridge de communication pour Scriptable
 window.addEventListener('message', (e) => {
-    if (e.data && e.data.type === 'SNCF_GPS_BRIDGE') {
+    if (e.data?.coords && e.data.type === 'SNCF_GPS_BRIDGE') {
         window.IS_SCRIPTABLE_BRIDGE = true;
         if (STATE.locationMethod !== 'sncf') {
             adoptLocationMethod(STATE, 'sncf');
-            syncLocationControls(true);
-            updateDebugBar('Bridge Auto-Activated');
+            syncLocationControls();
         }
         showPosition({
             coords: {
@@ -250,31 +181,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.classList.toggle('non-iphone-device', !isIPhoneDevice());
 
     restoreSettings();
-    const locationToggle = el('location-mode-toggle');
-    STATE.draftConfig = createTripConfig({
-        ...STATE.draftConfig,
-        locationMethod: locationToggle && locationToggle.checked ? 'sncf' : 'geo'
-    });
-
-    // MAIN_ROUTES est statique : le formulaire n'attend pas le chargement des données.
-    populateTrajetDropdown(STATE.draftConfig.mainRouteKey);
-    syncFormFromDraft();
-    updateDebugBar();
-
-    await loadCoreData();
-
-    // Chargement non bloquant : le PK est un enrichissement, pas un prérequis.
-    loadRailPkCorridor();
+    STATE.draftConfig = createTripConfig(STATE.draftConfig);
+    syncFormControls(STATE.draftConfig);
 
     // Chaque champ ne modifie que la configuration provisoire : la session en
     // cours n'en voit rien avant « Appliquer ».
-    const routeSelect = el('routeSelect');
-    if (routeSelect) {
-        routeSelect.addEventListener('change', () => {
-            updateDraft({ mainRouteKey: routeSelect.value || '' });
-            renderStopCheckboxes(STATE.draftConfig.mainRouteKey, STATE.draftConfig.stopIds, (stopIds) => updateDraft({ stopIds }));
-        });
-    }
+    el('route-choices').addEventListener('change', event => {
+        if (!event.target.matches('input[type="radio"]')) return;
+        updateDraft({ mainRouteKey: event.target.value });
+        populateRouteChoices(STATE.draftConfig.mainRouteKey);
+    });
+    el('service-rest').addEventListener('click', event => {
+        const button = event.target.closest('[data-stop-id]');
+        if (!button) return;
+        const ids = new Set(STATE.draftConfig.stopIds);
+        if (button.dataset.stopAction === 'add') ids.add(button.dataset.stopId);
+        else ids.delete(button.dataset.stopId);
+        updateDraft({ stopIds: [...ids] });
+    });
 
     const departureInput = el('departure-time');
     if (departureInput) {
@@ -286,20 +210,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         departureInput.addEventListener('change', () => updateDraft({ departureTime: departureInput.value || '' }));
     }
 
-    if (locationToggle) {
-        locationToggle.addEventListener('change', () => {
-            updateDraft({ locationMethod: locationToggle.checked ? 'sncf' : 'geo' });
+    document.querySelectorAll('input[name="location-method"]').forEach(input => {
+        input.addEventListener('change', () => {
+            updateDraft({ locationMethod: input.value });
             syncLocationControls();
         });
-    }
+    });
 
     const deltaInput = el('global-delta');
     const setDeltaMinutes = (minutes) => {
-        const clamped = Math.max(DELTA_MIN_MINUTES, Math.min(DELTA_MAX_MINUTES, Number.isFinite(minutes) ? minutes : 0));
+        const clamped = Math.max(DELTA_MIN_MINUTES, Math.min(DELTA_MAX_MINUTES, Number.isFinite(minutes) ? Math.round(minutes) : 0));
         updateDraft({ globalDeltaSeconds: clamped * 60 });
         if (deltaInput) deltaInput.value = Math.round(STATE.draftConfig.globalDeltaSeconds / 60).toString();
     };
-    if (deltaInput) deltaInput.addEventListener('change', () => setDeltaMinutes(Number(deltaInput.value)));
+    deltaInput?.addEventListener('input', () => {
+        if (deltaInput.value !== '') setDeltaMinutes(Number(deltaInput.value));
+    });
+    deltaInput?.addEventListener('change', () => setDeltaMinutes(Number(deltaInput.value)));
     const stepDelta = (step) => setDeltaMinutes(Math.round(STATE.draftConfig.globalDeltaSeconds / 60) + step);
     el('delta-minus')?.addEventListener('click', () => stepDelta(-1));
     el('delta-plus')?.addEventListener('click', () => stepDelta(1));
@@ -311,64 +238,102 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncView();
     });
 
-    // Rotation ou redimensionnement : simple redessin depuis l'état.
+    el('confirm-end-btn').addEventListener('click', () => {
+        el('end-session').close();
+        stopTrackingLoop();
+        stopSession(STATE);
+        syncView();
+    });
+    el('details-btn').addEventListener('click', () => {
+        el('trip-details').showModal();
+        renderTripDetails();
+    });
+    document.querySelectorAll('[data-close-dialog]').forEach(button => {
+        button.addEventListener('click', () => button.closest('dialog').close());
+    });
+    [el('speed-profile'), el('details-profile')].forEach(canvas => {
+        ['pointermove', 'pointerdown', 'keydown'].forEach(type => canvas.addEventListener(type, event => inspectSpeedProfile(canvas, event)));
+    });
+    const carousel = el('train-carousel');
+    ['wheel', 'touchstart', 'pointerdown'].forEach(type => carousel.addEventListener(type, pauseCarouselFollow, { passive: true }));
+    carousel.addEventListener('keydown', event => {
+        if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) pauseCarouselFollow();
+    });
+    el('recenter-btn').addEventListener('click', () => {
+        recenterCarousel();
+        carousel.focus({ preventScroll: true });
+    });
+
+    // Observe la surface réellement disponible, y compris clavier, barres iOS,
+    // réglage de taille du texte ou redimensionnement du dialogue.
     let resizeFrame = null;
-    window.addEventListener('resize', () => {
+    const onResize = () => {
         if (resizeFrame) return;
         resizeFrame = requestAnimationFrame(() => {
             resizeFrame = null;
-            renderTracking();
+            renderTracking({ relayout: true });
         });
-    });
+    };
+    window.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('resize', onResize);
+    if (typeof ResizeObserver !== 'undefined') {
+        const observer = new ResizeObserver(onResize);
+        [carousel, el('speed-profile'), el('details-profile')].forEach(node => observer.observe(node));
+    }
 
+    syncView();
+    await loadCoreData();
+    coreDataLoading = false;
+    // Les commandes sont déjà utilisables pendant les chargements réseau.
+    loadRailPkCorridor();
     syncView();
 });
 
-async function fetchSncfPosition() {
-    if (window.IS_SCRIPTABLE_BRIDGE || navigator.userAgent.includes('Scriptable')) {
-        updateDebugBar('Bridge Scriptable OK');
-        updateInfo('Synchronisation WiFi SNCF via Scriptable active');
-        return;
-    }
-    try {
-        const response = await fetch('https://wifi.sncf/router/api/train/gps', { signal: AbortSignal.timeout(3000) });
-        if (!response.ok) throw new Error('API injoignable');
-        const data = await response.json();
-        if (data.success) {
-            const speedKmh = Number.isFinite(Number(data.speed)) ? Number(data.speed) * 3.6 : undefined;
-            updateDebugBar('WiFi SNCF OK');
-            showPosition({ coords: { latitude: data.latitude, longitude: data.longitude, accuracy: 15, speed: speedKmh }, timestamp: data.timestamp ? data.timestamp * 1000 : Date.now() });
-            return;
-        }
-        throw new Error('Données invalides');
-    } catch (e) {
-        STATE.locationMethod = 'geo';
-        updateDebugBar(`SNCF KO (${e.message}) → GPS`);
-        updateInfo(`WiFi SNCF indisponible (${e.message}), bascule sur GPS natif.`);
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(showPosition, showError, GEOLOCATION_OPTIONS);
-        }
-    }
+let acquisitionPending = false;
+let pendingRequest = null;
+
+async function fetchSncfPosition(session, source) {
+    if (window.IS_SCRIPTABLE_BRIDGE || navigator.userAgent.includes('Scriptable')) return;
+    const response = await fetch('https://wifi.sncf/router/api/train/gps', { signal: AbortSignal.timeout(3000) });
+    if (!response.ok) throw new Error('API injoignable');
+    const data = await response.json();
+    if (!data.success) throw new Error('Données invalides');
+    if (STATE.session !== session || STATE.locationMethod !== source) return;
+    const speedKmh = data.speed != null && Number.isFinite(Number(data.speed)) ? Number(data.speed) * 3.6 : undefined;
+    showPosition({ coords: { latitude: data.latitude, longitude: data.longitude, accuracy: 15, speed: speedKmh }, timestamp: data.timestamp ? data.timestamp * 1000 : Date.now() });
 }
 
 function processCurrentPosition() {
-    if (STATE.locationMethod === 'sncf') {
-        fetchSncfPosition();
-    } else if (STATE.locationMethod === 'geo') {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(showPosition, showError, GEOLOCATION_OPTIONS);
-        } else {
-            updateInfo("La géolocalisation n'est pas supportée par ce navigateur.");
-        }
+    if (!STATE.session.active) return;
+    // L'horloge de rendu ne dépend pas de l'arrivée d'un fix (attente, refus,
+    // perte de signal, arrêt en gare). Une seule acquisition peut être en vol.
+    recordSignalLossTick(STATE);
+    renderTracking();
+    if (acquisitionPending) return;
+    const session = STATE.session;
+    const source = STATE.locationMethod;
+    const request = pendingRequest = {};
+    acquisitionPending = true;
+    const isCurrent = () => STATE.session === session && STATE.locationMethod === source;
+    const finish = () => { if (pendingRequest === request) acquisitionPending = false; };
+    if (source === 'sncf') {
+        fetchSncfPosition(session, source).catch(error => {
+            if (!isCurrent()) return;
+            STATE.locationMethod = 'geo';
+            updateInfo(`WiFi SNCF indisponible (${error.message}), bascule sur GPS natif.`);
+        }).finally(finish);
+    } else if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+            if (isCurrent()) showPosition(position);
+            finish();
+        }, error => {
+            if (isCurrent()) updateInfo(geoErrorMessage(error));
+            finish();
+        }, GEOLOCATION_OPTIONS);
+    } else {
+        updateInfo('La géolocalisation n’est pas supportée par ce navigateur.');
+        finish();
     }
-
-    // Perte de signal : l'historique de vitesse est prolongé en non fiable et
-    // le suivi redessiné avec l'indicateur de signal perdu.
-    if (recordSignalLossTick(STATE)) renderTracking();
-}
-
-function showError(error) {
-    updateInfo(geoErrorMessage(error));
 }
 
 function showPosition(position) {
@@ -379,40 +344,23 @@ function showPosition(position) {
     });
 
     if (!result.accepted) {
-        if (result.reason === 'inactive') updateInfo('Route ou heure de départ non initialisée.');
-        else if (result.reason === 'accuracy') console.warn(`[GPS] Fix rejeté (précision ±${Math.round(result.accuracyMeters)} m)`);
+        if (result.reason === 'accuracy') console.warn(`[GPS] Fix rejeté (précision ±${Math.round(result.accuracyMeters)} m)`);
         else if (result.reason === 'teleport') console.warn('[GPS] Téléportation ignorée');
         return;
     }
-    const { sample, snapshot } = result;
+    const { sample } = result;
     if (sample.reseeded) console.warn('[GPS] Position divergente persistante → ré-ancrage du tracking');
-
-    let infoHtml = `<strong>Position :</strong> ${sample.lat.toFixed(5)}, ${sample.lon.toFixed(5)}.`;
-    if (sample.accuracyM) infoHtml += ` (±${Math.round(sample.accuracyM)} m)`;
-
-    if (!snapshot) {
-        updateInfo(infoHtml + ' Position actuelle hors de la route prévue.');
-        return;
-    }
-
-    renderTracking();
-
-    const route = STATE.currentRoute;
-    const nextPoint = snapshot.displayIdx < route.length - 1 ? route[snapshot.displayIdx + 1] : null;
-    if (nextPoint) {
-        infoHtml += ` Prochain : ${nextPoint.name} (${snapshot.progress.distanceToNextPointKm.toFixed(2)} km).`;
-    } else {
-        infoHtml += ` Arrivée à ${route[snapshot.displayIdx]?.name ?? 'destination'}.`;
-    }
 
     // Enrichissement PK (informatif uniquement — aucun couplage avec le calcul
     // de retard) : PK interpolé sur le corridor ferroviaire si disponible.
+    let railLocation = null;
     if (STATE.railCorridor) {
         const loc = locateOnCorridor(STATE.railCorridor, sample.lat, sample.lon, STATE.railCorridorIndex, sample.accuracyM);
         if (loc) {
             STATE.railCorridorIndex = loc.index;
-            infoHtml += ` PK ${formatPk(loc.pk)}${loc.line ? ` (ligne ${loc.line})` : ''}.`;
+            railLocation = loc;
         }
     }
-    updateInfo(infoHtml);
+    // Un fix hors route reste historisé et change l'état du signal affiché.
+    renderTracking({ railLocation });
 }

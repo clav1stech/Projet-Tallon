@@ -1,141 +1,114 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Railway Timeline</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Tallon · Votre voyage en train</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/train-180.png">
-    <!-- PWA iOS : plein écran sans barre Safari une fois ajouté à l'écran d'accueil -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Timeline">
-    <meta name="theme-color" content="#111418">
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <meta name="apple-mobile-web-app-title" content="Tallon">
+    <meta name="theme-color" content="#262223">
+    <link rel="stylesheet" href="css/train.css">
 </head>
-
-<body>
-    <div class="container">
-        <div class="controls-panel">
-            <div class="settings-panel">
-                <h1>Railway Timeline</h1>
-                <p><a href="train-points-editor.html"><i class="fas fa-map-marked-alt"></i> Vérifier et déplacer les points sur la carte</a></p>
-
-                <div class="form-row">
-                    <label for="routeSelect"><i class="fas fa-route"></i> Trajet principal :</label>
-                    <select id="routeSelect">
-                        <option value="">-- Choisir la destination --</option>
-                    </select>
+<body class="train-app">
+    <main>
+        <section id="home-view" class="home" aria-labelledby="home-title">
+            <div class="home-inner">
+                <header class="home-head">
+                    <a class="brand" href="index.html" aria-label="Tallon, accueil"><svg viewBox="0 0 26 26" width="28" height="28" aria-hidden="true"><rect width="26" height="26" rx="7.5" fill="#8b2a3f"/><path d="M9 5v16M15 9h6M15 18h4" stroke="#fff" stroke-width="2.3"/><circle cx="9" cy="9" r="3.3" fill="#8b2a3f" stroke="#fff" stroke-width="2.2"/><circle cx="9" cy="18" r="1.6" fill="#fff"/></svg> Tallon</a>
+                    <span id="session-status" class="session-status" hidden>● Suivi en cours</span>
+                    <h1 id="home-title" tabindex="-1">Préparer le trajet</h1>
+                </header>
+                <div class="home-settings">
+                    <fieldset class="card route-card">
+                        <legend class="sr-only">Trajet</legend>
+                        <h2 class="caption">Liaison <small>depuis ou vers Paris</small></h2>
+                        <div id="route-choices"></div>
+                    </fieldset>
+                    <fieldset class="card location-card">
+                        <legend class="sr-only">Source de localisation</legend>
+                        <h2 class="caption">Localisation</h2>
+                        <div class="segments">
+                            <label><input type="radio" name="location-method" value="geo" checked><span>GPS</span></label>
+                            <label><input type="radio" name="location-method" value="sncf"><span>WiFi SNCF</span></label>
+                        </div>
+                        <p id="location-hint" class="hint">Localisation de cet appareil.</p>
+                    </fieldset>
+                    <a class="editor-link" href="train-points-editor.html">Vérifier les points sur la carte ↗</a>
                 </div>
-
-                <div class="form-row" id="stopsRow">
-                    <label><i class="fas fa-flag-checkered"></i> Arrêts intermédiaires :</label>
-                    <div id="stopCheckboxes" class="checkbox-group">
-                        <span class="hint">Sélectionnez une destination pour afficher les arrêts.</span>
+                <section class="card line-card" aria-labelledby="line-title">
+                    <h2 id="line-title" class="caption">Votre train <small id="service-meta"></small></h2>
+                    <div id="service-notice" class="hint" role="status"></div>
+                    <div id="service-summary" class="service-line" hidden>
+                        <div id="origin-row" class="service-stop origin">
+                            <label class="departure-box"><span class="sr-only">Heure de départ</span><span id="departure-display" aria-hidden="true">––:––</span><input type="time" id="departure-time" required></label>
+                            <i class="line-dot" aria-hidden="true"></i>
+                            <div><strong id="origin-name">Gare de départ</strong><small>Départ · heure modifiable</small></div>
+                        </div>
+                        <div id="service-rest" class="service-rest"></div>
                     </div>
-                </div>
-
-                <div class="form-row">
-                    <label for="departure-time"><i class="far fa-clock"></i> Departure time (HH:MM):</label>
-                    <input type="time" id="departure-time" required>
-                </div>
-
-                <!-- Champ : mode de localisation -->
-                <div class="form-row">
-                    <label for="location-mode-toggle"><i class="fas fa-wifi"></i> Mode WiFi SNCF :</label>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="location-mode-toggle">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span id="location-mode-label" style="font-size:0.85em;opacity:0.7">GPS natif</span>
-                </div>
-
-                <!-- Champ : décalage global ΔT -->
-                <div class="form-row">
-                    <label for="global-delta">
-                        <i class="far fa-clock"></i> Global time offset (minutes):
-                    </label>
-                    <div class="delta-wrapper">
-                        <button type="button" id="delta-minus" class="delta-btn">-</button>
-                        <input type="number" id="global-delta" step="1" min="-30" max="30" placeholder="0" inputmode="numeric">
-                        <button type="button" id="delta-plus" class="delta-btn">+</button>
+                    <div class="line-foot">
+                        <label for="global-delta"><strong>Décalage ΔT</strong><small>Réparti sur le voyage</small></label>
+                        <div class="stepper">
+                            <button type="button" id="delta-minus" aria-label="Retirer une minute">−</button>
+                            <label><span class="sr-only">Décalage en minutes</span><input type="number" id="global-delta" step="1" value="0" inputmode="numeric"><span aria-hidden="true">min</span></label>
+                            <button type="button" id="delta-plus" aria-label="Ajouter une minute">+</button>
+                        </div>
                     </div>
-                </div>
-
-            </div>
-
-            <!-- Aperçu de desserte : gares desservies et horaires de la configuration en cours d'édition -->
-            <div id="service-summary" class="service-summary" aria-live="polite"></div>
-
-            <div class="home-actions">
-                <button type="button" id="secondary-btn" class="secondary-btn" hidden></button>
-                <button type="button" id="start-btn" class="start-btn" disabled>Lancer le suivi</button>
-            </div>
-
-            <!-- widget -->
-            <div id="tracking-widget" class="tracking-widget">
-                <div class="widget-section card dual-stops">
-                    <div class="widget-line combined" id="last-line"></div>
-                    <div class="widget-line combined" id="next-line"></div>
-                </div>
-                <div class="widget-section status">
-                    <div class="section-header">
-                        <i class="fas fa-stopwatch"></i>
-                        <span class="widget-title">Statut temps réel</span>
+                </section>
+                <footer class="home-bar">
+                    <div><p id="journey-summary">Votre voyage commence ici.</p><p id="draft-status" class="hint" role="status"></p></div>
+                    <div class="home-actions">
+                        <button type="button" id="secondary-btn" class="secondary" hidden></button>
+                        <button type="button" id="start-btn" class="primary" disabled>Lancer le suivi →</button>
                     </div>
-                    <div class="status-chip">
-                        <span id="current-time"></span>
-                    </div>
+                </footer>
+            </div>
+        </section>
+        <section id="tracking-view" class="cockpit" aria-label="Suivi du trajet" tabindex="-1" hidden>
+            <div class="instruments">
+                <div id="speed-gauge" class="gauge" role="img" aria-label="Vitesse indisponible">
+                    <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="gauge-bg" cx="60" cy="60" r="53"/><circle id="gauge-value" cx="60" cy="60" r="53"/></svg>
+                    <div><b id="speed-value">—</b><span>KM/H</span></div>
                 </div>
+                <div class="arrival"><span id="arrival-label" class="caption">Arrivée théorique</span><b id="arrival-time">––:––</b><small id="arrival-date"></small><div class="arrival-row"><span id="delay-chip" class="delay-chip">En attente</span><span id="arrival-theory"></span></div></div>
+                <button type="button" id="settings-btn" class="settings-button" aria-label="Réglages"><span aria-hidden="true">⚙</span><span class="settings-label">Réglages</span></button>
             </div>
-        </div>
-
-        <div id="landscape-hud" class="landscape-hud hidden">
-            <div class="hud-dashboard">
-                <div id="hud-speed"></div>
-                <canvas id="hud-speed-graph" width="160" height="40"></canvas>
-                <div id="hud-eta"></div>
-                <div id="hud-delay"></div>
-            </div>
-            <div class="hud-carousel">
-                <div id="hud-track-points"></div>
-            </div>
-        </div>
-
-        <div class="timeline-panel">
-            <div id="timeline">
-                <div class="station header">
-                    <span>Time</span>
-                    <span>Waypoint</span>
+            <aside class="trip-context" aria-label="Contexte du voyage">
+                <section class="next-stop"><h2 class="caption">Prochain arrêt commercial</h2><div><strong id="next-stop-name">—</strong><time id="next-stop-time"></time></div><p id="next-stop-info"></p></section>
+                <section class="profile-panel">
+                    <div class="profile-heading"><h2 class="caption">Profil du voyage</h2><button type="button" id="details-btn" class="details-button" aria-haspopup="dialog">Détails ↗</button></div>
+                    <canvas id="speed-profile" tabindex="0" aria-describedby="profile-readout" role="img" aria-label="Profil de vitesse sur l’ensemble du voyage"></canvas>
+                    <p id="profile-readout" class="profile-readout" aria-live="polite" hidden></p><p class="graph-legend"><span>━ Mesurée</span><span>┄ Moyenne horaire théorique</span></p>
+                </section>
+                <section class="trip-stats" aria-label="Progression et vitesses"><div><b id="km-done">—</b><span>km parcourus</span></div><div><b id="km-left">—</b><span>km restants</span></div><div><b id="speed-average">—</b><span>km/h moyens</span></div><div><b id="speed-max">—</b><span>km/h maximum</span></div></section>
+                <div class="location-status" id="location-status" role="status"></div>
+            </aside>
+            <section class="carousel-stage" aria-label="Points du trajet">
+                <div class="carousel-heading"><span id="tracking-route"></span><button type="button" id="recenter-btn" hidden>Recentrer ↓</button></div>
+                <div id="train-carousel" class="train-carousel" tabindex="0" aria-label="Parcours, défilement libre au toucher ou au clavier">
+                    <div id="train-points" class="train-points"></div>
                 </div>
-            </div>
-            <p id="info"></p>
-        </div>
-    </div>
-
-    <button type="button" id="settings-btn" class="settings-btn" aria-label="Réglages"><i class="fas fa-cog" aria-hidden="true"></i></button>
-
-    <div id="debug-bar"></div>
-
-    <!-- Inclusion des fichiers JavaScript -->
+                <div class="journey-progress"><div id="journey-progress" role="progressbar" aria-label="Progression du voyage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div><span id="progress-label">Position en attente</span></div>
+            </section>
+        </section>
+    </main>
+    <div id="info" class="info" role="status" hidden></div>
+    <dialog id="trip-details" aria-labelledby="details-title">
+        <div class="dialog-heading"><h2 id="details-title">Votre voyage</h2><button type="button" data-close-dialog aria-label="Fermer les détails">✕</button></div>
+        <div class="dialog-body"><p id="details-location" class="hint"></p><canvas id="details-profile" tabindex="0" aria-describedby="details-readout" role="img" aria-label="Vitesses mesurées et moyennes horaires théoriques, axe en kilomètres"></canvas><p id="details-readout" class="profile-readout" aria-live="polite">Survolez ou touchez le profil pour lire une mesure. Au clavier, utilisez les flèches.</p><p class="graph-legend"><span>━ Mesurée</span><span>┄ Moyenne horaire théorique</span><span>● Écart constaté au passage</span></p><p class="hint">Les pointillés représentent une moyenne par segment issue de l’horaire, pas une limite de vitesse. Les interruptions de mesure ne sont pas interpolées.</p><h3>Passages observés</h3><p class="hint">Instants enregistrés et écarts à l’horaire appliqué. Les points sans observation restent dans le carousel avec leur horaire théorique.</p><div class="passage-table"><table><thead><tr><th scope="col">Point</th><th scope="col">Théorique</th><th scope="col">Observé</th><th scope="col">Écart</th></tr></thead><tbody id="passage-log"></tbody></table></div></div>
+    </dialog>
+    <dialog id="end-session" aria-labelledby="end-title" aria-describedby="end-description">
+        <div class="dialog-body"><h2 id="end-title">Terminer ce voyage ?</h2><p id="end-description">La localisation sera arrêtée et l’historique de cette session sera effacé. Vos réglages seront conservés.</p><div class="dialog-actions"><button type="button" class="secondary" data-close-dialog autofocus>Continuer le suivi</button><button type="button" id="confirm-end-btn" class="primary">Terminer le voyage</button></div></div>
+    </dialog>
     <script type="module" src="js/fakeGeoSim.js"></script>
     <script type="module" src="js/app.js"></script>
-
-    <!-- Service worker : cache hors-ligne (réseau instable en TGV).
-         Nécessite HTTPS ou localhost ; ignoré silencieusement ailleurs
-         (ex: WebView Scriptable, ouverture en file://). -->
     <script>
-        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').catch((e) => {
-                    console.warn('Service worker non enregistré :', e);
-                });
-            });
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.warn('Service worker non enregistré :', e)));
         }
     </script>
-
 </body>
-
 </html>
