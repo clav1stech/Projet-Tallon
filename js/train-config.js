@@ -49,6 +49,7 @@ export const DELTA_REPEAT_DELAY_MS = 420;
 export const DELTA_REPEAT_INTERVAL_MS = 90;
 
 // Rendu : animations du carousel et notifications, sans effet sur l'acquisition.
+// Réglages de présentation communs aux deux cockpits : car-ui.js les lit aussi.
 export const CAROUSEL_ANIMATION_MS = 500;
 export const CAROUSEL_HERO_RATIO = 0.48;
 export const INFO_DISPLAY_MS = 6000;

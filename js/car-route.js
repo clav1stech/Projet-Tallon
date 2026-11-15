@@ -453,6 +453,28 @@ export function findSector(routeCfg, legIndex, pk) {
 }
 
 /**
+ * Secteurs géographiques traversés, dans le sens du parcours et bornés en
+ * km-route : synthèse de l'accueil. Les plages contiguës d'un même secteur
+ * (legs successifs) sont fusionnées.
+ * @param {object} route - résultat de buildCarRoute
+ * @param {object} routeCfg - l'entrée CAR_ROUTES dont il est issu
+ * @returns {Array<{name:string, fromKm:number, toKm:number}>}
+ */
+export function listRouteSectors(route, routeCfg) {
+    const sectors = [];
+    (route?.points || []).forEach((point, index) => {
+        const name = findSector(routeCfg, point.legIndex, point.pk);
+        if (!name) return;
+        const last = sectors[sectors.length - 1];
+        if (last?.name === name) return;
+        const km = sectors.length ? route.cumKm[index] : 0;
+        if (last) last.toKm = km;
+        sectors.push({ name, fromKm: km, toKm: route.totalKm });
+    });
+    return sectors;
+}
+
+/**
  * Point de passage à afficher pour une progression donnée.
  *
  * Un ouvrage d'art (waypoint porteur d'une `lengthM`) occupe une PORTION de

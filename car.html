@@ -1,137 +1,110 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Car Tracker — Mâcon → Combloux</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Tallon · Votre trajet en voiture</title>
     <link rel="manifest" href="car.webmanifest">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/car-180.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Car Tracker">
-    <meta name="theme-color" content="#111418">
-    <link rel="stylesheet" href="css/styles.css">
+    <meta name="apple-mobile-web-app-title" content="Tallon Voiture">
+    <meta name="theme-color" content="#0f1a30">
+    <link rel="stylesheet" href="css/train.css">
+    <link rel="stylesheet" href="css/car.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <style>
-        /* Styles propres au mode voiture (le reste vient de styles.css) */
-        .car-progress-track {
-            width: 100%;
-            height: 8px;
-            border-radius: 4px;
-            /* Accent du mode (bleu nuit) : un blanc translucide serait
-               invisible sur la carte claire qui porte la barre. */
-            background: rgba(var(--primary-rgb), 0.14);
-            overflow: hidden;
-            margin: 8px 0;
-        }
-        #car-progress-bar {
-            height: 100%;
-            width: 0%;
-            border-radius: 4px;
-            background: linear-gradient(90deg, #4dd0e1, #66bb6a);
-            /* Même cadence de suivi que les autres indicateurs : en `ease`,
-               la barre marquait un arrêt entre deux positions. */
-            transition: width var(--follow-duration) linear;
-        }
-        .car-stat-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 8px;
-            padding: 4px 0;
-        }
-        .car-stat-label { opacity: 0.7; font-size: 0.85em; }
-    </style>
 </head>
-
-<body class="car-page">
-    <div class="container">
-        <div class="controls-panel">
-            <div class="settings-panel">
-                <h1>Car Tracker</h1>
-
-                <div class="form-row">
-                    <label for="car-route-select"><i class="fas fa-car"></i> Itinéraire :</label>
-                    <select id="car-route-select">
-                        <option value="">-- Choisir l'itinéraire --</option>
-                    </select>
+<body class="car-app">
+    <main>
+        <section id="home-view" class="home" aria-labelledby="home-title">
+            <div class="home-inner">
+                <header class="home-head">
+                    <a class="brand" href="car.html" aria-label="Tallon, accueil voiture"><svg viewBox="0 0 26 26" width="28" height="28" aria-hidden="true"><rect width="26" height="26" rx="7.5" fill="#1f3a6e"/><path d="M6 20c3-1 4-4 7-7s4-6 7-7" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-dasharray="4 3.2"/><circle cx="6.5" cy="19.5" r="2.2" fill="#fff"/><circle cx="19.5" cy="6.5" r="2.6" fill="#1f3a6e" stroke="#fff" stroke-width="2"/></svg> Tallon</a>
+                    <span id="session-status" class="session-status" hidden>● Suivi en cours</span>
+                    <a id="mode-switch" class="mode-switch" href="index.html" aria-label="Passer en mode train">Train <span aria-hidden="true">⇄</span></a>
+                    <h1 id="home-title" tabindex="-1">Préparer la route</h1>
+                </header>
+                <div class="home-settings">
+                    <fieldset class="card route-card">
+                        <legend class="sr-only">Trajet</legend>
+                        <h2 class="caption">Trajet</h2>
+                        <div id="route-choices"></div>
+                    </fieldset>
+                    <a class="editor-link" href="car-points-editor.html">Vérifier les points sur la carte ↗</a>
                 </div>
+                <section class="card line-card" aria-labelledby="line-title">
+                    <h2 id="line-title" class="caption">Votre route <small id="route-meta"></small></h2>
+                    <div id="route-notice" class="hint" role="status"></div>
+                    <div id="route-summary" class="service-line road-line" hidden>
+                        <div class="service-stop origin">
+                            <i class="line-dot" aria-hidden="true"></i>
+                            <div><strong id="origin-name">Départ</strong><small>Départ</small></div>
+                            <button type="button" id="reverse-btn" class="reverse-button" aria-label="Inverser le sens du trajet"><span aria-hidden="true">⇅</span> Inverser</button>
+                        </div>
+                        <ol id="route-sectors" class="road-sectors" aria-label="Secteurs traversés"></ol>
+                        <div class="service-stop terminus">
+                            <i class="line-dot" aria-hidden="true"></i>
+                            <div><strong id="destination-name">Arrivée</strong><small>Arrivée</small></div>
+                        </div>
+                    </div>
+                </section>
+                <footer class="home-bar">
+                    <div><p id="journey-summary">Votre route commence ici.</p><p id="draft-status" class="hint" role="status"></p></div>
+                    <div class="home-actions">
+                        <button type="button" id="secondary-btn" class="secondary" hidden></button>
+                        <button type="button" id="start-btn" class="primary" disabled>Lancer le suivi →</button>
+                    </div>
+                </footer>
             </div>
-
-            <button id="car-start-btn" class="start-btn">Start</button>
-            <p><a href="car-points-editor.html"><i class="fas fa-map-marked-alt"></i> Vérifier et déplacer les points sur la carte</a></p>
-
-            <div id="car-widget" class="tracking-widget">
-                <div class="widget-section card">
-                    <div class="car-stat-row">
-                        <span class="car-stat-label"><i class="fas fa-road"></i> Tronçon</span>
-                        <span id="car-leg">—</span>
-                    </div>
-                    <div class="car-stat-row">
-                        <span class="car-stat-label"><i class="fas fa-map"></i> Secteur</span>
-                        <span id="car-sector">—</span>
-                    </div>
-                    <div class="car-stat-row">
-                        <span class="car-stat-label"><i class="fas fa-map-marker-alt"></i> Repère</span>
-                        <span id="car-position">—</span>
-                    </div>
-                    <div class="car-stat-row">
-                        <span class="car-stat-label"><i class="fas fa-map-signs"></i> Prochain</span>
-                        <span id="car-next">—</span>
-                    </div>
-                    <div class="car-progress-track"><div id="car-progress-bar"></div></div>
-                    <div class="car-stat-row">
-                        <span class="car-stat-label"><i class="fas fa-route"></i> Progression</span>
-                        <span id="car-km">—</span>
-                    </div>
-                    <div class="car-stat-row">
-                        <span class="car-stat-label"><i class="fas fa-tachometer-alt"></i> Vitesse</span>
-                        <span id="car-speed">—</span>
-                    </div>
-                    <div class="car-stat-row">
-                        <span class="car-stat-label"><i class="fas fa-road"></i> Restant</span>
-                        <span id="car-remaining">—</span>
-                    </div>
+        </section>
+        <section id="tracking-view" class="cockpit" aria-label="Suivi du trajet" tabindex="-1" hidden>
+            <div class="instruments">
+                <div id="speed-gauge" class="gauge" role="img" aria-label="Vitesse indisponible">
+                    <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="gauge-bg" cx="60" cy="60" r="53"/><circle id="gauge-value" cx="60" cy="60" r="53"/></svg>
+                    <div><b id="speed-value">—</b><span id="speed-unit">KM/H</span></div>
                 </div>
+                <!-- Le secteur tient la place de l'heure d'arrivée du train : la
+                     voiture n'a ni horaire ni retard. -->
+                <div class="arrival sector"><span class="caption">Secteur</span><b id="sector-name" aria-live="polite">—</b><div class="arrival-row"><span id="progress-chip" class="delay-chip">—</span><span id="remaining-text"></span></div><p id="next-line" class="next-line"></p></div>
+                <button type="button" id="settings-btn" class="settings-button" aria-label="Réglages"><span aria-hidden="true">⚙</span><span class="settings-label">Réglages</span></button>
             </div>
-
-            <p id="car-info"></p>
-        </div>
-
-        <!-- HUD paysage : mêmes classes/ids que le HUD rail (styles.css les
-             cible de façon générique) ; la pilule retard est remplacée par la
-             pilule secteur, sans notion d'horaire. -->
-        <div id="landscape-hud" class="landscape-hud hidden">
-            <div class="hud-dashboard">
-                <div id="hud-speed"></div>
-                <canvas id="hud-speed-graph" width="160" height="40"></canvas>
-                <div id="hud-eta"></div>
-                <div id="hud-sector"></div>
-            </div>
-            <div class="hud-carousel">
-                <div id="hud-track-points"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="debug-bar"></div>
-
+            <aside class="trip-context" aria-label="Contexte du trajet">
+                <section class="profile-panel">
+                    <div class="profile-heading"><h2 class="caption">Profil de vitesse</h2><div class="range-toggle" role="group" aria-label="Étendue du profil"><button type="button" data-profile-range="trip" aria-pressed="true">Trajet</button><button type="button" data-profile-range="recent" aria-pressed="false">15 min</button></div><button type="button" id="details-btn" class="details-button" aria-haspopup="dialog">Détails ↗</button></div>
+                    <canvas id="speed-profile" tabindex="0" aria-describedby="profile-readout" role="img" aria-label="Profil de vitesse sur l’ensemble du trajet"></canvas>
+                    <p id="profile-readout" class="profile-readout" aria-live="polite" hidden></p>
+                </section>
+                <section class="trip-stats" aria-label="Progression et vitesses"><div><b id="km-done">—</b><span>km parcourus</span></div><div><b id="km-left">—</b><span>km restants</span></div><div><b id="speed-average">—</b><span>km/h moyens</span></div><div><b id="speed-max">—</b><span>km/h maximum</span></div></section>
+                <div class="location-status" id="location-status" role="status"></div>
+            </aside>
+            <section class="carousel-stage" aria-label="Repères du trajet">
+                <div class="carousel-heading"><span id="tracking-route"></span><button type="button" id="recenter-btn" hidden>Recentrer ↓</button></div>
+                <div id="train-carousel" class="train-carousel" tabindex="0" aria-label="Parcours, défilement libre au toucher ou au clavier">
+                    <div id="train-points" class="train-points"></div>
+                </div>
+                <div class="journey-progress"><div id="journey-progress" role="progressbar" aria-label="Progression du trajet" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div><span id="progress-label">Position en attente</span></div>
+            </section>
+        </section>
+    </main>
+    <div id="info" class="info" role="status" hidden></div>
+    <dialog id="trip-details" aria-labelledby="details-title">
+        <div class="dialog-heading"><h2 id="details-title">Votre trajet</h2><button type="button" data-close-dialog aria-label="Fermer les détails">✕</button></div>
+        <div class="dialog-body"><p id="details-location" class="hint"></p><dl id="details-stats" class="details-stats"></dl><div class="range-toggle" role="group" aria-label="Étendue du profil"><button type="button" data-profile-range="trip" aria-pressed="true">Trajet</button><button type="button" data-profile-range="recent" aria-pressed="false">15 min</button></div><canvas id="details-profile" tabindex="0" aria-describedby="details-readout" role="img" aria-label="Vitesses mesurées"></canvas><p id="details-readout" class="profile-readout" aria-live="polite">Survolez ou touchez le profil pour lire une mesure. Au clavier, utilisez les flèches.</p><p class="hint">Seules les vitesses mesurées par le GPS sont tracées. Les traversées de tunnel et les pertes de signal apparaissent comme des interruptions : rien n’y est interpolé.</p><h3>Repères du parcours</h3><div class="passage-table"><table><thead><tr><th scope="col">Repère</th><th scope="col">Km</th><th scope="col">État</th></tr></thead><tbody id="waypoint-log"></tbody></table></div></div>
+    </dialog>
+    <dialog id="end-session" aria-labelledby="end-title" aria-describedby="end-description">
+        <div class="dialog-body"><h2 id="end-title">Terminer ce trajet ?</h2><p id="end-description">La localisation sera arrêtée et l’historique de cette session sera effacé. Votre itinéraire sera conservé.</p><div class="dialog-actions"><button type="button" class="secondary" data-close-dialog autofocus>Continuer le suivi</button><button type="button" id="confirm-end-btn" class="primary">Terminer le trajet</button></div></div>
+    </dialog>
+    <dialog id="mode-switch-dialog" aria-labelledby="mode-switch-title" aria-describedby="mode-switch-description">
+        <div class="dialog-body"><h2 id="mode-switch-title">Passer en mode train ?</h2><p id="mode-switch-description">Le suivi de la route sera terminé et sa localisation arrêtée. Votre itinéraire sera conservé.</p><div class="dialog-actions"><button type="button" class="secondary" data-close-dialog autofocus>Continuer le suivi</button><button type="button" id="confirm-mode-switch-btn" class="primary">Passer en train</button></div></div>
+    </dialog>
     <!-- fakeGeoSim (dev) : simulateur GPS partagé avec le rail — lit
          STATE.currentRoute, que car-app.js renseigne avec la route voiture. -->
     <script type="module" src="js/fakeGeoSim.js"></script>
     <script type="module" src="js/car-app.js"></script>
-
-    <!-- Service worker : même cache hors-ligne que le mode rail. -->
     <script>
-        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').catch((e) => {
-                    console.warn('Service worker non enregistré :', e);
-                });
-            });
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.warn('Service worker non enregistré :', e)));
         }
     </script>
-
 </body>
-
 </html>

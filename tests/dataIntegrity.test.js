@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { MAIN_ROUTES } from '../js/routes-config.js';
 import { CAR_ROUTES } from '../js/car-config.js';
+import { reverseRouteKey, routeEndpoints } from '../js/car-session.js';
 
 // Cohérence référentielle des données versionnées : ces fichiers sont édités
 // à la main ou par export, et une référence orpheline ne casse l'app qu'à
@@ -101,6 +102,13 @@ describe('datasets du mode voiture et PWA', () => {
             }
         }
     });
+
+    it('chaque itinéraire voiture nomme ses extrémités et possède son sens retour', () => {
+        for (const key of Object.keys(CAR_ROUTES)) {
+            expect(routeEndpoints(CAR_ROUTES, key), key).not.toBeNull();
+            expect(reverseRouteKey(CAR_ROUTES, key), key).not.toBeNull();
+        }
+    });
 });
 
 describe('service worker', () => {
@@ -112,6 +120,34 @@ describe('service worker', () => {
         const missing = urls.filter(url => !existsSync(url === './' ? 'index.html' : url));
         expect(missing).toEqual([]);
         expect(urls.some(url => url.startsWith('./data/raw/'))).toBe(false);
+    });
+
+    // Le conteneur iOS n'embarque que le précache (ios/copy-web.mjs) et n'a
+    // pas de réseau de repli : un module importé mais non précaché casserait
+    // la page — et donc le passage d'un mode à l'autre — une fois embarquée.
+    it.each(['index.html', 'car.html'])('%s : page, styles et modules tous précachés', page => {
+        const source = readFileSync('sw.js', 'utf8');
+        const block = source.match(/const PRECACHE_URLS = \[([\s\S]*?)\n\];/)[1];
+        const precached = new Set([...block.matchAll(/^\s*'\.\/([^']*)'/gm)].map(match => match[1]));
+        const html = readFileSync(page, 'utf8');
+        const needed = new Set([page]);
+        for (const match of html.matchAll(/(?:href|src)="([^"#]+\.(?:css|js|webmanifest|png))"/g)) {
+            if (!match[1].startsWith('http')) needed.add(match[1]);
+        }
+        const queue = [...needed].filter(file => file.endsWith('.js'));
+        while (queue.length) {
+            const file = queue.pop();
+            for (const match of readFileSync(file, 'utf8').matchAll(/from '\.\/([^']+)'/g)) {
+                const dependency = `js/${match[1]}`;
+                if (!needed.has(dependency)) { needed.add(dependency); queue.push(dependency); }
+            }
+        }
+        expect([...needed].filter(file => !precached.has(file))).toEqual([]);
+    });
+
+    it('chaque mode renvoie vers la page de l’autre', () => {
+        expect(readFileSync('index.html', 'utf8')).toMatch(/id="mode-switch"[^>]*href="car\.html"/);
+        expect(readFileSync('car.html', 'utf8')).toMatch(/id="mode-switch"[^>]*href="index\.html"/);
     });
 });
 

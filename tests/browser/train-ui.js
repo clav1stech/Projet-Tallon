@@ -97,6 +97,10 @@ async function run() {
         $('settings-btn').click();
         win.__tick();
         assert(win.__starts===1&&STATE.session===sessionRef,'Réglages : aucune recréation de session ou boucle');
+        assert($('mode-switch').getAttribute('href')==='car.html'&&visible($('mode-switch')),'Réglages : accès au mode voiture');
+        $('mode-switch').click();
+        assert($('mode-switch-dialog').open&&STATE.session===sessionRef&&win.__stops===0,'Changement de mode en session : confirmation, suivi maintenu');
+        $('mode-switch-dialog').querySelector('[data-close-dialog]').click();
         const nextPending=win.__pending;const sampleCount=raw.length;
         nextPending.success({coords:{latitude:STATE.trackingSnapshot.lat,longitude:STATE.trackingSnapshot.lon,accuracy:10},timestamp:win.__now});
         assert(raw.length===sampleCount+1,'Acquisition conservée pendant les réglages');

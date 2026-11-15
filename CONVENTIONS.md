@@ -20,7 +20,8 @@
   - État applicatif partagé → `js/state.js` (objet `STATE` unique, pas d'état parallèle ailleurs).
   - Configuration de trajet, horaires, synthèse de desserte → `js/trip-config.js` (pur). Acquisition, accrochage au trajet, rejeu et modèles de données du suivi → `js/tracking-session.js`. Passage d'une famille d'état à l'autre (navigation, provisoire, appliquée, session) → `js/train-controller.js` exclusivement. Aucun de ces modules ne touche au DOM ; le rendu n'y recalcule jamais un horaire.
   - Réglages du mode train → `js/train-config.js`.
-  - Rendu / manipulation DOM → `js/ui.js` exclusivement. `app.js` ne touche le DOM que pour ses propres écouteurs d'événements (formulaire, bouton start, swipe).
+  - Commun aux deux modes de transport → `js/session-flow.js` (règles de session), `js/app-mode.js` / `js/app-shell.js` (changement de mode, aides DOM), `js/carousel-view.js`, `js/speed-profile-view.js`, `css/train.css`. Session voiture sans DOM → `js/car-session.js` ; rendu voiture → `js/car-ui.js` ; thème et éléments routiers → `css/car.css`.
+  - Rendu / manipulation DOM du train → `js/ui.js` exclusivement. `app.js` ne touche le DOM que pour ses propres écouteurs d'événements (formulaire, bouton start, swipe).
   - Config de trajets partagée entre l'app et l'éditeur → `js/routes-config.js` (`MAIN_ROUTES`), jamais dupliquée localement dans `ui.js` ou `master-editor.js`.
   - Utilitaires génériques sans dépendance métier (formatage, sélecteurs DOM courts) → `js/utils.js`.
   - Simulation/outillage de dev → fichier dédié explicitement toggé (`js/fakeGeoSim.js`, `ENABLE_FAKE_GPS`), jamais mélangé au code de prod.

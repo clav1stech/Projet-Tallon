@@ -11,6 +11,9 @@ import {
     pauseCarouselFollow, recenterCarousel, renderTripDetails, inspectSpeedProfile, setProfileRange
 } from './ui.js';
 import { geoErrorMessage } from './geo.js';
+import { enterMode } from './app-mode.js';
+import { bindDialogCloseButtons, initModeSwitch, markDeviceClass } from './app-shell.js';
+import { bindCarouselInteractions } from './carousel-view.js';
 import { loadDataset } from './csv.js';
 import { buildCorridor, locateOnCorridor } from './linearref.js';
 import {
@@ -26,15 +29,9 @@ import {
 let trackingInterval = null;
 let coreDataLoading = true;
 
-// La détection ne peut pas reposer sur le seul user-agent : dans une WebView
-// hôte (Scriptable), l'UA peut ne pas contenir « iPhone », ce qui basculerait
-// la page sur la mise en page non-iPhone (HUD surdimensionné) sur un iPhone.
-// navigator.platform reste fiable dans WebKit quel que soit l'UA.
-function isIPhoneDevice() {
-    if (typeof navigator === 'undefined') return false;
-    if (/iPhone|iPod/i.test(navigator.userAgent || '')) return true;
-    return navigator.platform === 'iPhone' || navigator.platform === 'iPod touch';
-}
+// Conteneur iOS relancé sur le mode voiture : la page est remplacée, rien ne
+// doit démarrer ici.
+const leavingForOtherMode = enterMode('train');
 
 // Charge masterRoutes.normalized.json et servicePatterns.json
 async function loadCoreData() {
@@ -183,8 +180,8 @@ window.addEventListener('message', (e) => {
 
 // Chargement et initialisation DOM
 document.addEventListener('DOMContentLoaded', async () => {
-    document.body.classList.toggle('iphone-device', isIPhoneDevice());
-    document.body.classList.toggle('non-iphone-device', !isIPhoneDevice());
+    if (leavingForOtherMode) return;
+    markDeviceClass();
 
     restoreSettings();
     STATE.draftConfig = createTripConfig(STATE.draftConfig);
@@ -289,19 +286,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncView();
     });
 
-    el('confirm-end-btn').addEventListener('click', () => {
-        el('end-session').close();
+    const endSession = () => {
         stopTrackingLoop();
         stopSession(STATE);
         syncView();
+    };
+    el('confirm-end-btn').addEventListener('click', () => {
+        el('end-session').close();
+        endSession();
     });
+    initModeSwitch({ mode: 'train', isSessionActive: () => STATE.session.active, endSession });
     el('details-btn').addEventListener('click', () => {
         el('trip-details').showModal();
         renderTripDetails();
     });
-    document.querySelectorAll('[data-close-dialog]').forEach(button => {
-        button.addEventListener('click', () => button.closest('dialog').close());
-    });
+    bindDialogCloseButtons();
     [el('speed-profile'), el('details-profile')].forEach(canvas => {
         ['pointermove', 'pointerdown', 'keydown'].forEach(type => canvas.addEventListener(type, event => inspectSpeedProfile(canvas, event)));
     });
@@ -309,14 +308,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         button.addEventListener('click', () => setProfileRange(button.dataset.profileRange));
     });
     const carousel = el('train-carousel');
-    ['wheel', 'touchstart', 'pointerdown'].forEach(type => carousel.addEventListener(type, pauseCarouselFollow, { passive: true }));
-    carousel.addEventListener('keydown', event => {
-        if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) pauseCarouselFollow();
-    });
-    el('recenter-btn').addEventListener('click', () => {
-        recenterCarousel();
-        carousel.focus({ preventScroll: true });
-    });
+    bindCarouselInteractions(carousel, el('recenter-btn'), { pause: pauseCarouselFollow, recenter: recenterCarousel });
 
     // Observe la surface réellement disponible, y compris clavier, barres iOS,
     // réglage de taille du texte ou redimensionnement du dialogue.

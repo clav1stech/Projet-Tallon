@@ -19,6 +19,7 @@
                 <header class="home-head">
                     <a class="brand" href="index.html" aria-label="Tallon, accueil"><svg viewBox="0 0 26 26" width="28" height="28" aria-hidden="true"><rect width="26" height="26" rx="7.5" fill="#8b2a3f"/><path d="M9 5v16M15 9h6M15 18h4" stroke="#fff" stroke-width="2.3"/><circle cx="9" cy="9" r="3.3" fill="#8b2a3f" stroke="#fff" stroke-width="2.2"/><circle cx="9" cy="18" r="1.6" fill="#fff"/></svg> Tallon</a>
                     <span id="session-status" class="session-status" hidden>● Suivi en cours</span>
+                    <a id="mode-switch" class="mode-switch" href="car.html" aria-label="Passer en mode voiture">Voiture <span aria-hidden="true">⇄</span></a>
                     <h1 id="home-title" tabindex="-1">Préparer le trajet</h1>
                 </header>
                 <div class="home-settings">
@@ -102,6 +103,9 @@
     </dialog>
     <dialog id="end-session" aria-labelledby="end-title" aria-describedby="end-description">
         <div class="dialog-body"><h2 id="end-title">Terminer ce voyage ?</h2><p id="end-description">La localisation sera arrêtée et l’historique de cette session sera effacé. Vos réglages seront conservés.</p><div class="dialog-actions"><button type="button" class="secondary" data-close-dialog autofocus>Continuer le suivi</button><button type="button" id="confirm-end-btn" class="primary">Terminer le voyage</button></div></div>
+    </dialog>
+    <dialog id="mode-switch-dialog" aria-labelledby="mode-switch-title" aria-describedby="mode-switch-description">
+        <div class="dialog-body"><h2 id="mode-switch-title">Passer en mode voiture ?</h2><p id="mode-switch-description">Le suivi du train sera terminé et sa localisation arrêtée. Vos réglages de train seront conservés.</p><div class="dialog-actions"><button type="button" class="secondary" data-close-dialog autofocus>Continuer le suivi</button><button type="button" id="confirm-mode-switch-btn" class="primary">Passer en voiture</button></div></div>
     </dialog>
     <script type="module" src="js/fakeGeoSim.js"></script>
     <script type="module" src="js/app.js"></script>

@@ -66,8 +66,12 @@ export const CAR_TRACKING_CONFIG = Object.freeze({
     tunnelExitGraceMs: 10000,
     geolocationTimeoutMs: 5000,
     geolocationMaximumAgeMs: 500,
-    speedHistoryMax: 600,
-    arrivalThresholdKm: 0.2
+    // Historique des vitesses d'une session (12 h à 1 fix/s) : borne mémoire
+    // de sécurité, le profil couvre tout le trajet.
+    speedHistoryMax: 43_200,
+    arrivalThresholdKm: 0.2,
+    // Haut d'échelle du compteur et du profil (vitesse routière).
+    gaugeMaxSpeedKmh: 150
 });
 
 const A40_WAYPOINTS = [

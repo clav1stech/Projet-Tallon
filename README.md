@@ -7,11 +7,10 @@ l'avance) en direct, point de passage par point de passage.
 **Version courante (`main`) : v2.4.1** — voir [CHANGELOG.md](CHANGELOG.md)
 pour l'historique complet.
 
-> Un chantier de test actif existe sur la branche `dev/road-rail-route`
-> (cible `v3.0.0`, **non encore mergée sur `main`**) : mode voiture avec HUD
-> paysage, mode hors-ligne (PWA), données PK/PR réelles et suite de tests
-> automatisés. Les sections **Mode voiture** et **Architecture** ci-dessous
-> décrivent l'état de cette branche ; le reste correspond à `main`.
+> Les branches de chantier (non encore mergées sur `main`) ajoutent le mode
+> voiture, le mode hors-ligne (PWA), le conteneur iOS et l'unification des deux
+> modes de transport. Les sections **Mode voiture** et **Architecture**
+> ci-dessous décrivent l'état de la branche courante.
 
 ## Fonctionnalités
 
@@ -57,37 +56,59 @@ pour l'historique complet.
   ouvrages d'art ont eux aussi une entrée par sens ; lorsque leur longueur est
   connue, leur seconde extrémité et leur emprise suivent la polyline ferroviaire.
 
-## Mode voiture (`car.html`, branche `dev/road-rail-route`)
+## Mode voiture (`car.html`)
 
-Page autonome, miroir routier du mode rail : suivi d'un trajet Mâcon ⇄
-Combloux le long des corridors A406 / A40 / D1212, en **progression + distance restante**
-(pas de notion d'horaire théorique ni de retard). Réutilise le cœur partagé
-avec le rail (fiabilité GPS, matching position → segment) mais avec une
-géométrie de corridor issue d'une trace GPS réelle et des données propres.
+Second mode de transport de la même application : suivi d'un trajet Mâcon ⇄
+Combloux le long des corridors A406 / A40 / D1212, en **progression + distance
+restante** — ni gares, ni horaire théorique, ni heure d'arrivée, ni retard. Il
+partage avec le train la mise en page, le cycle de session, le carrousel et le
+profil de vitesse, et garde son identité bleu nuit et ses données propres
+(géométrie de corridor issue d'une trace GPS réelle).
 
-- **Deux sens sélectionnables** : Mâcon → Combloux et Combloux → Mâcon depuis
-  le même sélecteur. Les corridors sont tracés dans le sens aller et parcourus
-  à rebours au retour (`reverse`) ; les repères et secteurs sont partagés sans
+- **Passage d'un mode à l'autre** : un lien discret en tête des réglages de
+  chaque mode (« Voiture ⇄ » / « Train ⇄ »), accessible depuis l'accueil comme
+  depuis le cockpit via « Réglages ». Chaque mode est une page, avec son
+  manifeste PWA, son état et ses préférences : changer de mode décharge
+  l'ancienne page et sa géolocalisation avec elle. Si un suivi est en cours,
+  une confirmation le termine proprement avant de partir ; les réglages des
+  deux modes restent mémorisés séparément et aucune session n'est reprise au
+  retour. Le conteneur iOS rouvre le dernier mode utilisé.
+- **Accueil** : trajet choisi, départ, destination, distance totale, sens et
+  secteurs géographiques traversés (Mâconnais, Bresse, Bugey, Titans,
+  Bellegarde, Genevois, Arve, Mont-Blanc) avec leur longueur. Un bouton
+  inverse le sens. Les péages, tunnels et sorties n'y figurent pas : ils
+  appartiennent au suivi.
+- **Session** : lancement explicite, retour aux réglages sans interrompre le
+  GPS, itinéraire provisoire à appliquer ou annuler, reprise sans remise à
+  zéro. Un changement effectif d'itinéraire ne réinitialise que la progression
+  et les statistiques liées à l'ancien trajet ; l'acquisition GPS continue.
+- **Cockpit** (portrait et paysage) : compteur de vitesse calibré pour la
+  route (150 km/h), **secteur géographique courant** avec transition au
+  changement, pourcentage et distance restante, prochain repère et sa
+  distance, état du signal GPS, distances parcourue et restante, vitesses
+  moyenne et maximale, profil de vitesse (trajet entier ou 15 dernières
+  minutes) et détail des repères.
+- **Carrousel routier** : progression continue entre les repères, tête de
+  lecture interpolée, défilement libre au toucher, à la souris et au clavier
+  (le suivi automatique se suspend, un bouton recentre). Points de passage
+  typés — sorties, échangeurs, aires, cols, viaducs, tunnels et barrières de
+  péage (Val de Saône, Viry, Nangy, Cluses) — chacun avec son **icône** ; les
+  péages et les extrémités du trajet sont mis en avant. Un ouvrage d'art reste
+  le repère visé pendant tout son franchissement, avec une jauge.
+- **Deux sens** : les corridors sont tracés dans le sens aller et parcourus à
+  rebours au retour (`reverse`) ; les repères et secteurs sont partagés sans
   duplication, avec un PK retour distinct lorsque les deux chaussées divergent.
-- **HUD paysage** (rotation de l'écran) : compteur de vitesse circulaire
-  calibré pour la route (150 km/h), graphe de vitesse glissant, distance
-  restante, et carousel vertical animé des
-  points de passage. À la place du badge de retard du rail, une **pilule de
-  secteur géographique** (Mâconnais, Bresse, Bugey/Titans, Bellegarde,
-  Genevois, Arve, Mont-Blanc).
-- **Points de passage typés** : sorties, échangeurs, aires, cols, viaducs, tunnels et
-  barrières de péage (Val de Saône, Viry, Nangy, Cluses), chacun avec une
-  **icône** distincte dans le widget et le HUD. La longueur des ponts et tunnels
-  est visible dans la projection du trajet et dans l'éditeur cartographique.
 - **Progression le long de la route** : PK interpolé et distances restantes
   mesurées le long du corridor (et non à vol d'oiseau).
 - **GPS routier réactif** : flux continu, vitesse native du téléphone quand
   elle est disponible. Si le signal disparaît à l'entrée d'un tunnel déclaré,
   la progression continue à la vitesse d'entrée jusqu'à la sortie théorique,
   puis pendant 10 secondes de raccrochage avant d'être figée. Durant cette
-  estimation, `assets/tunnel.png` remplace la vitesse et le graphe prolonge la
-  dernière vitesse connue en pointillés. Une perte hors tunnel est affichée
-  séparément et suspend immédiatement la progression.
+  estimation, `assets/tunnel.png` remplace la vitesse, la position est
+  libellée « estimée » (compteur, état du signal, tête de lecture, barre de
+  progression) et le profil de vitesse reste interrompu : une progression
+  extrapolée n'est jamais présentée comme une mesure. Une perte hors tunnel
+  est affichée séparément et suspend immédiatement la progression.
 - **Éditeur cartographique** (`car-points-editor.html`) : visualisation du
   tracé et des points de passage sur OpenStreetMap, déplacement par glisser,
   recalage automatique sur la route, projection spatiale de la longueur des
@@ -110,15 +131,18 @@ Application 100 % statique, sans backend ni build (modules ES natifs
 `<script type="module">`, aucun bundler).
 
 ```
-index.html              Page principale rail (sélection trajet + timeline + HUD)
-car.html                 Page mode voiture (Mâcon ⇄ Combloux, HUD paysage)
+index.html              Page du mode train (accueil + cockpit)
+car.html                 Page du mode voiture (accueil + cockpit, Mâcon ⇄ Combloux)
 car-points-editor.html   Carte de contrôle et correction des points voiture
 train-points-editor.html Carte de contrôle et correction des points rail
 master-editor.html       Éditeur visuel des trajets (data/masterRoutes.normalized.json)
-css/styles.css           Tous les styles (dont HUD paysage rail + voiture, responsive)
+css/train.css            Mise en page commune aux deux modes (accueil, cockpit, carrousel)
+css/car.css              Thème bleu nuit et éléments routiers, par-dessus train.css
+css/styles.css           Styles des éditeurs (master, points rail, points voiture)
 css/train-points-editor.css Styles dédiés à l'éditeur cartographique rail
 sw.js                    Service worker : cache hors-ligne (stale-while-revalidate)
-manifest.webmanifest     Manifeste PWA (installation plein écran iPhone)
+manifest.webmanifest     Manifeste PWA du mode train (installation plein écran iPhone)
+car.webmanifest          Manifeste PWA du mode voiture
 
 js/
   state.js               État applicatif global (STATE) + persistance localStorage
@@ -136,7 +160,12 @@ js/
                           rejeu, modèles de données (cockpit, profil de vitesse)
   train-controller.js    Transitions navigation / configuration provisoire / appliquée / session
   train-profile.js       Réduction du tracé de vitesse par colonne de pixels
-  ui.js                  Accueil éditable, cockpit, carousel responsive, historique
+  ui.js                  Rendu train : accueil éditable, cockpit, horaires, passages
+  app-mode.js            Modes de transport : pages, dernier mode, reprise au lancement iOS
+  app-shell.js           Coquille DOM commune : aides de rendu, bandeau, changement de mode
+  session-flow.js        Règles communes du cycle de session (lancer / appliquer / reprendre)
+  carousel-view.js       Carrousel commun : ligne, tête de lecture, suivi, recentrage
+  speed-profile-view.js  Tracé et inspection du profil de vitesse, communs aux deux modes
   app.js                 Orchestration rail : écouteurs DOM, boucle de tracking,
                           bascule GPS / WiFi SNCF / bridge Scriptable / bridge iOS
   sncf-telemetry.js      Télémétrie WiFi SNCF pure : lecture des réponses, fraîcheur,
@@ -146,8 +175,10 @@ js/
   car-config.js           CAR_ROUTES — source unique des itinéraires voiture (aller/retour)
   car-route.js            Construction de la route voiture hybride (corridor PK +
                           waypoints), secteurs et distances — logique pure, testable
-  car-ui.js               Rendu DOM voiture (widget, HUD paysage, icônes waypoints)
-  car-app.js              Orchestration voiture (boucle de tracking, matching)
+  car-session.js          Session voiture sans DOM : itinéraire provisoire / appliqué,
+                          sens, préférences, statistiques du trajet
+  car-ui.js               Rendu voiture : accueil, cockpit, secteurs, repères et ouvrages
+  car-app.js              Orchestration voiture (acquisition GPS, matching, tunnels)
   car-waypoint-overrides.js Surcouche locale/exportable des corrections cartographiques
   car-points-editor.js    Carte interactive et recalage des repères sur le corridor
   master-routes-data.js   Chargement, validation et export partagés du schéma v3
@@ -173,7 +204,9 @@ python/
   refine_corridors.py      Géométrie fine des corridors depuis une trace GPS réelle
   migrate_v2_to_v3.py      Migration ponctuelle du schéma de données (référence)
 
-tests/                    Suite Vitest (fonctions pures : moteur, corridors, route voiture)
+tests/                    Suite Vitest (fonctions pures : moteur, corridors, route voiture,
+                          sessions des deux modes) ; tests/browser/ : harnais navigateur
+                          train-ui.html et car-ui.html
 
 ios/                      Conteneur iOS (Swift + WKWebView, projet XcodeGen) :
                           pages embarquées depuis la liste de précache de sw.js,

@@ -9,6 +9,7 @@ import {
     estimateDeclaredTunnelProgress,
     findSector,
     listDeclaredTunnels,
+    listRouteSectors,
     locateRouteProgress,
     progressBetweenWaypoints,
     projectRouteLength,
@@ -531,5 +532,47 @@ describe('findSector', () => {
     it('leg inconnu ou sans secteur → null', () => {
         expect(findSector(cfg, 5, 3)).toBeNull();
         expect(findSector({ legs: [{ type: 'points' }] }, 0, null)).toBeNull();
+    });
+});
+
+describe('listRouteSectors', () => {
+    const legs = reverse => [
+        {
+            type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40', reverse,
+            sectors: [
+                { name: 'Ouest', pkFrom: 0, pkTo: 7 },
+                { name: 'Est', pkFrom: 7, pkTo: 15 }
+            ]
+        }
+    ];
+    const summit = {
+        type: 'points', label: 'Montée', sector: 'Sommital',
+        points: [{ id: 'S', name: 'Sommet', lat: 46.10, lon: 5.20 }]
+    };
+
+    it('liste les secteurs dans le sens du parcours, jointifs jusqu’à l’arrivée', () => {
+        const cfg = { label: 'Aller', legs: [...legs(false), summit] };
+        const route = buildCarRoute(cfg, DATASETS);
+        const sectors = listRouteSectors(route, cfg);
+        expect(sectors.map(s => s.name)).toEqual(['Ouest', 'Est', 'Sommital']);
+        expect(sectors[0].fromKm).toBe(0);
+        expect(sectors[1].fromKm).toBe(sectors[0].toKm);
+        expect(sectors[2].fromKm).toBe(sectors[1].toKm);
+        expect(sectors[2].toKm).toBe(route.totalKm);
+        // Borne Ouest/Est au pk 7 : entre les points pk 5 et pk 10.
+        expect(sectors[1].fromKm).toBeGreaterThan(route.cumKm[1]);
+        expect(sectors[1].fromKm).toBeLessThanOrEqual(route.cumKm[2]);
+    });
+
+    it('inverse l’ordre des secteurs sur le trajet retour', () => {
+        const cfg = { label: 'Retour', legs: [summit, ...legs(true)] };
+        const route = buildCarRoute(cfg, DATASETS);
+        expect(listRouteSectors(route, cfg).map(s => s.name)).toEqual(['Sommital', 'Est', 'Ouest']);
+    });
+
+    it('route sans secteur déclaré : liste vide', () => {
+        const cfg = { label: 'Nu', legs: [{ type: 'pk-corridor', datasetId: 'mini-a40', label: 'A40' }] };
+        expect(listRouteSectors(buildCarRoute(cfg, DATASETS), cfg)).toEqual([]);
+        expect(listRouteSectors(null, cfg)).toEqual([]);
     });
 });

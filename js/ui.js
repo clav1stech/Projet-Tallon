@@ -2,16 +2,14 @@ import { STATE } from './state.js';
 import { MAIN_ROUTES } from './routes-config.js';
 import { buildCockpitModel, buildCarouselModel, buildSpeedProfile } from './tracking-session.js';
 import { computeSegmentRatio } from './functions.js';
-import { buildProfileEnvelope, buildRecentWindow } from './train-profile.js';
 import { formatTime } from './utils.js';
 import { formatPk } from './linearref.js';
+import { el, escapeHtml, kmText, renderHomeActionButtons, setText, showInfo } from './app-shell.js';
+import { createCarouselView } from './carousel-view.js';
+import { createSpeedProfileView } from './speed-profile-view.js';
 import { CAROUSEL_ANIMATION_MS, CAROUSEL_HERO_RATIO, DELTA_MAX_MINUTES, DELTA_MIN_MINUTES, INFO_DISPLAY_MS, MAX_TRAIN_SPEED_KMH, PROFILE_MAX_COLUMNS, PROFILE_RECENT_WINDOW_MS } from './train-config.js';
 
-const el = id => document.getElementById(id);
-const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const setText = (id, text) => { const node = el(id); if (node && node.textContent !== String(text)) node.textContent = text; };
 const clock = ts => Number.isFinite(ts) ? formatTime(new Date(ts)) : '––:––';
-const kmText = km => Number.isFinite(km) ? km.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) : '—';
 const duration = seconds => {
     const minutes = Math.max(0, Math.round(seconds / 60));
     return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}` : `${minutes} min`;
@@ -103,27 +101,13 @@ export function renderServiceSummary(summary) {
 }
 
 export function renderHomeActions(action) {
-    setText('start-btn', { launch: 'Lancer le suivi →', apply: 'Appliquer et reprendre →', resume: 'Reprendre le suivi →' }[action.mode]);
-    el('start-btn').disabled = !action.enabled;
-    el('start-btn').dataset.mode = action.mode;
-    el('secondary-btn').hidden = !action.secondary;
-    setText('secondary-btn', { cancel: 'Annuler les modifications', end: 'Terminer' }[action.secondary] || '');
+    renderHomeActionButtons(action);
     setText('draft-status', action.mode === 'apply' ? 'Modifications non appliquées. Le suivi continue sur les réglages précédents.' : STATE.session.active ? 'La localisation continue pendant les réglages.' : 'Horaires théoriques, décalage ΔT inclus.');
 }
 
-let infoTimer;
-let lastInfo = '';
-export function updateInfo(message) {
-    // Les coordonnées sont affichables dans les détails, pas annoncées par le
-    // lecteur d'écran à chaque seconde. Seuls les événements utiles sont notifiés.
-    if (message === lastInfo) return;
-    lastInfo = message;
-    const node = el('info');
-    node.textContent = message;
-    node.hidden = false;
-    clearTimeout(infoTimer);
-    infoTimer = setTimeout(() => { node.hidden = true; }, INFO_DISPLAY_MS);
-}
+// Les coordonnées sont affichables dans les détails, pas annoncées par le
+// lecteur d'écran à chaque seconde. Seuls les événements utiles sont notifiés.
+export const updateInfo = message => showInfo(message, INFO_DISPLAY_MS);
 
 let previousView = 'home';
 export function renderNavigation() {
@@ -133,18 +117,17 @@ export function renderNavigation() {
         currentProfile = null;
         renderedSession = null;
         currentRailLabel = '';
-        profileLayouts = new WeakMap();
+        profileView.reset();
         routeRevision = null;
         activeIndex = null;
-        following = true;
-        el('recenter-btn').hidden = true;
+        carouselView().reset();
         setProfileRange('trip');
     }
     el('home-view').hidden = tracking;
     el('tracking-view').hidden = !tracking;
     el('session-status').hidden = !STATE.session.active;
     document.body.classList.toggle('tracking-active', tracking);
-    if (!tracking && scrollFrame) { cancelAnimationFrame(scrollFrame); scrollFrame = null; }
+    if (!tracking) carouselView().cancelScroll();
     if (STATE.view !== previousView) {
         (tracking ? el('tracking-view') : el('home-title')).focus({ preventScroll: true });
         previousView = STATE.view;
@@ -155,12 +138,19 @@ const signalLabels = { waiting: 'En attente de localisation', lost: 'Signal perd
 let currentModel;
 let currentProfile;
 let currentRailLabel = '';
-let profileLayouts = new WeakMap();
 let renderedSession = null;
 let routeRevision = null;
 let activeIndex = null;
-let following = true;
-let scrollFrame = null;
+const profileView = createSpeedProfileView({
+    maxKmh: MAX_TRAIN_SPEED_KMH, maxColumns: PROFILE_MAX_COLUMNS, recentWindowMs: PROFILE_RECENT_WINDOW_MS,
+    accent: '#8b2a3f', darkCursor: '#f0b9c4'
+});
+let carousel = null;
+// Créé à la première utilisation : le module peut être chargé avant le DOM.
+const carouselView = () => carousel ||= createCarouselView({
+    carousel: el('train-carousel'), points: el('train-points'), recenterButton: el('recenter-btn'),
+    heroRatio: CAROUSEL_HERO_RATIO, animationMs: CAROUSEL_ANIMATION_MS
+});
 let lastPassageKey = '';
 let profileRange = 'trip';
 const PROFILE_HELP = 'Survolez ou touchez le profil pour lire une mesure. Au clavier, utilisez les flèches.';
@@ -181,50 +171,17 @@ export function setProfileRange(range) {
     if (el('trip-details').open) drawSpeedProfile(el('details-profile'), currentProfile);
 }
 
-export function pauseCarouselFollow() {
-    following = false;
-    el('recenter-btn').hidden = false;
-    if (scrollFrame) cancelAnimationFrame(scrollFrame);
-    scrollFrame = null;
-}
-
-export function recenterCarousel() {
-    following = true;
-    el('recenter-btn').hidden = true;
-    layoutCarousel(true);
-}
+export const pauseCarouselFollow = () => carouselView().pause();
+export const recenterCarousel = () => carouselView().recenter();
 
 function layoutCarousel(animate = false) {
-    const points = el('train-points');
-    const carousel = el('train-carousel');
-    if (!currentModel || !carousel.clientHeight) return;
-    const first = points.querySelector('.train-point');
-    if (!first) return;
-    const y = node => node.offsetTop + node.offsetHeight / 2;
-    const all = points.querySelectorAll('.train-point');
-    const lastPoint = all[all.length - 1];
-    points.style.setProperty('--line-top', `${y(first)}px`);
-    points.style.setProperty('--line-height', `${y(lastPoint) - y(first)}px`);
-    const from = all[currentModel.progress.currentIdx];
-    const to = all[currentModel.progress.currentIdx + 1];
+    if (!currentModel) return;
     const progress = STATE.trackingSnapshot?.progress;
-    const ratio = progress ? computeSegmentRatio(progress.distanceFromSegmentStart, progress.distanceToNextPointKm) : 0;
-    points.style.setProperty('--cursor-top', `${from ? y(from) + (to ? (y(to) - y(from)) * ratio : 0) : y(first)}px`);
-    points.querySelector('.train-cursor').hidden = !STATE.trackingSnapshot;
-    if (!following) return;
-    const target = to || from || first;
-    const top = Math.max(0, y(target) - carousel.clientHeight * CAROUSEL_HERO_RATIO);
-    if (scrollFrame) cancelAnimationFrame(scrollFrame);
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!animate || reducedMotion) { carousel.scrollTop = top; scrollFrame = null; return; }
-    const start = carousel.scrollTop;
-    const startTime = performance.now();
-    const step = now => {
-        const t = Math.min(1, (now - startTime) / CAROUSEL_ANIMATION_MS);
-        carousel.scrollTop = start + (top - start) * (1 - (1 - t) ** 3);
-        scrollFrame = t < 1 ? requestAnimationFrame(step) : null;
-    };
-    scrollFrame = requestAnimationFrame(step);
+    carouselView().layout({
+        index: currentModel.progress.currentIdx,
+        ratio: progress ? computeSegmentRatio(progress.distanceFromSegmentStart, progress.distanceToNextPointKm) : 0,
+        located: !!STATE.trackingSnapshot
+    }, animate);
 }
 
 function renderCarousel(model, nowTs, relayout) {
@@ -278,8 +235,7 @@ export function renderTrainTracking({ relayout = false, nowTs = Date.now(), rail
     if (!STATE.session.active || STATE.view !== 'tracking') return;
     if (renderedSession !== STATE.session) {
         renderedSession = STATE.session;
-        following = true;
-        el('recenter-btn').hidden = true;
+        carouselView().reset();
     }
     const model = currentModel = buildCockpitModel(STATE, nowTs);
     if (!model) return;
@@ -322,93 +278,12 @@ export function renderTrainTracking({ relayout = false, nowTs = Date.now(), rail
     if (el('trip-details').open) renderTripDetails();
 }
 
-/** Le canvas est dimensionné en pixels physiques après chaque changement de surface. */
 function drawSpeedProfile(canvas, profile, dark = false) {
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const dpr = window.devicePixelRatio || 1;
-    const width = rect.width, height = rect.height;
-    if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
-        canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
-    }
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    const detailed = height >= 90;
-    const recent = detailed && profileRange === 'recent';
-    const left = detailed ? 30 : 1, right = 12, bottom = detailed ? 23 : 3, top = 8;
-    const w = Math.max(1, width - left - right), h = Math.max(1, height - top - bottom);
-    // L'échelle est celle des vitesses mesurables : une moyenne horaire
-    // aberrante sur un segment court est écrêtée, elle n'écrase pas la courbe.
-    const max = MAX_TRAIN_SPEED_KMH;
-    const y = v => top + h - Math.min(max, Math.max(0, v)) / max * h;
-    const colors = dark
-        ? { grid: '#ffffff20', text: '#c8c1c3', planned: '#c8c1c3', measured: '#fff', cursor: '#f0b9c4', stop: '#ffffff30', late: '#ff8a73', onTime: '#6fd9a8' }
-        : { grid: '#211d1e20', text: '#71676a', planned: '#8a777e', measured: '#8b2a3f', cursor: '#8b2a3f', stop: '#211d1e20', late: '#b8371f', onTime: '#1f7a52' };
-    ctx.font = '11px system-ui';ctx.lineWidth = 1;
-    ctx.strokeStyle = colors.grid;ctx.fillStyle = colors.text;
-    if (detailed) {
-        for (const v of [0, max / 2, max]) {
-            ctx.beginPath();ctx.moveTo(left, y(v));ctx.lineTo(width - right, y(v));ctx.stroke();ctx.fillText(String(Math.round(v)), 0, y(v) + 4);
-        }
-    }
-    if (recent) {
-        const recentWindow = buildRecentWindow(profile, PROFILE_RECENT_WINDOW_MS);
-        const { fromTs, toTs, points } = recentWindow;
-        const x = ts => left + (ts - fromTs) / PROFILE_RECENT_WINDOW_MS * w;
-        const minutes = PROFILE_RECENT_WINDOW_MS / 60_000;
-        ctx.fillText(`−${minutes} min`, left, height - 4);
-        ctx.textAlign = 'right';ctx.fillText(toTs == null ? 'Aucune mesure' : `Dernière mesure ${clock(toTs)}`, width - right, height - 4);ctx.textAlign = 'left';
-        ctx.strokeStyle = colors.planned;ctx.setLineDash([4, 4]);ctx.beginPath();
-        let previous = null;
-        for (const point of points) {
-            if (point.plannedKmh == null) { previous = null; continue; }
-            if (!previous || point.gap) ctx.moveTo(x(point.ts), y(point.plannedKmh));
-            else { ctx.lineTo(x(point.ts), y(previous.plannedKmh));ctx.lineTo(x(point.ts), y(point.plannedKmh)); }
-            previous = point;
-        }
-        ctx.stroke();ctx.setLineDash([]);
-        ctx.strokeStyle = colors.measured;ctx.lineWidth = 1.7;ctx.beginPath();
-        points.forEach((point, index) => {
-            if (index === 0 || point.gap) ctx.moveTo(x(point.ts), y(point.v));
-            else ctx.lineTo(x(point.ts), y(point.v));
-        });
-        ctx.stroke();
-        profileLayouts.set(canvas, { recent: true, points, fromTs, toTs, left, width: w });
-        canvas.setAttribute('aria-label', `Vitesse des ${minutes} dernières minutes, axe en temps. ${points.length} mesures. Mesures pleines, moyennes horaires théoriques en pointillés.`);
-        return;
-    }
-    const x = km => left + km / (profile.totalKm || 1) * w;
-    if (detailed) {
-        ctx.fillText('0', left, height - 4);ctx.textAlign = 'right';ctx.fillText(`${kmText(profile.totalKm)} km`, width - right, height - 4);ctx.textAlign = 'left';
-    }
-    ctx.strokeStyle = colors.planned;ctx.setLineDash([4, 4]);ctx.beginPath();
-    for (const segment of profile.planned) { ctx.moveTo(x(segment.fromKm), y(segment.kmh));ctx.lineTo(x(segment.toKm), y(segment.kmh)); }
-    ctx.stroke();ctx.setLineDash([]);
-    const envelope = buildProfileEnvelope(profile, Math.min(PROFILE_MAX_COLUMNS, w));
-    profileLayouts.set(canvas, { envelope, totalKm: profile.totalKm, left, width: w });
-    ctx.strokeStyle = colors.measured;ctx.lineWidth = 1.7;ctx.beginPath();
-    let previous = null;
-    for (const bucket of envelope) {
-        const points = [bucket.first, bucket.min, bucket.max, bucket.last].sort((a, b) => a.ts - b.ts);
-        if (!previous || bucket.gap || previous.gap) ctx.moveTo(x(points[0].routeKm), y(points[0].v));
-        else ctx.lineTo(x(points[0].routeKm), y(points[0].v));
-        for (const point of points) ctx.lineTo(x(point.routeKm), y(point.v));
-        previous = bucket;
-    }
-    ctx.stroke();
-    if (profile.currentKm != null) {
-        ctx.strokeStyle = colors.cursor;ctx.lineWidth = 1;ctx.beginPath();ctx.moveTo(x(profile.currentKm), top);ctx.lineTo(x(profile.currentKm), top + h);ctx.stroke();
-    }
-    if (detailed) {
-        for (const stop of profile.stops) {
-            ctx.strokeStyle = colors.stop;ctx.beginPath();ctx.moveTo(x(stop.km), top);ctx.lineTo(x(stop.km), top + h);ctx.stroke();
-        }
-        for (const passage of profile.passages) {
-            ctx.fillStyle = passage.delayMs > 0 ? colors.late : colors.onTime;ctx.beginPath();ctx.arc(x(passage.km), top + h, 3, 0, Math.PI * 2);ctx.fill();
-        }
-    }
-    canvas.setAttribute('aria-label', `Vitesse sur ${kmText(profile.totalKm)} kilomètres. Maximum mesuré ${Math.round(profile.maxKmh)} km/h. ${profile.passages.length} passages observés. Mesures pleines, moyennes horaires théoriques en pointillés. Détails dans le journal des passages.`);
+    const drawn = profileView.draw(canvas, profile, { dark, range: profileRange });
+    if (!drawn) return;
+    canvas.setAttribute('aria-label', drawn.recent
+        ? `Vitesse des ${PROFILE_RECENT_WINDOW_MS / 60_000} dernières minutes, axe en temps. ${drawn.points} mesures. Mesures pleines, moyennes horaires théoriques en pointillés.`
+        : `Vitesse sur ${kmText(profile.totalKm)} kilomètres. Maximum mesuré ${Math.round(profile.maxKmh)} km/h. ${profile.passages.length} passages observés. Mesures pleines, moyennes horaires théoriques en pointillés. Détails dans le journal des passages.`);
 }
 
 export function renderTripDetails() {
@@ -425,43 +300,6 @@ export function renderTripDetails() {
     el('passage-log').innerHTML = currentProfile.passages.length ? currentProfile.passages.map(passage => `<tr><th scope="row">${escapeHtml(passage.name)}${passage.isStop ? ' · arrêt' : ''}</th><td>${dateTime(passage.theoreticalTs)}</td><td>${dateTime(passage.ts)}</td><td>${delayText(passage.delayMs)}</td></tr>`).join('') : '<tr><td colspan="4">Aucun passage observé pour le moment.</td></tr>';
 }
 
-/** Inspection au doigt, à la souris et au clavier, depuis les mesures du tracé. */
 export function inspectSpeedProfile(canvas, event) {
-    const layout = profileLayouts.get(canvas);
-    const items = layout?.recent ? layout.points : layout?.envelope;
-    if (!items || !items.length) return;
-    const rect = canvas.getBoundingClientRect();
-    const readout = el(canvas.id === 'details-profile' ? 'details-readout' : 'profile-readout');
-    let index = null;
-    let ratio = 0;
-    if (event.type === 'keydown') {
-        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-        event.preventDefault();
-        index = Math.max(0, Math.min(items.length - 1,
-            event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : Number(canvas.dataset.readIndex || 0) + (event.key === 'ArrowRight' ? 1 : -1)));
-        canvas.dataset.readIndex = index;
-    } else {
-        ratio = Math.max(0, Math.min(1, (event.clientX - rect.left - layout.left) / layout.width));
-    }
-    let sample = null;
-    if (layout.recent) {
-        if (index != null) sample = items[index];
-        else {
-            const targetTs = layout.fromTs + ratio * (layout.toTs - layout.fromTs);
-            for (const point of items) {
-                if (!sample || Math.abs(point.ts - targetTs) < Math.abs(sample.ts - targetTs)) sample = point;
-            }
-        }
-        readout.hidden = false;
-        readout.textContent = `${dateTime(sample.ts)} · ${Math.round(sample.v)} km/h mesurés${sample.plannedKmh != null ? ` · moyenne théorique ${Math.round(sample.plannedKmh)} km/h` : ''}`;
-        return;
-    }
-    const targetKm = index != null ? items[index].last.routeKm : ratio * layout.totalKm;
-    for (const bucket of items) {
-        for (const point of [bucket.first, bucket.min, bucket.max, bucket.last]) {
-            if (!sample || Math.abs(point.routeKm - targetKm) < Math.abs(sample.routeKm - targetKm)) sample = point;
-        }
-    }
-    readout.hidden = false;
-    readout.textContent = `${kmText(sample.routeKm)} km · ${Math.round(sample.v)} km/h mesurés · ${dateTime(sample.ts)}`;
+    profileView.inspect(canvas, event, el(canvas.id === 'details-profile' ? 'details-readout' : 'profile-readout'));
 }

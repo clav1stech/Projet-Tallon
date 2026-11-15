@@ -4,7 +4,7 @@
 // immédiatement (zéro latence même sans réseau), puis rafraîchie en arrière-plan
 // pour la prochaine visite. Incrémenter CACHE_VERSION pour forcer une purge.
 
-const CACHE_VERSION = 'tallon-v31';
+const CACHE_VERSION = 'tallon-v32';
 
 // Coquille applicative pré-cachée à l'installation.
 const PRECACHE_URLS = [
@@ -24,8 +24,14 @@ const PRECACHE_URLS = [
     './assets/icons/car-512.png',
     './css/styles.css',
     './css/train.css',
+    './css/car.css',
     './css/train-points-editor.css',
     './js/app.js',
+    './js/app-mode.js',
+    './js/app-shell.js',
+    './js/session-flow.js',
+    './js/carousel-view.js',
+    './js/speed-profile-view.js',
     './js/functions.js',
     './js/geo.js',
     './js/state.js',
@@ -46,8 +52,8 @@ const PRECACHE_URLS = [
     './js/car-config.js',
     './js/car-route.js',
     './js/car-app.js',
+    './js/car-session.js',
     './js/car-ui.js',
-    './js/hud-cursor.js',
     './js/car-waypoint-overrides.js',
     './js/car-points-editor.js',
     './js/master-routes-data.js',

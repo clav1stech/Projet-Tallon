@@ -1,0 +1,292 @@
+/* Mode voiture : s'ajoute à train.css (mise en page commune) et n'apporte que
+   le thème bleu nuit et les éléments propres à la route — secteurs, ouvrages
+   d'art, position estimée. */
+:root {
+    --bx:#1f3a6e;
+    --bx-deep:#14264a;
+    --soft:#e6ecf7;
+    --ink:#161b26;
+    --muted:#626a7a;
+    --paper:#f1f3f7;
+    --well:#e3e7ef;
+    --rule:#d7dce6;
+    --coal:#0f1a30;
+    --estimate:#efb85e;
+}
+
+/* Teintes bordeaux écrites en dur dans la feuille commune. */
+button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-visible,.segments input:focus-visible+span {
+    outline-color:#6f8fcb;
+}
+
+.primary {
+    box-shadow:0 7px 20px -8px #1f3a6e88;
+}
+
+.home-bar {
+    background:#f1f3f7f2;
+}
+
+.train-points:after {
+    background:#aebbd3;
+}
+
+.train-point.next .point-dot {
+    box-shadow:0 0 0 8px #1f3a6e20;
+}
+
+.train-carousel {
+    scrollbar-color:#b5bdcc transparent;
+}
+
+.details-button,.profile-readout {
+    color:#cfdcf5;
+}
+
+.journey-progress>div {
+    background:#d5dbe6;
+}
+
+.journey-progress>div>span,.train-points:after,.train-cursor {
+    transition:width 1s linear,height 1s linear,top 1s linear;
+}
+
+/* --- Accueil : la route, sans colonne d'horaires --- */
+.road-line .service-stop,.road-sectors li {
+    grid-template-columns:28px minmax(0,1fr) auto;
+}
+
+.road-sectors {
+    list-style:none;
+    margin:0;
+    padding:0;
+}
+
+.road-sectors li {
+    display:grid;
+    align-items:center;
+    min-height:34px;
+    font-size:15px;
+    color:#3d4558;
+}
+
+.road-sectors li>span {
+    padding-left:6px;
+}
+
+.road-sectors li>small {
+    color:var(--muted);
+    font-size:13px;
+    font-variant-numeric:tabular-nums;
+}
+
+.road-sectors .line-dot:after {
+    content:"";
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#fff;
+}
+
+.reverse-button {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:0 14px;
+    border-radius:22px;
+    background:var(--soft);
+    color:var(--bx-deep);
+    font-size:14px;
+    font-weight:600;
+}
+
+.reverse-button span {
+    font-size:18px;
+}
+
+/* Le sens vient de changer : la ligne se retourne. */
+.road-line.reversed {
+    animation:road-flip .32s ease-out;
+}
+
+@keyframes road-flip {
+    from {
+        opacity:.35;
+        transform:scaleY(.94);
+    }
+}
+
+/* --- Cockpit : le secteur géographique tient la place de l'heure d'arrivée --- */
+.sector>b {
+    font:700 clamp(26px,min(7.6vw,9vh),40px)/1.1 var(--font);
+    letter-spacing:-.02em;
+    overflow-wrap:anywhere;
+}
+
+.sector>b.swap {
+    animation:sector-swap .45s ease-out;
+}
+
+@keyframes sector-swap {
+    from {
+        opacity:0;
+        transform:translateY(8px);
+    }
+}
+
+.sector .arrival-row {
+    flex-direction:row;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:4px 8px;
+}
+
+.sector .arrival-row>span:last-child:not(:first-child) {
+    font-size:13px;
+    color:#c9d1e2;
+    font-variant-numeric:tabular-nums;
+}
+
+.next-line {
+    margin:6px 0 0;
+    font-size:13px;
+    line-height:1.3;
+    color:#e3e9f6;
+    overflow-wrap:anywhere;
+}
+
+.next-line b {
+    font-weight:600;
+    color:#fff;
+}
+
+.wp-icon {
+    width:1.25em;
+    margin-right:.3em;
+    text-align:center;
+    font-size:.82em;
+    opacity:.8;
+}
+
+/* Tunnel : l'image remplace la vitesse, qui n'est plus mesurée. */
+.gauge b img {
+    display:block;
+    height:1em;
+    width:auto;
+}
+
+.cockpit[data-estimated] .gauge span {
+    color:var(--estimate);
+}
+
+/* Sans mesure, l'arc de vitesse disparaît entièrement (son extrémité arrondie
+   laisserait un point). */
+.cockpit[data-estimated] #gauge-value {
+    opacity:0;
+}
+
+.location-status[data-signal=tunnel]:before,.location-status[data-signal=lost]:before {
+    color:var(--estimate);
+}
+
+/* Position estimée : tête de lecture creuse, jamais l'aspect d'une mesure. */
+.cockpit[data-estimated] .train-cursor {
+    background:var(--paper);
+    border-style:dashed;
+    border-color:var(--amber);
+}
+
+.cockpit[data-estimated] #progress-label {
+    color:var(--amber);
+}
+
+/* Compteurs toujours présents en portrait : l'iPhone a la hauteur pour. */
+@media (orientation:portrait) {
+    .trip-stats {
+        display:grid;
+        margin-bottom:8px;
+    }
+
+    .trip-stats b {
+        font-size:20px;
+    }
+}
+
+/* Tablette portrait : le train y masque l'état du signal au profit du prochain
+   arrêt. La voiture n'a pas d'arrêt et doit signaler tunnel et perte de signal. */
+@media (orientation:portrait) and (min-width:700px) {
+    .location-status {
+        display:block;
+        align-self:center;
+    }
+}
+
+/* --- Carrousel : ouvrages d'art --- */
+.point-gauge {
+    display:none;
+    height:5px;
+    max-width:260px;
+    margin-top:8px;
+    border-radius:3px;
+    background:#d5dbe6;
+    overflow:hidden;
+}
+
+.point-gauge span {
+    display:block;
+    height:100%;
+    width:0;
+    background:var(--bx);
+    transition:width 1s linear;
+}
+
+.train-point.on-structure .point-gauge {
+    display:block;
+}
+
+.train-point.on-structure .point-dot {
+    animation:structure-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes structure-pulse {
+    50% {
+        box-shadow:0 0 0 14px #1f3a6e10;
+    }
+}
+
+/* --- Détails --- */
+.details-stats {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+    gap:8px;
+    margin:14px 0;
+}
+
+.details-stats div {
+    padding:10px 12px;
+    border-radius:14px;
+    background:#fff;
+}
+
+.details-stats dt {
+    font-size:12px;
+    color:var(--muted);
+}
+
+.details-stats dd {
+    margin:2px 0 0;
+    font:700 20px var(--num);
+    font-variant-numeric:tabular-nums;
+}
+
+tr.past td,tr.past th {
+    color:var(--muted);
+}
+
+tr.current th {
+    color:var(--bx);
+}

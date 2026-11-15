@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    carHudPointClass,
+    carPointClass,
     speedDisplayKey,
     formatRemainingDistance,
     formatStructureDistance,
@@ -30,7 +30,8 @@ describe('formatRemainingDistance', () => {
 describe('affichage du franchissement d\'un ouvrage', () => {
     it('bascule en mètres sous le kilomètre', () => {
         expect(formatStructureDistance(0.482)).toBe('482 m');
-        expect(formatStructureDistance(1.25)).toBe('1.3 km');
+        // Séparateur décimal français, comme toutes les distances du cockpit.
+        expect(formatStructureDistance(1.25)).toBe('1,3 km');
         expect(formatStructureDistance(-1)).toBe('—');
     });
 
@@ -52,7 +53,7 @@ describe('hiérarchie du carousel voiture', () => {
         { name: 'Combloux', type: 'etape' }              // 5 — arrivée réelle
     ];
     const last = wps.length - 1;
-    const cls = (i) => carHudPointClass(i, 2, wps[i], false, last);
+    const cls = (i) => carPointClass(i, 2, wps[i], false, last);
 
     it('met en avant les péages et les deux extrémités du trajet', () => {
         expect(cls(0)).toContain('stop');   // extrémité, typée etape
@@ -69,8 +70,9 @@ describe('hiérarchie du carousel voiture', () => {
     it('conserve le rang de proximité et le franchissement d\'ouvrage', () => {
         expect(cls(2)).toContain('active');
         expect(cls(3)).toContain('next');
-        expect(cls(4)).toContain('future-1');
-        expect(carHudPointClass(3, 2, wps[3], true, last)).toContain('on-structure');
+        expect(cls(1)).toContain('past');
+        expect(cls(4)).toBe('train-point');
+        expect(carPointClass(3, 2, wps[3], true, last)).toContain('on-structure');
     });
 });
 

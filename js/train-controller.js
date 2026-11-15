@@ -15,6 +15,7 @@
 
 import { buildTripPlan, createTripConfig, diffTripConfig } from './trip-config.js';
 import { clearTripPlan, endSession, installTripPlan, replaySession, startSession } from './tracking-session.js';
+import { resolveHomeAction, resolveView } from './session-flow.js';
 
 const dataOf = (state) => ({ points: state.points, trajets: state.trajets });
 
@@ -42,23 +43,17 @@ export function isDraftDirty(state) {
 }
 
 /**
- * Action principale de l'accueil, selon l'état :
- *  - 'launch' : pas de session ; activable si la configuration est valide ;
- *  - 'apply'  : session active et configuration modifiée ;
- *  - 'resume' : session active, rien à appliquer — toujours activable.
- * `secondary` : 'cancel' (abandonner les modifications), 'end' (terminer la
- * session) ou null. `status` reprend celui du plan provisoire.
+ * Action principale de l'accueil (règles communes : session-flow.js).
+ * `status` reprend celui du plan provisoire.
  */
 export function getHomeAction(state, nowTs = Date.now()) {
     const status = buildDraftPlan(state, nowTs).status;
-    if (!state.session.active) return { mode: 'launch', enabled: status === 'ok', secondary: null, status };
-    if (isDraftDirty(state)) return { mode: 'apply', enabled: status === 'ok', secondary: 'cancel', status };
-    return { mode: 'resume', enabled: true, secondary: 'end', status };
+    return { ...resolveHomeAction({ active: state.session.active, dirty: isDraftDirty(state), valid: status === 'ok' }), status };
 }
 
 /** Change de vue. Le suivi n'est affichable que pendant une session. */
 export function showView(state, view) {
-    state.view = view === 'tracking' && state.session.active ? 'tracking' : 'home';
+    state.view = resolveView(view, state.session.active);
     return state.view;
 }
 

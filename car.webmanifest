@@ -1,13 +1,13 @@
 {
-  "name": "Car Tracker",
-  "short_name": "Car",
-  "description": "Suivi de trajet en voiture : position, progression et heure d'arrivée estimée",
+  "name": "Tallon Voiture",
+  "short_name": "Voiture",
+  "description": "Suivi de trajet en voiture : position, progression et distance restante",
   "start_url": "./car.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#111418",
-  "theme_color": "#111418",
+  "background_color": "#f1f3f7",
+  "theme_color": "#0f1a30",
   "lang": "fr",
   "icons": [
     {
