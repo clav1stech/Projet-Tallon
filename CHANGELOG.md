@@ -1,5 +1,27 @@
 # Changelog
 
+## v3.1.8 - 2026-11-15
+
+### Reprise de session, Vmax de ligne et écart au corridor (mode rail)
+
+- Reprise après éviction par iOS : la dernière position de confiance et l'index
+  de corridor sont sauvegardés à chaque fix accepté (clé `railTrackingSnapshot`,
+  durée de vie 10 min) puis restaurés au chargement. Le premier fix de la
+  reprise est ainsi confronté à la dernière position connue : un positionnement
+  aberrant au réveil est rejeté au lieu d'ancrer le suivi au mauvais endroit.
+  Un snapshot périmé ou corrompu est supprimé.
+- Vitesse limite de ligne au PK courant : la colonne `vitesse` de `rail_pk.csv`
+  alimente la colonne logique optionnelle `vmax` du descripteur. Elle est
+  affichée sous le compteur du HUD paysage et dans la barre d'info, et reste
+  absente hors du corridor ou quand la donnée manque.
+- Écart au corridor ferroviaire : au-delà de 0,5 km pendant 5 ticks consécutifs
+  (ou de la précision annoncée du fix si elle est supérieure), la barre d'info
+  affiche une alerte et la console journalise une fois par épisode. Informatif
+  uniquement, sans effet sur le tracking ni sur le retard.
+- La localisation sur le corridor précède désormais le calcul de segment : la
+  Vmax du HUD correspond au fix courant et non à celui de la seconde précédente.
+- Clé de cache du service worker : `tallon-v28`.
+
 ## v3.1.7 - 2026-08-26
 
 ### Continuité des animations

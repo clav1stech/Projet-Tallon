@@ -367,9 +367,12 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
             const arcSpeed = Math.min(displaySpeed, 320);
             const speedDeg = Math.round((arcSpeed / 320) * 240);
             speedEl.style.setProperty('--speed-deg', `${speedDeg}deg`);
+            // Vitesse limite de ligne au PK courant, en regard de la vitesse mesurée.
+            const vmax = Number.isFinite(STATE.currentVmax) ? Math.round(STATE.currentVmax) : null;
             speedEl.innerHTML = `
                 <span class="hud-speed-value">${displaySpeed}</span>
                 <span class="hud-speed-unit">km/h</span>
+                ${vmax !== null ? `<span class="hud-speed-vmax">V<sub>max</sub> ${vmax}</span>` : ''}
             `;
         }
     }

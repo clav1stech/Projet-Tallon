@@ -103,6 +103,29 @@ describe('datasets du mode voiture et PWA', () => {
     });
 });
 
+describe('rail-pk : vitesse limite de ligne (vmax)', () => {
+    const descriptor = readJson('data/datasets/rail-pk.json');
+    const [header, ...lines] = readFileSync(descriptor.file, 'utf8').trim().split('\n');
+    const columns = header.split(',');
+
+    it('mappe la colonne logique vmax sur une colonne réelle du CSV', () => {
+        expect(descriptor.columns.vmax).toBe('vitesse');
+        expect(columns).toContain(descriptor.columns.vmax);
+    });
+
+    it('ne contient, sur la ligne du corridor, que des limites plausibles ou NULL', () => {
+        const lineIdx = columns.indexOf(descriptor.columns.line);
+        const vmaxIdx = columns.indexOf(descriptor.columns.vmax);
+        const wanted = descriptor.filters[0].equals;
+        const values = lines.map(l => l.split(',')).filter(c => c[lineIdx] === wanted).map(c => c[vmaxIdx]);
+        expect(values.length).toBeGreaterThan(1000);
+        const known = values.filter(v => v !== 'NULL').map(Number);
+        expect(known.every(v => Number.isFinite(v) && v >= 30 && v <= 320)).toBe(true);
+        // La donnée doit rester exploitable : NULL reste marginal.
+        expect(known.length / values.length).toBeGreaterThan(0.99);
+    });
+});
+
 describe('service worker', () => {
     it('ne précache que des fichiers locaux existants', () => {
         const source = readFileSync('sw.js', 'utf8');

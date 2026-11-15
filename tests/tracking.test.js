@@ -7,6 +7,9 @@ import {
     noiseFloorKmh,
     filterSpeedSpike,
     isGpsSignalStale,
+    trackCorridorOffset,
+    CORRIDOR_OFFSET_WARN_KM,
+    CORRIDOR_OFFSET_WARN_TICKS,
     MAX_ACCEPTABLE_ACCURACY_M,
     ACCURACY_OVERRIDE_MS,
     TELEPORT_MAX_REJECTIONS
@@ -176,5 +179,62 @@ describe('filterSpeedSpike — anti-pic (comportement historique)', () => {
 
     it('accepte un profil de réponse plus rapide', () => {
         expect(filterSpeedSpike(50, 120, { thresholdKmh: 20, stepKmh: 35 })).toBe(85);
+    });
+});
+
+describe('trackCorridorOffset — garde-fou d\'écart au corridor', () => {
+    // Rejoue une suite d'écarts et renvoie le verdict de chaque tick.
+    function replay(offsets, accuracyMeters = null) {
+        let streak = 0;
+        return offsets.map(offset => {
+            const verdict = trackCorridorOffset(offset, streak, accuracyMeters);
+            streak = verdict.streak;
+            return verdict;
+        });
+    }
+
+    it('ne compte pas un écart sous le seuil', () => {
+        expect(trackCorridorOffset(0.1, 0)).toEqual({ streak: 0, warn: false, alert: false });
+        expect(trackCorridorOffset(CORRIDOR_OFFSET_WARN_KM, 3)).toEqual({ streak: 0, warn: false, alert: false });
+    });
+
+    it('signale une seule fois, au N-ième tick consécutif', () => {
+        const verdicts = replay(Array(CORRIDOR_OFFSET_WARN_TICKS + 3).fill(0.8));
+        const warnTicks = verdicts.flatMap((v, i) => (v.warn ? [i + 1] : []));
+        expect(warnTicks).toEqual([CORRIDOR_OFFSET_WARN_TICKS]);
+    });
+
+    it('maintient l\'alerte tant que l\'épisode dure, pas avant', () => {
+        const verdicts = replay(Array(CORRIDOR_OFFSET_WARN_TICKS + 2).fill(0.8));
+        expect(verdicts.map(v => v.alert)).toEqual([false, false, false, false, true, true, true]);
+    });
+
+    it('un tick conforme clôt l\'épisode et permet un nouveau signalement', () => {
+        const spike = Array(CORRIDOR_OFFSET_WARN_TICKS).fill(0.8);
+        const verdicts = replay([...spike, 0.1, ...spike]);
+        expect(verdicts.filter(v => v.warn)).toHaveLength(2);
+        expect(verdicts[CORRIDOR_OFFSET_WARN_TICKS]).toEqual({ streak: 0, warn: false, alert: false });
+    });
+
+    it('un rebond isolé ne déclenche rien', () => {
+        const verdicts = replay([0.8, 0.8, 0.1, 0.8, 0.8, 0.1, 0.8]);
+        expect(verdicts.some(v => v.warn || v.alert)).toBe(false);
+    });
+
+    it('un écart absent (position hors corridor) remet le compteur à zéro', () => {
+        expect(trackCorridorOffset(null, 4)).toEqual({ streak: 0, warn: false, alert: false });
+        expect(trackCorridorOffset(NaN, 4).streak).toBe(0);
+    });
+
+    it('tolère un écart que la précision annoncée explique', () => {
+        // ±900 m : un écart de 0,8 km reste dans le bruit de mesure.
+        expect(replay(Array(8).fill(0.8), 900).some(v => v.alert)).toBe(false);
+        // Même écart avec un fix précis : anomalie.
+        expect(replay(Array(8).fill(0.8), 15).some(v => v.alert)).toBe(true);
+    });
+
+    it('accepte des seuils personnalisés', () => {
+        const verdict = trackCorridorOffset(0.3, 1, null, { warnKm: 0.2, warnTicks: 2 });
+        expect(verdict).toEqual({ streak: 2, warn: true, alert: true });
     });
 });

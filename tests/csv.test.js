@@ -148,6 +148,41 @@ describe('applyDescriptor', () => {
     });
 });
 
+describe('applyDescriptor — colonne optionnelle vmax', () => {
+    const descriptor = {
+        id: 'rail',
+        csv: { decimalSeparator: '.' },
+        columns: { pk: 'pk', lat: 'lat', lon: 'lon', vmax: 'vitesse' },
+        pkFormat: 'decimal-km'
+    };
+    const row = (pk, vitesse) => ({ pk, lat: '46.2', lon: '5.0', vitesse });
+
+    it('expose la vitesse limite numérique du point', () => {
+        const out = applyDescriptor([row('1', '300'), row('2', '270')], descriptor);
+        expect(out.map(p => p.vmax)).toEqual([300, 270]);
+    });
+
+    it('omet le champ pour NULL, vide, non numérique ou nul — sans écarter le point', () => {
+        const out = applyDescriptor([row('1', 'NULL'), row('2', ''), row('3', 'abc'), row('4', '0')], descriptor);
+        expect(out).toHaveLength(4);
+        expect(out.every(p => !('vmax' in p))).toBe(true);
+    });
+
+    it('respecte le séparateur décimal du descripteur', () => {
+        const fr = { ...descriptor, csv: { decimalSeparator: ',' } };
+        const out = applyDescriptor([{ pk: '1', lat: '46,2', lon: '5,0', vitesse: '27,5' }], fr);
+        expect(out[0].vmax).toBe(27.5);
+    });
+
+    it('sans mapping vmax, ou si la colonne est absente du fichier : aucun champ, aucune erreur', () => {
+        const noMapping = { ...descriptor, columns: { pk: 'pk', lat: 'lat', lon: 'lon' } };
+        expect('vmax' in applyDescriptor([row('1', '300')], noMapping)[0]).toBe(false);
+        const out = applyDescriptor([{ pk: '1', lat: '46.2', lon: '5.0' }], descriptor);
+        expect(out).toHaveLength(1);
+        expect('vmax' in out[0]).toBe(false);
+    });
+});
+
 describe('loadDataset', () => {
     const makeFetch = (files) => async (url) => {
         if (!(url in files)) return { ok: false, status: 404 };

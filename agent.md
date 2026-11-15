@@ -83,11 +83,11 @@ Dans les trois cas, utiliser uniquement les fichiers liés au travail en cours, 
 **Quoi** : suivi de trajet TGV en temps réel (position GPS ou WiFi SNCF) contre un horaire théorique, avec calcul de retard/avance (+ mode voiture : progression et distance restante sans horaire). Application 100 % statique en vanilla JS (modules ES, aucun bundler), aucun backend.
 
 **Architecture front** (voir aussi `CONVENTIONS.md`) :
-- `js/state.js` : état global unique (`STATE`), persistance `localStorage` des réglages utilisateur.
+- `js/state.js` : état global unique (`STATE`), persistance `localStorage` des réglages utilisateur et du snapshot de session rail (`railTrackingSnapshot` : dernière position de confiance + index de corridor, TTL 10 min, supprimé s'il est périmé ou corrompu). Les clés de stockage propres à un mode sont préfixées : `index.html` et `car.html` partagent la même origine.
 - `js/geo.js` : primitives géométriques pures (Haversine, projection sur segment). Aucune dépendance au DOM ni à `STATE`.
 - `js/functions.js` : moteur de calcul pur — construction de route effective (`buildEffectiveRoute`), matching position→segment (`computeSegmentIndexAndDistance`), calcul de retard (`computeCurrentDelay`). Zéro DOM, testable isolément.
 - `js/ui.js` : tout le rendu DOM (timeline, widget de suivi, HUD paysage avec compteur/graphe/carousel).
-- `js/app.js` : orchestration — écouteurs DOM, boucle de tracking (`setInterval` 1 s), bascule GPS natif / WiFi SNCF / bridge Scriptable iOS.
+- `js/app.js` : orchestration — écouteurs DOM, boucle de tracking (`setInterval` 1 s), bascule GPS natif / WiFi SNCF / bridge Scriptable iOS. L'enrichissement par le corridor PK (`locateRailCorridor` : PK, Vmax de ligne dans `STATE.currentVmax`, garde-fou d'écart `trackCorridorOffset`) est purement informatif : jamais couplé au calcul de retard ni à la position suivie.
 - `js/routes-config.js` : `MAIN_ROUTES`, source unique des trajets proposés dans le sélecteur — consommée à la fois par `ui.js` (app) et `master-editor.js` (éditeur), donc toute route ajoutée ici apparaît automatiquement aux deux endroits.
 - `js/fakeGeoSim.js` : simulateur GPS pour le développement (désactivé par défaut, `ENABLE_FAKE_GPS = false`). Ne jamais l'activer dans un commit poussé.
 - `js/master-editor.js` + `master-editor.html` : éditeur visuel de `data/masterRoutes.normalized.json` (ajout/réordonnancement de points, export JSON). Les modifications n'écrivent jamais le fichier directement — export manuel puis remplacement.

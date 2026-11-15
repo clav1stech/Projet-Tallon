@@ -93,6 +93,43 @@ export function evaluateTeleport(lastTrusted, lat, lon, nowTs, rejections = 0, o
     return { accept: false, reseeded: false, rejections: nextRejections };
 }
 
+// Écart position→corridor au-delà duquel le matching devient suspect : le
+// matcher peut accrocher jusqu'à POINT_MATCH_TOLERANCE_KM (0,9 km) de la
+// polyline, un écart durable au-delà de 0,5 km signale donc un mauvais
+// accrochage plutôt qu'un simple bruit de mesure.
+export const CORRIDOR_OFFSET_WARN_KM = 0.5;
+
+// Ticks consécutifs au-dessus du seuil avant d'alerter : un écart ponctuel
+// (rebond GPS, courbe serrée) ne doit pas déclencher.
+export const CORRIDOR_OFFSET_WARN_TICKS = 5;
+
+/**
+ * Garde-fou d'écart au corridor : compte les ticks consécutifs où l'écart
+ * position→corridor dépasse le seuil. Purement informatif, jamais couplé au
+ * calcul de retard.
+ * Un écart que la précision annoncée du fix suffit à expliquer n'est pas une
+ * anomalie : le seuil effectif est le plus grand de `warnKm` et de la précision.
+ * - `warn` n'est vrai qu'au franchissement du N-ième tick (un journal par épisode) ;
+ * - `alert` reste vrai tant que l'épisode dure (affichage persistant).
+ * Un tick sans écart mesurable (position hors corridor) clôt l'épisode.
+ * @param {number|null} offsetKm - écart au corridor du tick courant
+ * @param {number} streak - compteur de ticks consécutifs au-dessus du seuil
+ * @param {number|null} [accuracyMeters] - précision annoncée du fix
+ * @param {object} [opts] - { warnKm, warnTicks }
+ * @returns {{ streak: number, warn: boolean, alert: boolean }}
+ */
+export function trackCorridorOffset(offsetKm, streak = 0, accuracyMeters = null, opts = {}) {
+    const warnKm = opts.warnKm ?? CORRIDOR_OFFSET_WARN_KM;
+    const warnTicks = opts.warnTicks ?? CORRIDOR_OFFSET_WARN_TICKS;
+    const accuracyKm = Number.isFinite(accuracyMeters) && accuracyMeters > 0 ? accuracyMeters / 1000 : 0;
+
+    if (!Number.isFinite(offsetKm) || offsetKm <= Math.max(warnKm, accuracyKm)) {
+        return { streak: 0, warn: false, alert: false };
+    }
+    const nextStreak = streak + 1;
+    return { streak: nextStreak, warn: nextStreak === warnTicks, alert: nextStreak >= warnTicks };
+}
+
 /**
  * Vitesse lissée : médiane des vitesses instantanées entre positions consécutives.
  * @param {Array<{lat:number, lon:number, ts:number}>} positions

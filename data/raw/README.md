@@ -28,19 +28,20 @@ Relancer ces scripts si d'autres lignes SNCF / corridors routiers sont ajoutés
   752000 (LGV Sud-Est, 7113 pts), 752100 (raccordement, 395 pts), 752330
   (accès Montanay–Lyon-Saint-Clair), 830000 et 893000 (accès Lyon-Part-Dieu).
 - ✅ **Utilisé** : source de `data/csv/rail_pk.csv` ; le descripteur `data/datasets/rail-pk.json`
-  filtre la 752000 pour l'affichage PK d'index.html.
-- 🔮 **Futur** : `vitesse` (vitesse de ligne au PK courant), `altitude`/`altitude_declivites`
-  (profil altimétrique) — colonnes déjà présentes dans le CSV extrait, aucune ré-extraction nécessaire ;
+  filtre la 752000 pour l'affichage PK d'index.html, et mappe `vitesse` sur la colonne
+  logique `vmax` (vitesse limite de ligne au PK courant, affichée en regard de la vitesse GPS).
+- 🔮 **Futur** : `altitude`/`altitude_declivites` (profil altimétrique) — colonnes déjà présentes dans le CSV extrait, aucune ré-extraction nécessaire ;
   corridors multi-lignes (752100/830000 déjà extraits, sélectionnables par le filtre du descripteur).
 
 ## rail/lignes-vitesses.geojson — 25 Mo, 2469 LineString
 
 - **Propriétés** : `code_ligne, v_max, lib_ligne, pkd, pkf, pkd_arrondi, pkf_arrondi`
   (vitesse max par plage de PK [pkd, pkf] d'une ligne).
-- 🔮 **Futur** : afficher la v_max au PK courant (comparaison vitesse GPS / limite de ligne).
-  Extraction envisagée : filtrer par `code_ligne`, ne garder que `(code_ligne, v_max, pkd, pkf)`
-  → table de lookup légère (les géométries LineString, volumineuses, sont inutiles :
-  le PK courant vient déjà du corridor).
+- ℹ️ La v_max au PK courant est affichée depuis la colonne `vitesse` de `rail_pk.csv`
+  (déjà extraite, même donnée au point près) : ce geojson reste inutile tant qu'une ligne
+  sans PK géolocalisés n'est pas ajoutée.
+- 🔮 **Futur** : extraction `(code_ligne, v_max, pkd, pkf)` sans géométries si une table de
+  lookup par plage de PK devient nécessaire (lignes hors corridor PK).
 
 ## rail/lignes-tunnels.geojson — 1,5 Mo, 1469 LineString
 

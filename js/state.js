@@ -77,8 +77,97 @@ export const STATE = {
     // Corridor PK ferroviaire (enrichissement optionnel — voir js/linearref.js).
     // null tant que data/datasets/rail-pk.json + son CSV ne sont pas branchés.
     railCorridor: null,
-    railCorridorIndex: null
+    railCorridorIndex: null,
+
+    // Vitesse limite de ligne au PK courant (km/h) : null si corridor absent,
+    // position hors corridor ou vitesse inconnue au point matché.
+    currentVmax: null,
+
+    // Ticks consécutifs où l'écart au corridor dépasse le seuil d'alerte
+    // (voir trackCorridorOffset dans tracking.js)
+    corridorOffsetStreak: 0
 };
+
+// --- Persistance de session du tracking rail ---
+// iOS évince fréquemment l'app en arrière-plan : sans snapshot, la dernière
+// position de confiance repart de zéro au rechargement et le garde-fou
+// anti-téléportation est désarmé pour le premier fix, qui ancre alors le
+// segment (un positionnement cellulaire aberrant au réveil serait accepté).
+// Avec le snapshot, ce fix est confronté à la dernière position connue.
+// Le TTL évite de ré-ancrer sur la position d'un trajet précédent. La clé est
+// propre au mode rail : car.html partage la même origine donc le même stockage.
+const TRACKING_SNAPSHOT_KEY = 'railTrackingSnapshot';
+export const TRACKING_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
+
+/**
+ * Valide un snapshot sérialisé (fonction pure, testable sans localStorage).
+ * @param {string|null} json - contenu brut du stockage
+ * @param {number} nowTs
+ * @param {number} [maxAgeMs]
+ * @returns {{ lastTrustedPosition: {lat:number, lon:number, ts:number},
+ *             railCorridorIndex: number|null } | null} null si absent/périmé/corrompu
+ */
+export function parseTrackingSnapshot(json, nowTs, maxAgeMs = TRACKING_SNAPSHOT_MAX_AGE_MS) {
+    if (!json) return null;
+    let raw;
+    try {
+        raw = JSON.parse(json);
+    } catch {
+        return null;
+    }
+    if (!raw || typeof raw !== 'object') return null;
+    if (!Number.isFinite(raw.savedAt) || raw.savedAt > nowTs || nowTs - raw.savedAt > maxAgeMs) return null;
+
+    const pos = raw.lastTrustedPosition;
+    if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lon) || !Number.isFinite(pos.ts)) return null;
+    if (Math.abs(pos.lat) > 90 || Math.abs(pos.lon) > 180 || pos.ts > nowTs) return null;
+
+    const idx = raw.railCorridorIndex;
+    return {
+        lastTrustedPosition: { lat: pos.lat, lon: pos.lon, ts: pos.ts },
+        railCorridorIndex: Number.isInteger(idx) && idx >= 0 ? idx : null
+    };
+}
+
+export function saveTrackingSnapshot(nowTs = Date.now(), storage = globalThis.localStorage) {
+    if (!STATE.lastTrustedPosition) return;
+    try {
+        storage.setItem(TRACKING_SNAPSHOT_KEY, JSON.stringify({
+            lastTrustedPosition: STATE.lastTrustedPosition,
+            railCorridorIndex: STATE.railCorridorIndex,
+            savedAt: nowTs
+        }));
+    } catch (e) {
+        // Stockage saturé ou indisponible : la persistance est un confort,
+        // jamais bloquante pour le tracking.
+    }
+}
+
+/**
+ * Ré-injecte dans STATE le dernier snapshot valide. Un snapshot périmé ou
+ * corrompu est supprimé : il contient une position, inutile de la garder.
+ * L'index de corridor restauré n'est pas validé ici : le corridor se
+ * charge de façon asynchrone, et le matcher retombe de lui-même sur une
+ * recherche complète si l'index ne correspond plus à la position.
+ * @returns {boolean} true si une session a été restaurée
+ */
+export function restoreTrackingSnapshot(nowTs = Date.now(), storage = globalThis.localStorage) {
+    try {
+        const json = storage.getItem(TRACKING_SNAPSHOT_KEY);
+        const snapshot = parseTrackingSnapshot(json, nowTs);
+        if (!snapshot) {
+            if (json) storage.removeItem(TRACKING_SNAPSHOT_KEY);
+            return false;
+        }
+        STATE.lastTrustedPosition = snapshot.lastTrustedPosition;
+        if (snapshot.railCorridorIndex !== null) {
+            STATE.railCorridorIndex = snapshot.railCorridorIndex;
+        }
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
 
 export function restoreSettings() {
     try {

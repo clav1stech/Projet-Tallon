@@ -103,6 +103,59 @@ describe('locateOnCorridor', () => {
     });
 });
 
+describe('vitesse limite (vmax) sur le corridor', () => {
+    // Limite 300 km/h jusqu'au point 24 inclus, puis 270 km/h ; point 30 sans donnée.
+    const points = makeCorridorPoints().map((p, i) => ({
+        ...p,
+        vmax: i === 30 ? undefined : (i <= 24 ? 300 : 270)
+    }));
+    const corridor = buildCorridor(points);
+
+    it('est portée par les points du corridor, null si inconnue', () => {
+        expect(corridor.points[0].vmax).toBe(300);
+        expect(corridor.points[30].vmax).toBeNull();
+        expect(buildCorridor(makeCorridorPoints()).points.every(p => p.vmax === null)).toBe(true);
+    });
+
+    it('est renvoyée au PK courant et suit le changement de limite', () => {
+        expect(locateOnCorridor(corridor, 46.2, 5.0 + 10.5 * 0.018, null, 15).vmax).toBe(300);
+        expect(locateOnCorridor(corridor, 46.2, 5.0 + 40.5 * 0.018, null, 15).vmax).toBe(270);
+        // Segment 24→25 : limite du point de départ (300), changement au point suivant.
+        expect(locateOnCorridor(corridor, 46.2, 5.0 + 24.5 * 0.018, null, 15).vmax).toBe(300);
+        expect(locateOnCorridor(corridor, 46.2, 5.0 + 25.5 * 0.018, null, 15).vmax).toBe(270);
+    });
+
+    it('vaut null lorsque le point matché n\'a pas de limite connue', () => {
+        const loc = locateOnCorridor(corridor, 46.2, 5.0 + 30.5 * 0.018, null, 15);
+        expect(loc.index).toBe(30);
+        expect(loc.vmax).toBeNull();
+    });
+
+    it('ignore une valeur non numérique plutôt que de la propager', () => {
+        const dirty = buildCorridor([
+            { pk: 0, lat: 46.2, lon: 5.0, vmax: 'NULL' },
+            { pk: 1, lat: 46.2, lon: 5.02, vmax: NaN }
+        ]);
+        expect(dirty.points.map(p => p.vmax)).toEqual([null, null]);
+    });
+});
+
+describe('locateOnCorridor — index de segment obsolète (session restaurée)', () => {
+    const corridor = buildCorridor(makeCorridorPoints());
+    // Premier quart du segment 40 (hors égalité de distance entre ses deux points).
+    const lon = 5.0 + 40.25 * 0.018;
+
+    it('retrouve la position quand l\'index restauré est hors bornes', () => {
+        for (const stale of [999, 49, 50, -3]) {
+            expect(locateOnCorridor(corridor, 46.2, lon, stale, 15).index, `lastIndex=${stale}`).toBe(40);
+        }
+    });
+
+    it('retrouve la position quand l\'index restauré est valide mais éloigné (train avancé pendant l\'éviction)', () => {
+        expect(locateOnCorridor(corridor, 46.2, lon, 5, 15).index).toBe(40);
+    });
+});
+
 describe('formatPk', () => {
     it('formate en notation km+mètres', () => {
         expect(formatPk(123.456)).toBe('123+456');
