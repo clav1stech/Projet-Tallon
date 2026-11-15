@@ -9,7 +9,7 @@ import { MAIN_ROUTES } from './routes-config.js';
 
 // -- FONCTIONS UI PRINCIPALES --
 
-export function populateTrajetDropdown() {
+export function populateTrajetDropdown(selectedKey = '') {
     const trajetSelect = document.getElementById('routeSelect');
     if (!trajetSelect) return;
 
@@ -27,7 +27,7 @@ export function populateTrajetDropdown() {
         trajetSelect.appendChild(opt);
     });
 
-    trajetSelect.value = STATE.selectedMainRouteKey || '';
+    trajetSelect.value = selectedKey || '';
 }
 
 // Affiche les cases à cocher des arrêts intermédiaires pour la route sélectionnée
@@ -92,7 +92,8 @@ export function displayTimeline(currentIdx = null, progress = {}) {
         return;
     }
 
-    const routeKey = (STATE.selectedPatternId || '') + String(STATE.currentRoute.length) + String(STATE.globalDeltaSeconds || 0);
+    // Un plan installé = une révision : couvre trajet, arrêts, départ et ΔT.
+    const routeKey = STATE.planRevision;
 
     // Rebuild complet uniquement si la route ou l'heure de départ a changé
     if (routeKey !== _timelineLastRouteKey || STATE.departureTime !== _timelineLastDepartureTime) {
@@ -249,6 +250,71 @@ function updateTimelineProgress(timeline, currentIdx, progress) {
     bar.style.height = `${Math.max(0, y - top)}px`;
 }
 
+// -- ACCUEIL --
+
+const SUMMARY_MESSAGES = {
+    'no-route': 'Choisissez une liaison pour afficher la desserte.',
+    'data-unavailable': 'Données de ligne indisponibles : les horaires ne peuvent pas être calculés.',
+    'no-departure': 'Indiquez l’heure de départ pour calculer les horaires.'
+};
+
+/**
+ * Synthèse de desserte de l'accueil : gares desservies et horaires, tels que
+ * fournis par buildServiceSummary (trip-config.js). Aucun calcul d'horaire ici.
+ */
+export function renderServiceSummary(summary) {
+    const container = document.getElementById('service-summary');
+    if (!container) return;
+    const nodes = [];
+
+    if (summary.stops.length) {
+        const list = document.createElement('ol');
+        list.className = 'service-stops';
+        summary.stops.forEach(stop => {
+            const item = document.createElement('li');
+            item.className = `service-stop ${stop.role}`;
+            const time = document.createElement('time');
+            time.textContent = stop.time ?? '––:––';
+            const name = document.createElement('span');
+            name.textContent = stop.name;
+            item.append(time, name);
+            if (stop.dayOffset > 0) {
+                const day = document.createElement('small');
+                day.textContent = `J+${stop.dayOffset}`;
+                item.append(day);
+            }
+            list.append(item);
+        });
+        nodes.push(list);
+    }
+    if (SUMMARY_MESSAGES[summary.status]) {
+        const note = document.createElement('p');
+        note.className = 'hint';
+        note.textContent = SUMMARY_MESSAGES[summary.status];
+        nodes.push(note);
+    }
+    container.dataset.status = summary.status;
+    container.replaceChildren(...nodes);
+}
+
+const HOME_ACTION_LABELS = { launch: 'Lancer le suivi', apply: 'Appliquer et reprendre', resume: 'Reprendre le suivi' };
+const HOME_SECONDARY_LABELS = { cancel: 'Annuler', end: 'Terminer' };
+
+/** Boutons de l'accueil, d'après getHomeAction (train-controller.js). */
+export function renderHomeActions(action) {
+    const primary = document.getElementById('start-btn');
+    if (primary) {
+        primary.textContent = HOME_ACTION_LABELS[action.mode];
+        primary.disabled = !action.enabled;
+        primary.dataset.mode = action.mode;
+    }
+    const secondary = document.getElementById('secondary-btn');
+    if (secondary) {
+        secondary.hidden = !action.secondary;
+        secondary.textContent = HOME_SECONDARY_LABELS[action.secondary] || '';
+    }
+}
+
 export function updateInfo(msg) {
     const infoEl = document.getElementById('info');
     if (infoEl) infoEl.innerHTML = msg;
@@ -379,7 +445,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
         const ctx = graphCanvas.getContext('2d');
         const w = graphCanvas.width;
         const h = graphCanvas.height;
-        const history = STATE.speedHistory || [];
+        const history = STATE.session.samples;
         const maxSpeed = Math.max(...history.slice(Math.max(0, history.length - 1200)).map(p => p.v), 1);
 
         ctx.clearRect(0, 0, w, h);
@@ -500,7 +566,7 @@ export function updateLandscapeHUD(currentIdx, speed, currentDelay, userLat, use
     const carousel = trackPoints.closest('.hud-carousel') || trackPoints.parentElement;
     const carouselHeight = carousel ? carousel.clientHeight : window.innerHeight;
 
-    const routeKey = STATE.selectedPatternId || String(STATE.currentRoute.length);
+    const routeKey = STATE.planRevision;
     const routeChanged = routeKey !== _hudLastRouteKey;
     const idxChanged = currentIdx !== _hudLastActiveIdx;
 

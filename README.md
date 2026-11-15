@@ -125,6 +125,11 @@ js/
   position-engine.js      Pipeline de fiabilité GPS réutilisable (compose tracking.js),
                           partagé rail / voiture
   csv.js / linearref.js   Parseur CSV générique + corridors PK/PR (référencement linéaire)
+  train-config.js        Réglages du mode train (session, perte de signal, bornes ΔT)
+  trip-config.js         Configuration de trajet pure : plan horaire, synthèse de desserte
+  tracking-session.js    Session de tracking sans DOM : acquisition, accrochage au trajet,
+                          rejeu, modèles de données (cockpit, profil de vitesse)
+  train-controller.js    Transitions navigation / configuration provisoire / appliquée / session
   ui.js                  Rendu DOM rail (timeline, widget, HUD paysage)
   app.js                 Orchestration rail : écouteurs DOM, boucle de tracking,
                           bascule GPS / WiFi SNCF / bridge Scriptable
@@ -163,7 +168,7 @@ python/
 tests/                    Suite Vitest (fonctions pures : moteur, corridors, route voiture)
 ```
 
-Voir [CLAUDE.md](CLAUDE.md) et [CONVENTIONS.md](CONVENTIONS.md) pour les
+Voir [agent.md](agent.md) et [CONVENTIONS.md](CONVENTIONS.md) pour les
 règles de contribution détaillées (où mettre quoi, non-régression, git).
 
 ### Flux de données
@@ -243,7 +248,7 @@ manuellement hors production :
 ## État du projet / versionnage
 
 Le versionnage suit [semver](https://semver.org/lang/fr/) strict (voir
-`CLAUDE.md` § Versionnage). Historique complet dans
+`agent.md` § Versionnage). Historique complet dans
 [CHANGELOG.md](CHANGELOG.md) ; points marquants :
 
 - **v1.0.0** — refonte visuelle complète de l'interface.
@@ -263,7 +268,7 @@ qu'à la validation/merge. Voir le `CHANGELOG.md` de cette branche pour le déta
 
 ## Contribution
 
-Lire [CLAUDE.md](CLAUDE.md) et [CONVENTIONS.md](CONVENTIONS.md) avant toute
+Lire [agent.md](agent.md) et [CONVENTIONS.md](CONVENTIONS.md) avant toute
 contribution (ces fichiers évoluent avec le projet, ne pas s'y fier comme
 figés). Pas de commit ni de push sans validation explicite.
 

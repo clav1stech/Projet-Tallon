@@ -15,6 +15,7 @@
 
 ## Configuration
 - Tout réglage (seuil, variable, constante, clé de config) se déclare dans un fichier de configuration central, jamais en dur dans la logique métier.
+- Les réglages du mode train hors moteur géographique (cadence d'acquisition, perte de signal, plafond d'historique, bornes ΔT, rattachement du jour de départ) vivent dans `js/train-config.js` : y ajouter tout nouveau réglage de ce périmètre.
 - État actuel du projet : les constantes de tolérance de tracking (`MIN_ROUTE_TOLERANCE_KM`, `POINT_MATCH_TOLERANCE_KM`, `CURVE_ALLOWANCE_RATIO` dans `js/functions.js`), la pénalité d'arrêt (`STOP_PENALTY`), le seuil anti-téléportation (`TELEPORT_THRESHOLD_KMH` dans `js/app.js`) sont encore en dur au fil du code. Ne pas les dupliquer ailleurs ; à l'occasion d'un futur refactor, les regrouper dans un module de config dédié plutôt que d'en ajouter de nouvelles en dur.
 
 ## Secrets et sécurité
@@ -83,11 +84,14 @@ Dans les trois cas, utiliser uniquement les fichiers liés au travail en cours, 
 **Quoi** : suivi de trajet TGV en temps réel (position GPS ou WiFi SNCF) contre un horaire théorique, avec calcul de retard/avance (+ mode voiture : progression et distance restante sans horaire). Application 100 % statique en vanilla JS (modules ES, aucun bundler), aucun backend.
 
 **Architecture front** (voir aussi `CONVENTIONS.md`) :
-- `js/state.js` : état global unique (`STATE`), persistance `localStorage` des réglages utilisateur.
+- `js/state.js` : état global unique (`STATE`), persistance `localStorage` des réglages utilisateur. Quatre familles à ne jamais confondre : navigation (`view`), configuration provisoire (`draftConfig`, le formulaire), configuration appliquée (`appliedConfig`, `tripPlan` et ses miroirs `currentRoute`/`departureTimestamp`…), session de tracking (`session` = acquisitions brutes et garde-fous, plus les résultats dérivés `passedPoints`/`passageTimes`/`trackingSnapshot`).
 - `js/geo.js` : primitives géométriques pures (Haversine, projection sur segment). Aucune dépendance au DOM ni à `STATE`.
 - `js/functions.js` : moteur de calcul pur — construction de route effective (`buildEffectiveRoute`), matching position→segment (`computeSegmentIndexAndDistance`), calcul de retard (`computeCurrentDelay`). Zéro DOM, testable isolément.
+- `js/trip-config.js` : calcul pur de la configuration de trajet — forme canonique, écarts entre configurations, plan horaire (`buildTripPlan`, qui appelle `buildEffectiveRoute`), synthèse de desserte (`buildServiceSummary` : gares commerciales desservies uniquement, horaires datés y compris après minuit).
+- `js/tracking-session.js` : session de tracking sans DOM — `acceptFix` (filtres d'acquisition, indépendants du trajet), `advanceOnRoute` (accrochage au trajet appliqué, déterministe), `replaySession` (recalcul des dérivés depuis l'historique brut) et vues de données (`buildCockpitModel`, `buildSpeedProfile`, `getPassageLog`, `getLocationStatus`).
+- `js/train-controller.js` : seules transitions autorisées entre les quatre familles d'état (`setDraft`, `launchSession`, `applyDraft`, `revertDraft`, `showView`, `stopSession`). **Invariant : changer de vue ou éditer le formulaire ne touche jamais à la session ; appliquer une configuration rejoue les dérivés sans supprimer d'acquisition ni recréer la boucle de localisation.** Toute nouvelle transition passe par ce module et par ses tests (`tests/trainController.test.js`).
 - `js/ui.js` : tout le rendu DOM (timeline, widget de suivi, HUD paysage avec compteur/graphe/carousel).
-- `js/app.js` : orchestration — écouteurs DOM, boucle de tracking (`setInterval` 1 s), bascule GPS natif / WiFi SNCF / bridge Scriptable iOS.
+- `js/app.js` : orchestration — écouteurs DOM, boucle de tracking (`setInterval` 1 s, créée au lancement d'une session et détruite à sa clôture, jamais ailleurs), bascule GPS natif / WiFi SNCF / bridge Scriptable iOS. Le rendu du suivi (`renderTracking`) se fait depuis l'état, sans attendre de fix.
 - `js/routes-config.js` : `MAIN_ROUTES`, source unique des trajets proposés dans le sélecteur — consommée à la fois par `ui.js` (app) et `master-editor.js` (éditeur), donc toute route ajoutée ici apparaît automatiquement aux deux endroits.
 - `js/fakeGeoSim.js` : simulateur GPS pour le développement (désactivé par défaut, `ENABLE_FAKE_GPS = false`). Ne jamais l'activer dans un commit poussé.
 - `js/master-editor.js` + `master-editor.html` : éditeur visuel de `data/masterRoutes.normalized.json` (ajout/réordonnancement de points, export JSON). Les modifications n'écrivent jamais le fichier directement — export manuel puis remplacement.
@@ -114,6 +118,6 @@ Dans les trois cas, utiliser uniquement les fichiers liés au travail en cours, 
 - `tools/scriptable-sncf-bridge.js` (+ `tools/scriptable-sncf-diagnostic.js`, `docs/wifi-sncf-iphone.md`) : scripts Scriptable qui contournent CORS pour interroger `wifi.sncf` nativement sur iPhone ; le bridge injecte les positions via `postMessage` (écouteur `SNCF_GPS_BRIDGE` dans `app.js`) et un bandeau d'état dans la page, le diagnostic isole la couche réseau sans WebView. La feuille Scriptable impose un bandeau supérieur non supprimable : la WebView n'est jamais réellement plein écran.
 - La détection iPhone (`isIPhoneDevice` dans `app.js`, équivalent dans `car-app.js`) ne doit jamais reposer sur le seul user-agent : une WebView hôte peut l'altérer et faire basculer la page sur la mise en page non-iPhone. Se replier sur `navigator.platform`.
 
-**Suite de tests** : Vitest (`npm test`), fonctions pures uniquement. Vérification manuelle complémentaire via `js/fakeGeoSim.js` (simulation GPS de dev) ou test réel en conditions.
+**Suite de tests** : Vitest (`npm test`), modules sans DOM uniquement (calcul pur, session et contrôleur du mode train, qui reçoivent l'état en paramètre). Vérification manuelle complémentaire via `js/fakeGeoSim.js` (simulation GPS de dev) ou test réel en conditions.
 
 **CI** : `.github/workflows/ci.yml` (GitHub Actions, Node 22) exécute `npm ci`, `npm run check:syntax` puis `npm test` sur chaque push et pull request vers `main`. Contrôle uniquement : la publication GitHub Pages reste hors workflow. `tests/dataIntegrity.test.js` vérifie la cohérence référentielle des données (patterns, `MAIN_ROUTES`, datasets, précache `sw.js`) ; ses `KNOWN_ANOMALIES` listent les écarts de données connus, à corriger sur demande explicite puis à retirer de la liste. Toute nouvelle vérification de données se greffe sur cette suite plutôt que sur un nouveau job.

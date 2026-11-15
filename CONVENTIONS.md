@@ -11,13 +11,15 @@
 - Commentaires et logs applicatifs en français (cohérent avec l'existant : `js/*.js`, messages `console.log`/`updateInfo`), noms de variables/fonctions en anglais (`buildEffectiveRoute`, `computeCurrentDelay`, `showPosition`...).
 
 ## Où mettre quoi
-- Un réglage (seuil, variable, constante) va dans la config, jamais en dur dans la logique (voir `CLAUDE.md` § Configuration pour l'état actuel des constantes encore en dur à ne pas dupliquer).
+- Un réglage (seuil, variable, constante) va dans la config, jamais en dur dans la logique (voir `agent.md` § Configuration pour l'état actuel des constantes encore en dur à ne pas dupliquer).
 - Accès/sélection de données séparés du calcul métier (pas de logique métier dans la couche d'accès aux données).
 - Une fonctionnalité générique (utilisable par plusieurs modules) va dans une couche transverse ; une fonctionnalité spécifique reste dans son module/domaine dédié.
 - Mapping concret pour ce projet :
   - Géométrie pure (distances, projections) → `js/geo.js`.
   - Calcul métier pur (route effective, matching segment, retard) → `js/functions.js`. Ne doit jamais toucher au DOM ni à `window`.
   - État applicatif partagé → `js/state.js` (objet `STATE` unique, pas d'état parallèle ailleurs).
+  - Configuration de trajet, horaires, synthèse de desserte → `js/trip-config.js` (pur). Acquisition, accrochage au trajet, rejeu et modèles de données du suivi → `js/tracking-session.js`. Passage d'une famille d'état à l'autre (navigation, provisoire, appliquée, session) → `js/train-controller.js` exclusivement. Aucun de ces modules ne touche au DOM ; le rendu n'y recalcule jamais un horaire.
+  - Réglages du mode train → `js/train-config.js`.
   - Rendu / manipulation DOM → `js/ui.js` exclusivement. `app.js` ne touche le DOM que pour ses propres écouteurs d'événements (formulaire, bouton start, swipe).
   - Config de trajets partagée entre l'app et l'éditeur → `js/routes-config.js` (`MAIN_ROUTES`), jamais dupliquée localement dans `ui.js` ou `master-editor.js`.
   - Utilitaires génériques sans dépendance métier (formatage, sélecteurs DOM courts) → `js/utils.js`.
@@ -43,5 +45,5 @@
 
 ## Git
 - Ne jamais committer sans demande explicite de l'utilisateur.
-- Ne jamais pousser ni agir sur le dépôt distant sans demande explicite (voir `CLAUDE.md` § Git).
+- Ne jamais pousser ni agir sur le dépôt distant sans demande explicite (voir `agent.md` § Git).
 - Environnements, caches, artefacts d'export, `data/raw/`, `node_modules/` : jamais versionnés.

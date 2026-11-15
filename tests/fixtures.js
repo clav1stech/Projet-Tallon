@@ -81,3 +81,51 @@ export function metersToLatDeg(meters) {
 export function metersToLonDeg(meters, lat) {
     return meters / (111_320 * Math.cos(lat * Math.PI / 180));
 }
+
+/**
+ * Plan de trajet minimal (même forme que buildTripPlan) pour une route
+ * synthétique : permet de tester la session sans les données réelles.
+ */
+export function planFromRoute(route, departureTimestamp, config = {}) {
+    const offsetsSeconds = [0];
+    const cumKm = [0];
+    for (let i = 0; i < route.length - 1; i++) {
+        offsetsSeconds.push(offsetsSeconds[i] + route[i].durationEffective);
+        cumKm.push(cumKm[i] + route[i].segmentLengthToNext);
+    }
+    return {
+        status: 'ok',
+        config: { mainRouteKey: '', stopIds: [], departureTime: '', globalDeltaSeconds: 0, locationMethod: 'geo', ...config },
+        patternId: 'TEST',
+        route,
+        direction: 'SUD',
+        offsetsSeconds,
+        cumKm,
+        totalSeconds: offsetsSeconds[offsetsSeconds.length - 1],
+        totalKm: cumKm[cumKm.length - 1],
+        departureTimestamp
+    };
+}
+
+/**
+ * Fixes simulés le long d'une route, à l'allure de l'horaire décalé de
+ * `lateSeconds`. Retourne [{ ts, position }] entre deux instants relatifs au
+ * départ (secondes), un fix toutes les `stepSeconds`.
+ */
+export function fixesAlongRoute(route, departureTimestamp, { fromSeconds = 0, toSeconds, stepSeconds = 5, lateSeconds = 0 } = {}) {
+    const cum = [0];
+    for (let i = 0; i < route.length - 1; i++) cum.push(cum[i] + route[i].durationEffective);
+    const total = cum[cum.length - 1];
+    const end = toSeconds ?? total + lateSeconds;
+    const fixes = [];
+    for (let s = fromSeconds; s <= end; s += stepSeconds) {
+        const tau = Math.max(0, Math.min(total, s - lateSeconds));
+        let i = 0;
+        while (i < route.length - 2 && cum[i + 1] <= tau) i++;
+        const t = route[i].durationEffective ? Math.min(1, (tau - cum[i]) / route[i].durationEffective) : 0;
+        const { lat, lon } = positionOnSegment(route, i, t);
+        const ts = departureTimestamp + s * 1000;
+        fixes.push({ ts, position: { coords: { latitude: lat, longitude: lon, accuracy: 10 }, timestamp: ts } });
+    }
+    return fixes;
+}

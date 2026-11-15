@@ -66,7 +66,13 @@
 
             </div>
 
-            <button id="start-btn" class="start-btn">Start</button>
+            <!-- Aperçu de desserte : gares desservies et horaires de la configuration en cours d'édition -->
+            <div id="service-summary" class="service-summary" aria-live="polite"></div>
+
+            <div class="home-actions">
+                <button type="button" id="secondary-btn" class="secondary-btn" hidden></button>
+                <button type="button" id="start-btn" class="start-btn" disabled>Lancer le suivi</button>
+            </div>
 
             <!-- widget -->
             <div id="tracking-widget" class="tracking-widget">
@@ -108,6 +114,8 @@
             <p id="info"></p>
         </div>
     </div>
+
+    <button type="button" id="settings-btn" class="settings-btn" aria-label="Réglages"><i class="fas fa-cog" aria-hidden="true"></i></button>
 
     <div id="debug-bar"></div>
 

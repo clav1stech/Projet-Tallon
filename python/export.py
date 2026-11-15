@@ -35,10 +35,9 @@ from datetime import date
 # --- CONFIGURATION ---
 EXTENSIONS_TO_EXPORT = ('.html', '.css', '.js', '.json', '.md', '.py')
 FILE_PREFIX = "Export_Projet-Tallon"
-# .cursorrules/.clauderules (vides) et .DS_Store : jamais du contenu utile, pas d'extension dédiée.
 
 # Noms de dossiers jamais parcourus par le mode complet (dépendances, outillage,
-# données brutes volumineuses : voir CLAUDE.md § Git). Comparé par nom de dossier,
+# données brutes volumineuses : voir agent.md § Git). Comparé par nom de dossier,
 # à n'importe quelle profondeur.
 EXCLUDED_DIR_NAMES = {'node_modules', '.git', '.claude', '.vscode', 'raw'}
 
@@ -60,7 +59,7 @@ MODULE_SUMMARY = {
     'js/master-editor.js': "Logique de l'éditeur visuel de masterRoutes.normalized.json.",
     'data/masterRoutes.normalized.json': "Source de vérité géo/horaire (schéma v3) : points + trajets.",
     'data/servicePatterns.json': "Patterns de desserte nommés (arrêts intermédiaires par trajet).",
-    'CLAUDE.md': "Instructions IA : règles transverses + invariants spécifiques au projet.",
+    'agent.md': "Instructions IA : règles transverses + invariants spécifiques au projet.",
     'CONVENTIONS.md': "Conventions de code : style, \"où mettre quoi\".",
     'README.md': "Présentation du projet, architecture, mise en route.",
     'CHANGELOG.md': "Historique des versions (source de vérité pour le numéro courant).",
@@ -75,7 +74,7 @@ EXPORT_PATH = os.path.join(os.getcwd(), "Export")
 
 
 def get_current_version(project_root):
-    """Lit la version courante en tête de CHANGELOG.md (source de vérité, cf. CLAUDE.md)."""
+    """Lit la version courante en tête de CHANGELOG.md (source de vérité, cf. agent.md)."""
     changelog_path = os.path.join(project_root, 'CHANGELOG.md')
     with open(changelog_path, 'r', encoding='utf-8') as f:
         for line in f:

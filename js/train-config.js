@@ -1,0 +1,35 @@
+// js/train-config.js
+// Réglages du mode train (session de tracking, navigation, horaires).
+// Les tolérances du moteur géographique restent dans functions.js/tracking.js.
+
+// Cadence de la boucle d'acquisition (un appel de localisation par tick).
+export const TRACKING_TICK_MS = 1000;
+
+export const GEOLOCATION_OPTIONS = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
+
+// Fenêtre de positions servant à la vitesse médiane (≈ 10 s à 1 fix/s).
+export const POSITION_WINDOW_SIZE = 10;
+
+export const MAX_TRAIN_SPEED_KMH = 350;
+
+// Sans fix depuis ce délai, le signal est considéré perdu : la vitesse est
+// marquée non fiable. Au-delà de la borne haute, on cesse d'alimenter
+// l'historique (app suspendue par l'OS : rien d'utile à tracer).
+export const SIGNAL_LOSS_MIN_MS = 15_000;
+export const SIGNAL_LOSS_MAX_MS = 300_000;
+
+// Sur le dernier segment, sous cette distance du terminus, l'arrivée est acquise.
+export const ARRIVAL_SNAP_KM = 0.2;
+
+// Plafond de l'historique d'acquisition d'une session (24 h à 1 échantillon/s) :
+// borne mémoire de sécurité, très au-delà d'un voyage réel.
+export const SESSION_MAX_SAMPLES = 86_400;
+
+// Une heure de départ « HH:MM » est rattachée au jour de référence, sauf si
+// cela l'éloigne de plus de ce délai : elle appartient alors au jour voisin
+// (train parti avant minuit, suivi lancé ou reconfiguré après).
+export const DEPARTURE_DAY_ROLLOVER_MS = 18 * 3_600_000;
+
+// Bornes du décalage global ΔT, en minutes.
+export const DELTA_MIN_MINUTES = -30;
+export const DELTA_MAX_MINUTES = 30;

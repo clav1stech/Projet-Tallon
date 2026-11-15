@@ -1,3 +1,6 @@
+# Métadonnées macOS
+.DS_Store
+
 node_modules/
 
 # Fichiers sources volumineux (~175 Mo) — voir data/raw/README.md (catalogue versionné).

@@ -2319,3 +2319,84 @@ body.car-page.non-iphone-device.tracking-active .hud-point.next .hud-point-dot {
     left: calc(10% + 4px - 11px);
     box-shadow: 0 0 0 7px rgba(var(--primary-rgb), 0.16);
 }
+
+/* ── Mode train : accueil ↔ suivi (habillage provisoire, issue #25) ──
+   Structure fonctionnelle minimale ; ces éléments n'existent que dans
+   index.html, le mode voiture n'est pas concerné. */
+.service-summary {
+    margin-top: 10px;
+}
+
+.service-stops {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.service-stop {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    padding: 4px 0;
+}
+
+.service-stop time {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.service-stop.stop {
+    opacity: 0.85;
+}
+
+.home-actions {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin-top: 10px;
+}
+
+.home-actions .start-btn {
+    margin-top: 0;
+}
+
+.start-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    flex: 0 0 auto;
+    padding: 13px 16px;
+    font-size: 1em;
+    border: 1px solid currentColor;
+    border-radius: 14px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.settings-btn {
+    display: none;
+    position: fixed;
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    right: calc(8px + env(safe-area-inset-right, 0px));
+    z-index: 200;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+body.tracking-active .settings-btn {
+    display: block;
+}
+
+body.tracking-active .service-summary,
+body.tracking-active .home-actions {
+    display: none;
+}
