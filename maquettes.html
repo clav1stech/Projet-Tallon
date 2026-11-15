@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F4F1ED">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Tallon — Maquettes mode train (issue #25)</title>
+<!--
+  Maquette de revue, autonome : aucune dépendance, aucun appel réseau, aucune
+  géolocalisation. Le même fichier joue deux rôles selon l'ancre :
+    maquettes.html        → studio de revue (cadres d'appareils, variantes, simulation)
+    maquettes.html#app    → prototype seul, à ouvrir directement sur un iPhone / iPad
+  Les trajets embarqués sont extraits de data/masterRoutes.normalized.json et
+  les horaires suivent les règles de buildEffectiveRoute (pénalité d'arrêt, ΔT).
+  La position, la vitesse et le retard sont simulés.
+-->
+<script>document.documentElement.className = location.hash.indexOf('#app') === 0 ? 'is-app' : 'is-studio';</script>
+<style>
+:root{
+  --bx:#8B2A3F; --bx-deep:#5E1B2B; --bx-soft:#F6E9EC; --bx-rgb:139,42,63; --rose:#F0B9C4;
+  --ink:#211D1E; --ink-2:#585153; --ink-3:#8A8284;
+  --paper:#F4F1ED; --card:#fff; --well:#EDE8E3; --rule:#E3DDD7;
+  --coal:#262223; --coal-2:#353031;
+  --late:#D9482F; --late-ink:#B8371F; --ok:#2B9A69; --ok-ink:#1F7A52; --amber:#E39A2D; --amber-ink:#94600E;
+  /* Avenir Next et DIN Alternate sont installées sur iOS, iPadOS et macOS : aucune
+     police n'est téléchargée, les autres plateformes retombent sur la police système. */
+  --font:"Avenir Next",-apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --num:"DIN Alternate","Avenir Next",-apple-system,system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;background:var(--paper)}
+button,input{font:inherit;color:inherit}
+button{border:0;background:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+svg.ic{width:1.25em;height:1.25em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+:focus-visible{outline:3px solid rgba(var(--bx-rgb),.55);outline-offset:2px}
+.is-app #studio,.is-studio #app{display:none}
+.cap{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+
+/* ═══════════════ PROTOTYPE ═══════════════ */
+.app{position:fixed;inset:0;overflow:hidden;background:var(--paper);
+  --sat:env(safe-area-inset-top,0px);--sar:env(safe-area-inset-right,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px)}
+.view{position:absolute;inset:0;transition:opacity .3s ease,transform .42s var(--ease),visibility 0s linear .42s;opacity:0;visibility:hidden;pointer-events:none}
+.app[data-view=home] .home,.app[data-view=track] .track{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition-delay:0s}
+.home{transform:translateY(16px)}
+.track{transform:scale(1.025)}
+
+/* ── Accueil ── */
+.home{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.home-in{max-width:560px;min-height:100%;margin:0 auto;display:flex;flex-direction:column;gap:12px;
+  padding:calc(var(--sat) + 14px) calc(var(--sar) + 16px) 0 calc(var(--sal) + 16px)}
+.col-a,.col-b{display:contents}
+.head{order:0;display:flex;flex-wrap:wrap;align-items:center;gap:10px;min-height:36px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:.01em}
+.brand svg{width:26px;height:26px}
+.head h1{order:1;flex-basis:100%;margin:8px 0 2px;font-size:29px;line-height:1.08;letter-spacing:-.022em;font-weight:700}
+.live{margin-left:auto;display:none;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:16px;background:var(--bx-soft);color:var(--bx-deep);font-size:14px;font-weight:600}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--bx);animation:pulse 2s ease-in-out infinite}
+.app.has-session .live{display:flex}
+@keyframes pulse{50%{opacity:.35}}
+.blk{background:var(--card);border-radius:20px;padding:14px;box-shadow:0 0 0 1px rgba(60,40,45,.07),0 1px 2px rgba(60,40,45,.04)}
+.lab{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:1px 2px 10px;color:var(--ink-3)}
+.lab small{font-weight:500;font-size:13px;letter-spacing:0;text-transform:none}
+.b-route{order:1}.b-stops{order:2}.b-time{order:3}.b-fiche,.b-line{order:4}.b-loc{order:5}.tools{order:6}.bar{order:9}
+.app[data-home=A] .b-line,.app[data-home=B] .b-fiche,.app[data-home=B] .b-stops,.app[data-home=B] .b-time{display:none}
+
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:3px;padding:3px;border-radius:14px;background:var(--well)}
+.seg button{min-height:44px;padding:4px 6px;border-radius:11px;font-size:16px;font-weight:600;color:var(--ink-2);transition:background .2s,color .2s,box-shadow .2s,transform .12s;line-height:1.15}
+.seg button[aria-checked=true]{background:#fff;color:var(--bx-deep);box-shadow:0 1px 2px rgba(40,20,25,.14),0 0 0 1px rgba(40,20,25,.04)}
+.seg button:disabled{opacity:.45;cursor:default}
+.seg button:active:not(:disabled){transform:scale(.97)}
+.seg + .seg{margin-top:8px}
+.seg .arr{display:inline-block;margin:0 .32em;color:var(--ink-3);font-weight:500}
+.seg button[aria-checked=true] .arr{color:var(--bx)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 15px 0 11px;border-radius:22px;border:1.5px solid var(--rule);background:#fff;font-size:16px;font-weight:500;transition:background .18s,border-color .18s,color .18s,transform .12s}
+.chip i{width:20px;height:20px;border-radius:50%;border:1.5px solid #C9C2BD;display:grid;place-items:center;color:transparent;transition:inherit}
+.chip i svg{width:12px;height:12px;stroke-width:3.2}
+.chip[aria-pressed=true]{background:var(--bx-soft);border-color:var(--bx);color:var(--bx-deep);font-weight:600}
+.chip[aria-pressed=true] i{background:var(--bx);border-color:var(--bx);color:#fff}
+.chip:active{transform:scale(.97)}
+.hint{margin:0;color:var(--ink-3);font-size:15px;line-height:1.35}
+
+/* Heure de départ. L'affichage est le nôtre (24 h, chiffres tabulaires) ; le champ
+   natif, invisible, recouvre la cible et n'apporte que son sélecteur. La largeur ne
+   dépend donc jamais du format 12/24 h du système. Au clavier, le champ natif se
+   révèle au focus avec une largeur suffisante pour « 09:58 AM ». Sa taille de
+   police reste ≥ 16 px pour qu'iOS ne zoome pas à l'ouverture. */
+.tbox{position:relative;display:inline-flex;align-items:center;cursor:pointer}
+.tbox .tv{font-family:var(--num);font-variant-numeric:tabular-nums;font-weight:700}
+.tbox input{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0 10px;border:0;border-radius:inherit;background:#fff;opacity:0;cursor:pointer;
+  -webkit-appearance:none;appearance:none;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink)}
+.tbox input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:auto;height:auto;opacity:0;cursor:pointer}
+.app:not(.touch) .tbox input:focus{opacity:1;z-index:4;right:auto;width:max(100%,8.6em);outline:0;box-shadow:0 0 0 2px var(--bx),0 6px 18px rgba(40,20,25,.16)}
+.app:not(.touch) .tbox input:focus::-webkit-calendar-picker-indicator{position:static;opacity:.6;width:1em;height:1em}
+.app.touch .tbox:focus-within{box-shadow:0 0 0 2px var(--bx)}
+.tbox.miss .tv{color:var(--amber-ink)}
+
+.two{display:grid;grid-template-columns:1fr 1.25fr;gap:12px}
+.fld{display:block;min-width:0}
+.fld > span:first-child{display:block;margin:1px 2px 8px;color:var(--ink-3)}
+.b-time .tbox{display:flex;height:52px;padding:0 14px;border-radius:14px;background:var(--well);transition:background .2s,box-shadow .2s}
+.b-time .tbox .tv{font-size:23px}
+.b-time .tbox svg{margin-left:auto;color:var(--ink-3);width:18px;height:18px}
+.b-time .tbox.miss{background:#FFF6E6;box-shadow:inset 0 0 0 1.5px var(--amber)}
+.step{display:grid;grid-template-columns:46px minmax(0,1fr) 46px;height:52px;border-radius:14px;background:var(--well);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.step button{display:grid;place-items:center;border-radius:11px;margin:3px;background:#fff;box-shadow:0 1px 2px rgba(40,20,25,.14);color:var(--bx-deep);transition:transform .1s,background .15s}
+.step button svg{width:18px;height:18px;stroke-width:2.4}
+.step button:active{transform:scale(.93);background:var(--bx-soft)}
+.step button:disabled{opacity:.35;box-shadow:none}
+.step output{display:flex;align-items:baseline;justify-content:center;align-self:center;gap:3px;font-family:var(--num);font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.step output small{font-family:var(--font);font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.step output.nz{color:var(--bx)}
+.sub{margin:9px 2px 0;font-size:13.5px;color:var(--ink-3);line-height:1.35}
+
+/* Ligne de desserte : motif commun à la fiche (A) et à la ligne éditable (B).
+   Tout ce qui porte une pastille sur le trait est réellement desservi. */
+.ln{display:grid}
+.st,.leg{display:grid;grid-template-columns:var(--tc,64px) 28px minmax(0,1fr) auto;align-items:center}
+.st{min-height:48px;position:relative}
+.st time,.tv{font-family:var(--num);font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:0}
+.st time sup{font-family:var(--font);font-size:11px;font-weight:600;color:var(--bx);margin-left:2px}
+.st time.na{color:#C5BEB9}
+.st > i,.leg > i{position:relative;align-self:stretch}
+.st > i::before,.leg > i::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:4px;margin-left:-2px;background:var(--bx)}
+.st.first > i::before{top:50%}.st.last > i::before{bottom:50%}
+.st > i::after{content:"";position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px;border-radius:50%;background:#fff;border:4px solid var(--bx);box-sizing:border-box}
+.st.first > i::after,.st.last > i::after{background:var(--bx);width:18px;height:18px;margin:-9px}
+.st b{display:block;font-size:17px;font-weight:600;line-height:1.2}
+.st small{display:block;font-size:13px;color:var(--ink-3);margin-top:1px}
+.leg{min-height:26px}
+.legc{grid-column:3/5;padding:4px 0;min-width:0}
+.leg small{font-size:13px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.ln.ghost .st > i::before,.ln.ghost .leg > i::before{background:repeating-linear-gradient(to bottom,#D5CEC9 0 5px,transparent 5px 10px)}
+.ln.ghost .st > i::after{border-color:#D5CEC9;background:#fff}
+.ln.ghost b{color:var(--ink-3);font-weight:500}
+.fiche-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:1px 2px 10px}
+.fiche-top b{color:var(--ink-3)}
+.fiche-top span{font-size:14px;color:var(--ink-2);font-variant-numeric:tabular-nums;text-align:right}
+.note{display:flex;gap:9px;align-items:flex-start;margin-top:10px;padding:10px 12px;border-radius:12px;background:#FFF6E6;color:var(--amber-ink);font-size:14.5px;line-height:1.35}
+.note svg{margin-top:1px}
+.empty{padding:6px 0 2px}
+.err{display:grid;justify-items:start;gap:8px;padding:4px 2px}
+.err b{font-size:17px}.err p{margin:0;color:var(--ink-2);font-size:15px;line-height:1.4}
+.btn2{min-height:44px;padding:0 16px;border-radius:12px;background:var(--well);font-weight:600;font-size:16px;transition:transform .12s}
+.btn2:active{transform:scale(.97)}
+
+/* B — ligne éditable : la ligne ne montre que la desserte réelle. Les arrêts
+   possibles vivent hors du trait, dans l'intervalle où ils s'inséreraient. */
+.b-line{--tc:72px;overflow:clip}
+.b-line .st time{padding-left:8px}
+.dep{cursor:pointer;border-radius:12px;transition:background .15s}
+.dep .tbox{justify-self:start;height:40px;padding:0 8px;border-radius:10px;background:var(--bx-soft);color:var(--bx-deep);box-shadow:inset 0 0 0 1px rgba(var(--bx-rgb),.16);transition:background .2s,box-shadow .2s}
+.dep .tbox.miss{background:#FFF6E6;box-shadow:inset 0 0 0 1.5px var(--amber)}
+.dep .edit{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:32px;height:32px;margin-left:8px;border-radius:50%;background:var(--bx-soft);font-size:0;font-weight:600;color:var(--bx)}
+.dep .edit svg{width:15px;height:15px}
+.dep > div{transition:transform .22s var(--ease)}
+.app:not(.touch) .dep:focus-within > div{transform:translateX(calc(8.6em * 1.125 - var(--tc) + 4px))}
+.app.touch .dep .tbox{position:static}
+.app.touch .dep:active{background:var(--bx-soft)}
+.rm{width:44px;height:44px;margin-right:-8px;display:grid;place-items:center;color:var(--ink-3);border-radius:50%}
+.rm span{width:28px;height:28px;border-radius:50%;background:var(--well);display:grid;place-items:center;transition:background .15s,color .15s,transform .12s}
+.rm svg{width:13px;height:13px;stroke-width:2.6}
+.rm:hover span{background:#F9E1DC;color:var(--late-ink)}.rm:active span{transform:scale(.9)}
+.adds{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+.add{display:inline-flex;align-items:center;gap:6px;min-height:40px;max-width:100%;white-space:nowrap;padding:0 12px 0 7px;border-radius:20px;border:1.5px dashed #CDC4BE;font-size:15px;font-weight:600;color:var(--ink-2);background:#fff;transition:background .15s,border-color .15s,color .15s,transform .12s}
+.add i{width:24px;height:24px;border-radius:50%;background:var(--bx-soft);color:var(--bx);display:grid;place-items:center}
+.add i svg{width:13px;height:13px;stroke-width:2.8}
+.add em{font-style:normal;font-weight:500;font-size:13px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.add:hover{border-color:var(--bx);border-style:solid;color:var(--bx-deep);background:var(--bx-soft)}
+.add:hover i{background:#fff}
+.add:active{transform:scale(.96)}
+.st.new{animation:stIn .5s var(--ease)}
+.st.new > i::after{animation:dotIn .5s var(--ease)}
+@keyframes stIn{from{opacity:0;transform:translateX(-8px)}}
+@keyframes dotIn{from{transform:scale(0)}60%{transform:scale(1.35)}}
+/* Talon du billet : le ΔT se détache de la desserte par une perforation. */
+.line-foot{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 168px;align-items:center;gap:12px;margin-top:12px;padding-top:13px;border-top:1.5px dashed var(--rule)}
+.line-foot::before,.line-foot::after{content:"";position:absolute;top:-9px;width:16px;height:16px;border-radius:50%;background:var(--paper);box-shadow:inset 0 0 0 1px rgba(60,40,45,.09)}
+.line-foot::before{left:-22px}.line-foot::after{right:-22px}
+.line-foot b{font-size:15px;font-weight:600;display:block}
+.line-foot small{font-size:13px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.line-foot .step{height:48px}
+
+.tools{text-align:center;padding:0 0 6px}
+.tools a{color:var(--ink-3);font-size:14px;text-decoration:none;padding:0 10px;display:inline-flex;align-items:center;min-height:44px}
+.tools a:hover{color:var(--bx)}
+
+.bar{position:sticky;bottom:0;z-index:5;margin:auto calc(-16px - var(--sar)) 0 calc(-16px - var(--sal));padding:10px calc(16px + var(--sar)) calc(10px + var(--sab)) calc(16px + var(--sal));
+  background:rgba(244,241,237,.88);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:0 -1px 0 var(--rule);display:grid;gap:8px}
+.bar-info{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-height:20px;font-size:15px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.bar-info b{color:var(--ink);font-weight:700;font-family:var(--num);font-size:1.08em}
+.bar-info sup{font-family:var(--font);font-size:10.5px;font-weight:600;color:var(--bx);margin-left:2px}
+.bar-info.warn{color:var(--amber-ink)}
+.bar-row{display:flex;gap:10px}
+.go{flex:1;min-height:54px;border-radius:17px;background:var(--bx);color:#fff;font-size:18px;font-weight:700;letter-spacing:.005em;display:flex;align-items:center;justify-content:center;gap:10px;
+  box-shadow:0 8px 20px -6px rgba(var(--bx-rgb),.55),inset 0 1px 0 rgba(255,255,255,.14);transition:transform .12s,background .2s,box-shadow .2s}
+.go svg{transition:transform .25s var(--ease)}
+.go:hover:not(:disabled){background:#7C2437}.go:hover:not(:disabled) svg{transform:translateX(3px)}
+.go:active:not(:disabled){transform:scale(.98)}
+.go:disabled{background:#D2CBC6;box-shadow:none;cursor:default}
+.ghostbtn{min-height:54px;padding:0 18px;border-radius:17px;font-weight:600;font-size:16px;color:var(--ink-2);background:var(--well);transition:transform .12s}
+.ghostbtn:active{transform:scale(.97)}
+
+/* Deux colonnes dès la tablette en portrait : réglages à gauche, ligne à droite,
+   action ancrée sur toute la largeur. */
+@media (min-width:700px),(min-width:620px) and (max-height:520px){
+  .home-in{max-width:1120px;display:grid;grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr);grid-template-rows:auto minmax(0,1fr) auto;align-items:start;gap:16px 20px;
+    padding:calc(var(--sat) + 24px) calc(var(--sar) + 28px) calc(var(--sab) + 16px) calc(var(--sal) + 28px)}
+  .head{grid-column:1/-1}
+  .col-a,.col-b{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .bar{grid-column:1/-1;align-self:end;bottom:calc(var(--sab) + 14px);margin:0;padding:12px 12px 12px 22px;border-radius:24px;background:rgba(255,255,255,.92);box-shadow:0 0 0 1px rgba(60,40,45,.07),0 14px 36px -10px rgba(40,20,25,.2);
+    grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px}
+  .bar-info{font-size:16px;justify-content:flex-start;gap:18px}
+  .bar-row{min-width:min(46vw,400px)}
+  .tools{text-align:left}
+  .blk{padding:18px}
+}
+@media (min-width:700px) and (min-height:521px){
+  .head h1{font-size:38px;margin:14px 0 6px}
+  .b-fiche,.b-line{padding:22px 22px 20px}
+  .b-fiche .st b,.b-line .st b{font-size:19px}
+  .st time,.dep .tv{font-size:23px}
+  .b-line{--tc:88px}.b-fiche{--tc:76px}
+  .dep .edit{width:auto;padding:0 12px;border-radius:16px;font-size:14px}
+  .line-foot::before{left:-30px}.line-foot::after{right:-30px}
+  .line-foot{grid-template-columns:minmax(0,1fr) 190px;margin-top:16px;padding-top:17px}
+}
+/* Écrans hauts : la ligne s'étire et chaque tronçon prend une hauteur
+   proportionnelle à sa durée — la carte devient un vrai schéma de ligne. */
+@media (min-width:700px) and (min-height:860px){
+  .home-in{align-items:stretch}
+  .col-a{align-self:start}
+  .b-line,.b-fiche{flex:1;display:flex;flex-direction:column;max-height:720px}
+  .b-line .ln,.b-fiche .ln:not(.ghost){display:flex;flex-direction:column;flex:1;min-height:380px}
+  .ln .leg{flex:var(--w,1) 1 34px;align-items:center}
+  .ln .st{flex:none;min-height:56px}
+}
+@media (min-width:700px) and (max-width:899px){ #segDir button{font-size:14.5px;white-space:nowrap} #segDir .arr{margin:0 .2em} }
+@media (max-height:520px){
+  .home-in{grid-template-rows:auto minmax(0,1fr)}
+  .head{grid-column:1}
+  .bar{grid-column:2;grid-row:1;align-self:center;position:sticky;top:calc(var(--sat) + 8px);bottom:auto;padding:6px 6px 6px 16px;border-radius:20px;box-shadow:0 0 0 1px rgba(60,40,45,.07),0 8px 22px -10px rgba(40,20,25,.25)}
+  .bar-row{min-width:0}
+  .bar-info{flex-direction:column;gap:0;align-items:flex-start;line-height:1.25}
+  .bar-info{font-size:13.5px}
+  .go{min-height:46px;padding:0 20px;font-size:17px;border-radius:15px}.ghostbtn{min-height:46px;border-radius:15px}
+  .head h1{display:none}
+  .home-in{padding-top:calc(var(--sat) + 10px);gap:10px 16px}
+}
+@media (max-width:379px){ .add em{display:none} }
+@media (max-width:339px){ .two{grid-template-columns:1fr} .line-foot{grid-template-columns:1fr} }
+
+/* ── Suivi ── */
+.track{display:grid;grid-template:"dash" auto "stage" 1fr "side" auto / minmax(0,1fr);background:var(--paper)}
+.dash{grid-area:dash;position:relative;z-index:4;color:#fff;
+  display:grid;grid-template:"speed eta set" auto "spark spark spark" auto / auto minmax(0,1fr) auto;gap:8px 18px;align-items:center;
+  padding:calc(var(--sat) + 10px) calc(var(--sar) + 14px) 12px calc(var(--sal) + 16px)}
+.gauge{grid-area:speed;position:relative;width:var(--g,128px);height:calc(var(--g,128px)*.82);overflow:hidden}
+.gauge svg{position:absolute;inset:0 0 auto 0;width:100%;height:auto;aspect-ratio:1}
+.gauge circle{fill:none;stroke-width:7;stroke-linecap:round;stroke-dasharray:217.8 400}
+.gauge .g-bg{stroke:rgba(255,255,255,.12)}
+.gauge .g-val{stroke:#fff;transition:stroke .3s}
+.gauge line{stroke:rgba(255,255,255,.34);stroke-width:1;stroke-linecap:round}
+.gauge line.maj{stroke:rgba(255,255,255,.7);stroke-width:1.5}
+.gauge .num{position:absolute;inset:0 0 auto 0;aspect-ratio:1;display:grid;place-content:center;justify-items:center;padding-top:8%}
+.num b{font-family:var(--num);font-size:calc(var(--g,128px)*.37);font-weight:700;letter-spacing:-.01em;line-height:1;font-variant-numeric:tabular-nums}
+.num span{font-size:max(11px,calc(var(--g,128px)*.085));font-weight:600;letter-spacing:.06em;opacity:.6;margin-top:3px}
+.eta{grid-area:eta;min-width:0}
+.eta .k{display:block;color:rgba(255,255,255,.56)}
+.eta .v{display:block;font-family:var(--num);font-size:var(--etafs,44px);font-weight:700;letter-spacing:-.005em;line-height:1.08;font-variant-numeric:tabular-nums}
+.eta-row{display:flex;align-items:center;gap:9px;margin-top:5px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:15px;font-size:15px;font-weight:700;white-space:nowrap;background:rgba(255,255,255,.14);color:#fff;transition:background .3s,color .3s;font-variant-numeric:tabular-nums}
+.pill.late{background:var(--late)}.pill.early,.pill.ok{background:var(--ok)}.pill.est{background:var(--amber);color:#2b1c00}
+.theo{font-size:14px;color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums;white-space:nowrap}
+.setbtn{grid-area:set;align-self:start;display:flex;align-items:center;gap:8px;min-width:44px;height:44px;padding:0 12px;border-radius:14px;background:rgba(255,255,255,.09);color:#fff;font-size:15px;font-weight:600;transition:background .15s,transform .12s}
+.setbtn:hover{background:rgba(255,255,255,.17)}.setbtn:active{transform:scale(.95)}
+.setbtn span{display:none}
+.spark{grid-area:spark;display:block;width:100%;height:42px}
+.prog{display:none}
+
+.stage{grid-area:stage;position:relative;min-height:0;min-width:0}
+.car{position:absolute;inset:0;overflow:hidden;container-type:size;background:radial-gradient(ellipse at 60% 42%,#FBFAF8 20%,var(--paper) 90%);
+  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 86%,transparent);mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 86%,transparent)}
+.rail{position:absolute;left:0;right:0;top:0;will-change:transform;padding:100cqh 0;
+  --lx:calc(var(--carl,0px) + clamp(30px,8.5cqw,96px));--gapx:clamp(22px,5cqw,40px);--hero:clamp(27px,min(8.4cqw,12cqh),58px);font-size:clamp(15px,min(4cqw,4.6cqh),21px)}
+.rail::before,.rail::after{content:"";position:absolute;left:var(--lx);width:6px;margin-left:-3px;border-radius:3px;top:var(--lt,0)}
+.rail::before{height:var(--lh,0);background:var(--bx)}
+.rail::after{height:max(0px,calc(var(--ct,0px) - var(--lt,0px)));background:rgba(244,241,237,.72);z-index:1}
+.pt{position:relative;padding:.62em calc(var(--sar) + 18px) .62em calc(var(--lx) + var(--gapx));transition:padding .7s ease}
+.pt .dot{position:absolute;left:var(--lx);top:50%;width:10px;height:10px;border-radius:50%;background:var(--bx);transform:translate(-50%,-50%);z-index:2;box-sizing:border-box;border:0 solid var(--bx);
+  transition:width .7s ease,height .7s ease,box-shadow .7s ease,border-width .7s ease,background .4s}
+.pt.stop .dot{width:15px;height:15px;background:#fff;border-width:3.5px}
+.pt .info,.pt .tl{opacity:.3;transition:opacity .7s ease}
+.pt .tl{display:none}
+.pt .name{font-size:1em;font-weight:500;color:var(--ink-2);line-height:1.12;letter-spacing:0;text-wrap:balance;transition:font-size .7s ease,color .4s,letter-spacing .7s}
+.pt .meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 .55em;margin-top:.12em;font-size:.86em;color:var(--ink-3);font-weight:500;font-variant-numeric:tabular-nums;transition:font-size .7s ease}
+.pt .tm,.pt .tl,.pt .proj{font-family:var(--num);font-weight:700;font-size:1.04em}
+.pt .x{display:inline-flex;gap:.55em;align-items:baseline;flex-wrap:wrap}
+.pt .dl{font-weight:700;color:var(--late-ink)}.pt .dl.early{color:var(--ok-ink)}
+.pt .proj{color:var(--ink-2)}.pt .proj.late{color:var(--late-ink)}.pt .proj.early{color:var(--ok-ink)}
+.pt .goline{display:none;margin-top:.1em;font-size:1.2em;font-weight:700;color:var(--bx);font-variant-numeric:tabular-nums}
+.pt .goline span{font-weight:500;color:var(--ink-2)}
+.pt .sg{display:none;height:5px;border-radius:3px;margin-top:8px;max-width:260px;background:rgba(var(--bx-rgb),.16);overflow:hidden}
+.pt .sg span{display:block;height:100%;background:var(--bx);border-radius:3px}
+.pt.stop .info,.pt.stop .tl{opacity:.62}.pt.stop .name{font-weight:700;color:var(--ink)}
+.pt.p1 .info,.pt.f1 .info,.pt.p1 .tl,.pt.f1 .tl{opacity:.66}
+.pt.p1 .name,.pt.f1 .name{font-size:1.14em;font-weight:600;color:var(--ink)}
+.pt.active{padding-top:.9em;padding-bottom:.9em}
+.pt.active .info,.pt.active .tl{opacity:1}
+.pt.active .name{font-size:1.42em;font-weight:700;color:var(--ink-2);letter-spacing:-.01em}
+.pt.active .dot{width:16px;height:16px;box-shadow:0 0 0 5px rgba(var(--bx-rgb),.12)}
+.pt.active.stop .dot{border-width:4.5px;width:18px;height:18px}
+.pt.active .meta{font-size:1em}
+.pt.next{padding-top:1.25em;padding-bottom:1.25em}
+.pt.next .info,.pt.next .tl{opacity:1}
+.pt.next .name{font-size:var(--hero);font-weight:700;color:var(--ink);letter-spacing:-.025em;line-height:1.04}
+.pt.next .dot{width:26px;height:26px;box-shadow:0 0 0 9px rgba(var(--bx-rgb),.16)}
+.pt.next.stop .dot{border-width:7px}
+.pt.next .meta{font-size:1.25em;margin-top:.3em}
+.pt.next .goline{display:block}
+@container (max-height:520px){ .rail{--hero:clamp(26px,min(8cqw,9.6cqh),40px)} .pt.next{padding-top:.75em;padding-bottom:.75em} .pt.active{padding-top:.55em;padding-bottom:.55em} }
+/* Carousel large : l'heure passe à gauche du rail, comme sur une fiche horaire.
+   La largeur sert la lecture en colonnes au lieu d'étirer du vide à droite. */
+@container (min-width:600px){
+  .rail{--lx:calc(var(--carl,0px) + clamp(128px,19cqw,212px));--gapx:clamp(30px,4.4cqw,52px);--hero:clamp(34px,min(6.6cqw,10cqh),70px);font-size:clamp(17px,min(2.5cqw,3cqh),23px)}
+  .pt .tl{display:block;position:absolute;top:50%;right:calc(100% - var(--lx) + var(--gapx) - 4px);transform:translateY(-50%);color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap;transition:opacity .7s ease,font-size .7s ease,color .4s}
+  .pt .tm{display:none}
+  .pt.stop .tl,.pt.active .tl{color:var(--ink)}
+  .pt.active .tl{font-size:1.3em}
+  .pt.next .tl{font-size:1.9em;color:var(--ink)}
+  .pt .meta{min-height:0}
+  .pt.next .name{max-width:16em}
+}
+.pt.onst .sg{display:block}
+.pt.onst .meta .cross{color:var(--bx);font-weight:600}
+.cursor{position:absolute;left:var(--lx);top:var(--ct,0);width:22px;height:22px;margin:-11px;border-radius:50%;background:#fff;border:5.5px solid var(--bx);box-shadow:0 2px 8px rgba(40,20,25,.25);z-index:3;box-sizing:border-box;transition:border-color .3s}
+.track.lost .cursor{border-color:var(--amber)}
+.track.lost .gauge .g-val{stroke:var(--amber)}
+.track.arrived .pt.active .name{font-size:var(--hero);font-weight:700;color:var(--ink);letter-spacing:-.025em}
+.sig{position:absolute;right:calc(var(--sar) + 12px);bottom:calc(var(--sab) + 10px);z-index:3;display:flex;align-items:center;gap:7px;height:30px;padding:0 11px;border-radius:15px;background:rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(60,40,45,.08);font-size:13.5px;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.sig i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.track.lost .sig{background:#FFF3DD;box-shadow:0 0 0 1px #F1D29B;color:var(--amber-ink)}.track.lost .sig i{background:var(--amber);animation:pulse 1.4s infinite}
+.toast{position:absolute;left:50%;top:14px;z-index:6;transform:translate(-50%,-12px);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s var(--ease);display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;background:var(--ink);color:#fff;font-size:14.5px;font-weight:600;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100% - 24px)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast svg{color:#7EDCB0}
+
+/* Contexte du trajet : mêmes éléments pour les deux compositions, deux habillages. */
+.side{grid-area:side;display:none;min-width:0;--fg:var(--ink);--mu:var(--ink-2);--mu2:var(--ink-3);--hr:var(--rule);color:var(--fg)}
+.sx{min-width:0}
+.sx h3{margin:0 0 8px;color:var(--mu2)}
+.nx{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 16px;align-items:end}
+.nx .big{font-size:25px;font-weight:700;letter-spacing:-.015em;line-height:1.12;text-wrap:balance}
+.nx .mut{font-size:15px;color:var(--mu);font-variant-numeric:tabular-nums;margin-top:4px}
+.nx .tt{text-align:right;font-family:var(--num);font-variant-numeric:tabular-nums;line-height:1}
+.nx .t1{display:block;font-size:36px;font-weight:700}
+.nx .t0{display:block;min-height:18px;margin-top:5px;font-size:15px;color:var(--mu2);text-decoration:line-through}
+.nx .t1.late{color:#FF8A73}.nx .t1.early{color:#6FD9A8}
+.prof-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.prof-top h3{margin:0}
+.rg{display:flex;gap:2px;padding:2px;border-radius:10px;background:var(--hr)}
+.rg button{min-height:32px;padding:0 11px;border-radius:8px;font-size:13px;font-weight:600;color:var(--mu);transition:background .15s,color .15s}
+.rg button[aria-pressed=true]{background:var(--rgon,#fff);color:var(--fg)}
+.sx-prof canvas{display:block;width:100%;height:150px;touch-action:pan-y;cursor:crosshair}
+.read{display:flex;flex-wrap:wrap;align-items:center;gap:2px 14px;min-height:20px;margin-top:6px;font-size:13px;color:var(--mu);font-variant-numeric:tabular-nums}
+.read b{color:var(--fg);font-weight:700}
+.read .lg{display:inline-block;vertical-align:middle;width:16px;height:0;margin-right:6px;border-top:2px solid currentColor}
+.read .lg.l2{border-top:1.5px dashed currentColor;opacity:.7}
+.read .lg.l3{height:5px;border:0;border-radius:2px;background:linear-gradient(90deg,#E5674F 50%,#3DB583 50%)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 14px}
+.stats div + div{padding-left:14px;border-left:1px solid var(--hr)}
+.stats b{display:block;font-family:var(--num);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stats b small{font-family:var(--font);font-size:12px;font-weight:600;color:var(--mu);margin-left:3px}
+.stats span{display:block;font-size:12.5px;color:var(--mu);margin-top:1px}
+.locrow{display:flex;align-items:center;gap:9px;min-width:0;font-size:14px;color:var(--mu);font-variant-numeric:tabular-nums}
+.locrow b{color:var(--fg);font-weight:600}
+.locrow i{width:9px;height:9px;border-radius:50%;background:#3DB583;flex:none;box-shadow:0 0 0 3px rgba(61,181,131,.2)}
+.track.lost .locrow i{background:var(--amber);box-shadow:0 0 0 3px rgba(227,154,45,.25);animation:pulse 1.4s infinite}
+.track.lost .locrow b{color:var(--amber)}
+
+/* A · Cockpit : un pupitre sombre continu, la feuille de route claire glissée dessus. */
+.track[data-comp=A]{background:var(--coal)}
+.track[data-comp=A] .stage{background:var(--paper);border-radius:22px 22px 0 0;overflow:hidden}
+.track[data-comp=A] .side{--fg:#fff;--mu:rgba(255,255,255,.64);--mu2:rgba(255,255,255,.46);--hr:rgba(255,255,255,.12);--rgon:rgba(255,255,255,.2)}
+.track[data-comp=A] .sx{padding:15px 0;border-top:1px solid var(--hr)}
+@media (orientation:landscape){
+  .track[data-comp=A]{grid-template:"dash stage" minmax(0,1fr) / calc(var(--sal) + clamp(236px,32vw,372px)) minmax(0,1fr)}
+  .track[data-comp=A] .stage{border-radius:24px 0 0 24px}
+  .track[data-comp=A] .dash{grid-template:"speed" auto "spark" auto "eta" auto / minmax(0,1fr);justify-items:center;align-content:center;text-align:center;gap:clamp(6px,2.4vh,22px);
+    padding:calc(var(--sat) + 12px) 14px calc(var(--sab) + 12px) calc(var(--sal) + 14px);--g:clamp(138px,36vh,230px);--etafs:clamp(40px,11vh,68px)}
+  .track[data-comp=A] .setbtn{position:absolute;left:calc(var(--sal) + 8px);top:calc(var(--sat) + 8px)}
+  .track[data-comp=A] .spark{width:min(100%,280px);height:clamp(30px,8vh,56px)}
+  .track[data-comp=A] .eta-row{justify-content:center}
+  .track[data-comp=A] .eta{padding-top:clamp(6px,2vh,20px);border-top:1px solid rgba(255,255,255,.14);width:min(100%,280px)}
+}
+/* A · grand paysage : le pupitre occupe la colonne gauche — instruments en tête,
+   prochain arrêt, puis le profil du voyage qui absorbe toute la hauteur restante. */
+@media (orientation:landscape) and (min-width:1000px) and (min-height:560px){
+  .track[data-comp=A]{--pw:calc(var(--sal) + clamp(440px,42vw,640px));grid-template:"dash stage" auto "side stage" minmax(0,1fr) / var(--pw) minmax(0,1fr)}
+  .track[data-comp=A] .stage{border-radius:30px 0 0 30px}
+  .track[data-comp=A] .dash{grid-template:"speed eta" auto / auto minmax(0,1fr);justify-items:start;align-content:start;align-items:center;text-align:left;gap:0 clamp(22px,2.6vw,40px);
+    padding:calc(var(--sat) + 26px) 30px 20px calc(var(--sal) + 34px);--g:clamp(170px,25vh,236px);--etafs:clamp(54px,8.6vh,80px)}
+  .track[data-comp=A] .eta{border-top:0;padding-top:0;width:auto}
+  .track[data-comp=A] .eta-row{justify-content:flex-start;margin-top:8px}
+  .track[data-comp=A] .pill{height:34px;padding:0 14px;border-radius:17px;font-size:17px}
+  .track[data-comp=A] .theo{font-size:16px}
+  .track[data-comp=A] .spark{display:none}
+  .track[data-comp=A] .dash{position:static}
+  .track[data-comp=A] .setbtn{z-index:5;left:auto;top:auto;right:calc(100% - var(--pw) + 24px);bottom:calc(var(--sab) + 12px);height:40px}
+  .track[data-comp=A] .sx-loc{padding-right:150px}
+  .track[data-comp=A] .locrow span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .track .setbtn span{display:inline}
+  .track .sig{display:none}
+  .track .side{display:flex;flex-direction:column}
+  .track[data-comp=A] .side{padding:0 30px calc(var(--sab) + 6px) calc(var(--sal) + 34px);min-height:0;overflow:hidden}
+  .track[data-comp=A] .sx-prof{flex:1;min-height:0;display:flex;flex-direction:column}
+  .track[data-comp=A] .sx-prof canvas{flex:1;min-height:96px;height:auto}
+  .track[data-comp=A] .nx .big{font-size:clamp(24px,2.3vw,32px)}
+  .track[data-comp=A] .nx .t1{font-size:clamp(36px,3.2vw,46px)}
+}
+@media (orientation:landscape) and (min-width:1000px) and (min-height:560px) and (max-height:700px){
+  .track[data-comp=A] .sx{padding:10px 0}
+  .track[data-comp=A] .sx-stats{display:none}
+  .track[data-comp=A] .dash{padding-top:calc(var(--sat) + 16px);padding-bottom:12px}
+}
+/* A · tablette en portrait : pupitre en trois bandes (instruments, profil, repères),
+   puis le carousel en colonnes sur toute la largeur. */
+@media (orientation:portrait) and (min-width:700px){
+  .track[data-comp=A]{grid-template:"dash" auto "side" auto "stage" minmax(0,1fr) / minmax(0,1fr)}
+  .track[data-comp=A] .stage{border-radius:30px 30px 0 0}
+  .track[data-comp=A] .dash{--g:clamp(176px,22vw,212px);--etafs:clamp(60px,7.6vw,76px);grid-template:"speed eta set" auto / auto minmax(0,1fr) auto;gap:clamp(24px,4vw,44px);padding:calc(var(--sat) + 20px) calc(var(--sar) + 24px) 14px calc(var(--sal) + 30px)}
+  .track[data-comp=A] .spark{display:none}
+  .track[data-comp=A] .pill{height:34px;padding:0 14px;border-radius:17px;font-size:17px}
+  .track[data-comp=A] .theo{font-size:16px}
+  .track .setbtn span{display:inline}
+  .track .side{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:0 32px}
+  .track[data-comp=A] .side{padding:0 calc(var(--sar) + 30px) 8px calc(var(--sal) + 30px)}
+  .track .sx-prof{grid-column:1/-1;order:-1}
+  .track .sx-prof canvas{height:clamp(150px,15vh,210px)}
+  .track .sx-loc{display:none}
+  .track .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+  .track .stats div:nth-child(3){padding-left:0;border-left:0}
+}
+@media (orientation:portrait) and (max-width:379px){
+  .track[data-comp=A] .dash{--g:112px;--etafs:38px;gap:6px 12px}
+}
+
+/* B · Fil : surface unique claire, instruments flottants */
+.track[data-comp=B]{grid-template:"stage" minmax(0,1fr) "side" auto / minmax(0,1fr)}
+.track[data-comp=B] .car{--fade:linear-gradient(to bottom,transparent calc(var(--sat) + 64px),#000 calc(var(--sat) + 150px),#000 86%,transparent);-webkit-mask-image:var(--fade);mask-image:var(--fade)}
+.track[data-comp=B] .dash{position:absolute;top:calc(var(--sat) + 8px);left:calc(var(--sal) + 10px);right:calc(var(--sar) + 10px);max-width:560px;margin:0 auto;
+  display:flex;align-items:center;gap:14px;padding:8px 8px 8px 18px;border-radius:22px;background:rgba(255,255,255,.9);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);color:var(--ink);
+  box-shadow:0 8px 28px rgba(40,20,25,.12),0 0 0 1px rgba(40,20,25,.05);overflow:hidden}
+.track[data-comp=B] .gauge{width:auto;height:auto;overflow:visible}
+.track[data-comp=B] .gauge svg,.track[data-comp=B] .spark{display:none}
+.track[data-comp=B] .gauge .num{position:static;aspect-ratio:auto;padding:0;justify-items:start}
+.track[data-comp=B] .num b{font-size:36px}.track[data-comp=B] .num span{font-size:12px;margin-top:0;opacity:1;color:var(--ink-3)}
+.track[data-comp=B] .eta{display:flex;align-items:center;gap:14px;flex:1;justify-content:space-between;padding-left:14px;border-left:1px solid var(--rule)}
+.track[data-comp=B] .eta .k{color:var(--ink-3);font-size:10.5px}
+.track[data-comp=B] .eta .v{font-size:32px}
+.track[data-comp=B] .eta-row{margin:0;flex-direction:column;align-items:flex-end;gap:2px}
+.track[data-comp=B] .pill{background:var(--well);color:var(--ink-2)}
+.track[data-comp=B] .pill.late{background:var(--late);color:#fff}.track[data-comp=B] .pill.early,.track[data-comp=B] .pill.ok{background:var(--ok);color:#fff}.track[data-comp=B] .pill.est{background:var(--amber);color:#2b1c00}
+.track[data-comp=B] .theo{font-size:12.5px;color:var(--ink-3)}
+.track[data-comp=B] .setbtn{background:var(--well);color:var(--ink-2);align-self:center}
+.track[data-comp=B] .prog{display:block;position:absolute;left:0;bottom:0;height:3px;background:var(--bx);border-radius:0 2px 2px 0}
+.track[data-comp=B].lost .num b{color:var(--amber-ink)}
+.track[data-comp=B] .toast{top:calc(var(--sat) + 88px)}
+.track[data-comp=B] .sx{background:#fff;border-radius:18px;padding:14px 16px;box-shadow:0 0 0 1px rgba(60,40,45,.07)}
+.track[data-comp=B] .nx .t1.late{color:var(--late-ink)}.track[data-comp=B] .nx .t1.early{color:var(--ok-ink)}
+@media (orientation:landscape) and (max-height:559px){
+  .track[data-comp=B] .dash{right:auto;top:calc(var(--sat) + 10px);bottom:calc(var(--sab) + 10px);width:176px;margin:0;flex-direction:column;justify-content:center;align-items:stretch;gap:10px;padding:12px 16px}
+  .track[data-comp=B] .num b{font-size:46px}
+  .track[data-comp=B] .eta{flex:none;flex-direction:column;align-items:flex-start;gap:8px;padding:10px 0 0;border-left:0;border-top:1px solid var(--rule)}
+  .track[data-comp=B] .eta .v{font-size:36px}
+  .track[data-comp=B] .eta-row{align-items:flex-start}
+  .track[data-comp=B] .setbtn{position:absolute;right:6px;top:6px;width:44px;min-width:44px;height:44px;padding:0;justify-content:center}
+  .track[data-comp=B] .car{--carl:calc(var(--sal) + 186px);--fade:linear-gradient(to bottom,transparent,#000 13%,#000 86%,transparent)}
+  .track[data-comp=B] .toast{top:14px}
+}
+@media (orientation:landscape) and (min-width:1000px) and (min-height:560px){
+  .track[data-comp=B] .dash{left:20px;right:auto;top:20px;margin:0;width:460px}
+  .track[data-comp=B]{grid-template:"stage side" minmax(0,1fr) / minmax(0,1fr) clamp(340px,30vw,440px)}
+  .track[data-comp=B] .side{gap:12px;padding:16px calc(var(--sar) + 16px) calc(var(--sab) + 16px) 16px;overflow:auto;box-shadow:-1px 0 0 var(--rule)}
+  .track[data-comp=B] .car{--carl:2cqw}
+}
+@media (orientation:portrait) and (min-width:700px){
+  .track[data-comp=B] .dash{top:calc(var(--sat) + 16px);max-width:600px;padding:12px 12px 12px 24px}
+  .track[data-comp=B] .num b{font-size:44px}.track[data-comp=B] .eta .v{font-size:40px}
+  .track[data-comp=B] .side{gap:12px;padding:0 20px calc(var(--sab) + 16px)}
+  .track[data-comp=B] .sx-prof canvas{height:130px}
+  .track[data-comp=B] .sig{display:none}
+}
+
+/* Onglet de démo, uniquement hors studio */
+.demo-tab{position:fixed;right:0;top:46%;z-index:40;writing-mode:vertical-rl;padding:12px 5px;border-radius:10px 0 0 10px;background:rgba(33,30,31,.72);color:#fff;font-size:12px;font-weight:600;letter-spacing:.04em}
+.demo{position:fixed;inset:0;z-index:50;display:none;background:rgba(20,16,18,.4)}
+.demo.on{display:block}
+.demo-in{position:absolute;right:0;top:0;bottom:0;width:min(340px,92vw);overflow:auto;background:#fff;padding:calc(var(--sat) + 14px) calc(var(--sar) + 16px) calc(var(--sab) + 16px) 16px}
+.embed .demo-tab{display:none}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;animation:none!important}
+}
+
+/* ═══════════════ STUDIO ═══════════════ */
+.studio{display:grid;grid-template-rows:auto minmax(0,1fr);height:100vh;height:100dvh;background:#E9E6E2;color:var(--ink);font-size:14px}
+.st-top{display:flex;align-items:center;gap:14px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.st-title{font-weight:700;font-size:15px;margin-right:6px;display:flex;align-items:center;gap:8px}
+.st-title svg{width:22px;height:22px}
+.st-title small{font-weight:500;color:var(--ink-3)}
+.tg{display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--well)}
+.tg button{padding:6px 10px;border-radius:7px;font-size:13px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.tg button[aria-pressed=true]{background:#fff;color:var(--bx-deep);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tb{padding:7px 11px;border-radius:8px;background:var(--well);font-size:13px;font-weight:600;color:var(--ink-2);display:inline-flex;gap:6px;align-items:center;text-decoration:none}
+.tb[aria-pressed=true]{background:var(--bx);color:#fff}
+.st-sp{flex:1}
+.st-body{display:grid;grid-template-columns:292px minmax(0,1fr);min-height:0}
+.st-side{overflow:auto;background:#fff;border-right:1px solid var(--rule);padding:14px 16px 24px}
+.st-side h2{margin:18px 0 8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.st-side h2:first-child{margin-top:0}
+.cg{margin-bottom:10px}
+.cg > span{display:block;font-size:13px;font-weight:600;margin-bottom:5px;color:var(--ink-2)}
+.cg div{display:flex;flex-wrap:wrap;gap:5px}
+.cg button{padding:6px 10px;border-radius:8px;background:var(--well);font-size:13px;font-weight:600;color:var(--ink-2)}
+.cg button[aria-pressed=true]{background:var(--bx);color:#fff}
+.cg button.act:active{background:var(--bx-soft)}
+.cg em{font-style:normal;color:var(--bx);margin-left:3px}
+.cg button[aria-pressed=true] em{color:#fff}
+.st-side input[type=range]{width:100%;accent-color:var(--bx)}
+.st-side p,.st-side li{font-size:13px;line-height:1.45;color:var(--ink-2);margin:0 0 7px}
+.st-side ul{padding-left:17px;margin:0}
+.st-side details{border-top:1px solid var(--rule);padding:10px 0}
+.st-side summary{font-weight:700;font-size:13.5px;cursor:pointer;color:var(--ink)}
+.st-side details p:first-of-type,.st-side details ul:first-of-type{margin-top:8px}
+.st-stage{position:relative;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;gap:36px;padding:26px;overflow:hidden}
+.slot{display:flex;flex-direction:column;align-items:center;gap:10px}
+.slot[hidden]{display:none}
+.slot-cap{font-size:13px;font-weight:600;color:var(--ink-2)}
+.dev-box{position:relative}
+.dev{position:absolute;left:0;top:0;transform-origin:0 0;background:#111;box-shadow:0 30px 70px rgba(40,25,30,.22)}
+.dev iframe{display:block;border:0;background:#fff;width:100%;height:100%}
+.dev[data-kind=phone],.dev[data-kind=phone-old]{padding:11px;border-radius:58px}
+.dev[data-kind=phone] iframe{border-radius:47px}
+.dev[data-kind=phone-old]{border-radius:44px;padding:14px}.dev[data-kind=phone-old] iframe{border-radius:30px}
+.dev[data-kind=pad]{padding:16px;border-radius:38px}.dev[data-kind=pad] iframe{border-radius:22px}
+.dev[data-kind=pc],.dev[data-kind=free]{padding:0;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 20px 60px rgba(40,25,30,.18),0 0 0 1px rgba(0,0,0,.08)}
+.island,.hbar{position:absolute;background:#000;border-radius:20px;pointer-events:none;display:none}
+.dev[data-kind=phone] .island{display:block}
+.dev[data-kind=phone]:not(.land) .island{left:50%;top:22px;width:122px;height:36px;margin-left:-61px}
+.dev[data-kind=phone].land .island{left:22px;top:50%;width:36px;height:122px;margin-top:-61px}
+.dev[data-kind=phone] .hbar,.dev[data-kind=pad] .hbar{display:block;left:50%;bottom:19px;width:36%;max-width:260px;height:5px;transform:translateX(-50%);background:#888}
+.st-dim{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+@media (max-width:1000px){ .st-body{grid-template-columns:240px minmax(0,1fr)} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.6v.1"/></symbol>
+  <symbol id="i-mark" viewBox="0 0 26 26"><rect width="26" height="26" rx="7.5" fill="#8B2A3F" stroke="none"/><path d="M9 5v16" stroke="#fff" stroke-width="2.6"/><circle cx="9" cy="9" r="3.3" fill="#8B2A3F" stroke="#fff" stroke-width="2.2"/><circle cx="9" cy="18" r="1.6" fill="#fff" stroke="none"/><path d="M15 9h6M15 18h4" stroke="#fff" stroke-width="2.2" opacity=".85"/></symbol>
+</svg>
+
+<!-- ═════════ PROTOTYPE ═════════ -->
+<div id="app" class="app" data-view="home" data-home="B">
+  <section class="view home" aria-label="Préparer le trajet">
+    <div class="home-in">
+      <header class="head">
+        <div class="brand"><svg><use href="#i-mark"/></svg>Tallon</div>
+        <div class="live" id="liveChip"><i></i><span>Suivi en cours</span></div>
+        <h1>Préparer le trajet</h1>
+      </header>
+      <div class="col-a">
+        <div class="blk b-route">
+          <div class="lab"><span class="cap" id="lab-link">Liaison</span><small>depuis ou vers Paris</small></div>
+          <div class="seg" role="radiogroup" aria-labelledby="lab-link" id="segLink"></div>
+          <div class="seg" role="radiogroup" aria-label="Sens du trajet" id="segDir"></div>
+        </div>
+        <div class="blk b-stops">
+          <div class="lab"><span class="cap">Arrêts desservis</span><small id="stopsCount"></small></div>
+          <div class="chips" id="chips"></div>
+        </div>
+        <div class="blk b-time">
+          <div class="two">
+            <label class="fld"><span class="cap">Départ</span>
+              <span class="tbox"><span class="tv"></span><svg class="ic"><use href="#i-clock"/></svg><input type="time" id="depA" aria-label="Heure de départ"></span>
+            </label>
+            <div class="fld"><span class="cap" id="lab-dt">Décalage ΔT</span>
+              <div class="step" role="group" aria-labelledby="lab-dt"><button type="button" data-d="-1" aria-label="Retirer une minute"><svg class="ic"><use href="#i-minus"/></svg></button><output id="dtA" aria-live="polite"></output><button type="button" data-d="1" aria-label="Ajouter une minute"><svg class="ic"><use href="#i-plus"/></svg></button></div>
+            </div>
+          </div>
+          <p class="sub" id="dtHintA"></p>
+        </div>
+        <div class="blk b-loc">
+          <div class="lab"><span class="cap" id="lab-loc">Localisation</span></div>
+          <div class="seg" role="radiogroup" aria-labelledby="lab-loc" id="segLoc">
+            <button type="button" role="radio" data-v="geo">GPS</button>
+            <button type="button" role="radio" data-v="sncf">WiFi SNCF</button>
+          </div>
+          <p class="sub" id="locHint"></p>
+        </div>
+        <div class="tools"><a href="train-points-editor.html">Vérifier les points sur la carte ↗</a></div>
+      </div>
+      <div class="col-b">
+        <div class="blk b-fiche" id="fiche" aria-live="polite"></div>
+        <div class="blk b-line">
+          <div class="fiche-top"><b class="cap">Votre train</b><span id="lineSum"></span></div>
+          <div class="ln" id="lnB">
+            <label class="st first dep" id="depRow">
+              <span class="tbox"><span class="tv"></span><input type="time" id="depB" aria-label="Heure de départ"></span>
+              <i></i>
+              <div><b id="origName"></b><small>Départ</small></div>
+              <span class="edit" aria-hidden="true">Modifier<svg class="ic"><use href="#i-pen"/></svg></span>
+            </label>
+            <div id="lineRest" style="display:contents"></div>
+          </div>
+          <div id="lineAlt"></div>
+          <div class="line-foot" id="lineFoot">
+            <div><b>Décalage ΔT</b><small id="dtHintB"></small></div>
+            <div class="step" role="group" aria-label="Décalage ΔT"><button type="button" data-d="-1" aria-label="Retirer une minute"><svg class="ic"><use href="#i-minus"/></svg></button><output id="dtB" aria-live="polite"></output><button type="button" data-d="1" aria-label="Ajouter une minute"><svg class="ic"><use href="#i-plus"/></svg></button></div>
+          </div>
+        </div>
+      </div>
+      <div class="bar">
+        <div class="bar-info" id="barInfo"></div>
+        <div class="bar-row"><button type="button" class="ghostbtn" id="btnAlt" hidden></button><button type="button" class="go" id="btnGo"></button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view track" data-comp="A" aria-label="Suivi du trajet">
+    <div class="dash">
+      <div class="gauge" role="img" id="gauge" aria-label="Vitesse">
+        <svg viewBox="0 0 120 120"><circle class="g-bg" cx="60" cy="60" r="53" transform="rotate(150 60 60)"/><circle class="g-val" id="gVal" cx="60" cy="60" r="53" transform="rotate(150 60 60)"/><g id="gTicks"></g></svg>
+        <div class="num"><b id="spd">0</b><span>KM/H</span></div>
+      </div>
+      <div class="eta">
+        <div><span class="k cap">Arrivée</span><b class="v" id="etaV">--:--</b></div>
+        <div class="eta-row"><span class="pill" id="pill"></span><span class="theo" id="theo"></span></div>
+      </div>
+      <button type="button" class="setbtn" id="btnSet" aria-label="Réglages"><svg class="ic"><use href="#i-gear"/></svg><span>Réglages</span></button>
+      <canvas class="spark" id="spark" aria-label="Profil de vitesse du voyage"></canvas>
+      <i class="prog" id="prog"></i>
+    </div>
+    <div class="stage">
+      <div class="car" id="car"><div class="rail" id="rail"></div></div>
+      <div class="sig" id="sig"><i></i><span></span></div>
+      <div class="toast" id="toast"><svg class="ic"><use href="#i-check"/></svg><span></span></div>
+    </div>
+    <aside class="side" aria-label="Contexte du trajet">
+      <div class="sx sx-next"><h3 class="cap">Prochain arrêt</h3>
+        <div class="nx"><div><div class="big" id="nsName"></div><div class="mut" id="nsIn"></div></div><div class="tt"><span class="t1" id="nsT1"></span><span class="t0" id="nsT0"></span></div></div>
+      </div>
+      <div class="sx sx-prof">
+        <div class="prof-top"><h3 class="cap">Profil du voyage</h3>
+          <div class="rg" role="group" aria-label="Étendue du graphique" id="rg"><button type="button" data-v="trip" aria-pressed="true">Voyage</button><button type="button" data-v="recent" aria-pressed="false">15 min</button></div>
+        </div>
+        <canvas id="graph" aria-label="Vitesse mesurée et prévue sur tout le voyage"></canvas>
+        <div class="read" id="profRead"></div>
+      </div>
+      <div class="sx sx-stats"><div class="stats">
+        <div><b id="kmDone"></b><span>parcourus</span></div><div><b id="kmLeft"></b><span>restants</span></div>
+        <div><b id="vAvg"></b><span>moyenne</span></div><div><b id="vMax"></b><span>maximum</span></div>
+      </div></div>
+      <div class="sx sx-loc"><div class="locrow"><i></i><b id="locName"></b><span id="locInfo"></span></div></div>
+    </aside>
+  </section>
+
+  <button type="button" class="demo-tab" id="demoTab">Maquette</button>
+  <div class="demo" id="demo"><div class="demo-in st-side" id="demoIn"></div></div>
+</div>
+
+<!-- ═════════ STUDIO ═════════ -->
+<div id="studio" class="studio">
+  <header class="st-top">
+    <div class="st-title"><svg><use href="#i-mark"/></svg>Tallon <small>· maquettes mode train · issue #25 · itération 2</small></div>
+    <div class="tg" id="devs"></div>
+    <button class="tb" id="rot">⟳ Pivoter</button>
+    <button class="tb" id="cmp" aria-pressed="false">A | B côte à côte</button>
+    <span class="st-sp"></span>
+    <a class="tb" id="solo" target="_blank" rel="noopener">Ouvrir le prototype seul ↗</a>
+  </header>
+  <div class="st-body">
+    <aside class="st-side" id="stSide"></aside>
+    <main class="st-stage" id="stage">
+      <div class="slot"><div class="dev-box"><div class="dev"><iframe title="Prototype 1"></iframe><i class="island"></i><i class="hbar"></i></div></div><div class="slot-cap"></div></div>
+      <div class="slot" hidden><div class="dev-box"><div class="dev"><iframe title="Prototype 2"></iframe><i class="island"></i><i class="hbar"></i></div></div><div class="slot-cap"></div></div>
+      <div class="st-dim" id="dim"></div>
+    </main>
+  </div>
+</div>
+
+<script>
+'use strict';
+const IS_APP = location.hash.indexOf('#app') === 0;
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* Contrôles de revue, partagés par le studio et l'onglet « Maquette » du prototype seul. */
+const CTRL = [
+  { h: 'Compositions' },
+  { k: 'homeComp', label: 'Accueil', opts: [['A', 'A · Réglages + fiche'], ['B', 'B · Ligne éditable', 1]] },
+  { k: 'trackComp', label: 'Suivi', opts: [['A', 'A · Cockpit', 1], ['B', 'B · Fil']] },
+  { h: 'États de l’accueil' },
+  { k: 'homeState', act: 1, opts: [['filled', 'Prérempli'], ['long', 'Longue desserte'], ['blank', 'Première ouverture'], ['notime', 'Sans horaire'], ['nodata', 'Données indisponibles']] },
+  { h: 'Simulation du trajet' },
+  { k: 'jump', label: 'Aller à', act: 1, opts: [['before', 'Avant départ'], ['cruise', 'En ligne'], ['structure', 'Dans un tunnel'], ['approach', 'Approche gare'], ['arrived', 'Arrivée']] },
+  { k: 'scenario', label: 'Ponctualité', opts: [['ontime', 'À l’heure'], ['late', 'Retard'], ['early', 'Avance']] },
+  { k: 'signal', label: 'Signal', opts: [['ok', 'Fix reçu'], ['lost', 'Perdu']] },
+  { k: 'rate', label: 'Défilement', opts: [[0, 'Pause'], [1, '×1'], [30, '×30'], [120, '×120']] },
+];
+const DEFAULTS = { homeComp: 'B', trackComp: 'A', scenario: 'late', signal: 'ok', rate: 30 };
+function renderControls(root, state, onSet) {
+  root.innerHTML = '';
+  for (const c of CTRL) {
+    if (c.h) { const h = document.createElement('h2'); h.textContent = c.h; root.append(h); continue; }
+    const g = document.createElement('div'); g.className = 'cg';
+    g.innerHTML = (c.label ? `<span>${c.label}</span>` : '') + '<div>' + c.opts.map(o =>
+      `<button type="button" class="${c.act ? 'act' : ''}" data-v="${o[0]}" ${c.act ? '' : `aria-pressed="${String(state[c.k]) === String(o[0])}"`}>${o[1]}${o[2] ? '<em title="Recommandé">★</em>' : ''}</button>`).join('') + '</div>';
+    g.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const v = c.k === 'rate' ? +b.dataset.v : b.dataset.v;
+      if (!c.act) { state[c.k] = v; $$('button', g).forEach(x => x.setAttribute('aria-pressed', x === b)); }
+      onSet(c.k, v);
+    });
+    root.append(g);
+  }
+}
+
+/* ═══════════════════════ PROTOTYPE ═══════════════════════ */
+function initApp() {
+  const ROUTES = {"PARIS_TO_LPD":[["PARIS_LYON","Paris-Lyon","p",350,8.9,0],["BIF_DE_CRETEIL","Bifurcation de Créteil","b",142,3.9,0],["TUNNEL_DE_LIMEIL_BREVANNES","Tunnel de Limeil-Brevannes","o",118,3.1,1682],["TRANCHEE_COUVERTE_DE_VILLECRESNE","Tranchée couverte de Villecresne","o",300,13.3,2793],["BIF_DE_CHEVRY_COSSIGNY","Bifurcation de Chevry-Cossigny","b",75,4.5,0],["BIF_DE_SOLERS","Bifurcation de Solers","b",240,12.0,0],["BIF_DE_MOISENAY","Bifurcation de Moisenay","b",350,25.2,0],["VIADUC_DE_MONTEREAU","Viaduc de Montereau","o",85,6.3,200],["PRS_DE_MAROLLES","SEI de Marolles","s",305,21.2,0],["PASSAGE_SOUS_L_A19","Passage sous l'A19","p",275,20.1,0],["PRS_DE_VAUMORT","SEI de Vaumort","s",305,22.5,0],["VIADUC_SUR_LE_CANAL_DE_BOURGOGNE","Viaduc sur le canal de Bourgogne","o",20,1.5,160],["BIF_DE_VERGIGNY","Bifurcation de Vergigny","b",300,21.9,0],["PRS_TONNERRE","SEI de Tonnerre","s",305,22.1,0],["BIF_DE_PASILLY","Bifurcation de Pasilly","b",245,22.4,0],["VIADUC_D_EPOISSES","Viaduc d'Époisses","o",90,16.8,90],["PRS_DE_LACOUR_D_ARCENAY","SEI de Lacour d'Arcenay","s",295,6.3,0],["VIADUC_DE_SAULIEU","Viaduc de Saulieu","o",245,17.0,202],["PRS_DE_VIANGES","SEI de Vianges","s",110,19.2,0],["PRS_DE_SULLY","SEI de Sully","s",115,5.8,0],["VIADUC_DE_LA_DIGOINE_DREE","Viaduc de la Digoine","o",290,20.3,420],["CREUSOT_TGV","Le Creusot – Montceau – Montchanin TGV","g",305,18.7,0],["PRS_DE_VAUX_EN_PRE","SEI de Vaux-en-Pré","s",130,20.5,0],["PRS_DE_CLUNY","SEI de Cluny","s",185,7.0,0],["VIADUC_DE_LA_ROCHE","Viaduc de la Roche","o",400,12.6,385],["MACON_LOCHE","Macon – Loché TGV","g",392,24.6,0],["PRS_DE_CESSEIN","SEI de Cessein","s",20,18.4,0],["PASSAGE_SOUS_L_A46","Passage sous l'A46","o",280,1.1,0],["BIF_MONTANAY","Bifurcation V.1 de Montanay","b",280,8.1,0],["SATHONAY_RILLIEU","Gare de Sathonay-Rillieu","g",30,0.8,0],["TUNNEL_DES_MERCIERES","Tunnel des Mercières","o",210,2.6,1188],["GARE_DE_LYON_SAINT_CLAIR","Gare de Lyon-Saint-Clair","g",260,3.4,0],["LYON_PART_DIEU","Lyon-Part-Dieu","p",0,0,0]],"PARIS_TO_MACON":[["PARIS_LYON","Paris-Lyon","p",350,8.9,0],["BIF_DE_CRETEIL","Bifurcation de Créteil","b",112,3.9,0],["TUNNEL_DE_LIMEIL_BREVANNES","Tunnel de Limeil-Brevannes","o",82,3.1,1682],["TRANCHEE_COUVERTE_DE_VILLECRESNE","Tranchée couverte de Villecresne","o",230,13.3,2793],["BIF_DE_CHEVRY_COSSIGNY","Bifurcation de Chevry-Cossigny","b",70,4.5,0],["BIF_DE_SOLERS","Bifurcation de Solers","b",175,12.0,0],["BIF_DE_MOISENAY","Bifurcation de Moisenay","b",350,25.2,0],["VIADUC_DE_MONTEREAU","Viaduc de Montereau","o",87,6.3,200],["PRS_DE_MAROLLES","SEI de Marolles","s",300,21.2,0],["PASSAGE_SOUS_L_A19","Passage sous l'A19","p",283,20.1,0],["PRS_DE_VAUMORT","SEI de Vaumort","s",305,22.5,0],["VIADUC_SUR_LE_CANAL_DE_BOURGOGNE","Viaduc sur le canal de Bourgogne","o",21,1.5,160],["BIF_DE_VERGIGNY","Bifurcation de Vergigny","b",310,21.9,0],["PRS_TONNERRE","SEI de Tonnerre","s",286,22.1,0],["BIF_DE_PASILLY","Bifurcation de Pasilly","b",320,22.4,0],["VIADUC_D_EPOISSES","Viaduc d'Époisses","o",230,16.8,90],["PRS_DE_LACOUR_D_ARCENAY","SEI de Lacour d'Arcenay","s",85,6.3,0],["VIADUC_DE_SAULIEU","Viaduc de Saulieu","o",236,17.0,202],["PRS_DE_VIANGES","SEI de Vianges","s",280,19.2,0],["PRS_DE_SULLY","SEI de Sully","s",87,5.8,0],["VIADUC_DE_LA_DIGOINE_DREE","Viaduc de la Digoine","o",290,20.3,420],["CREUSOT_TGV","Le Creusot – Montceau – Montchanin TGV","g",276,18.7,0],["PRS_DE_VAUX_EN_PRE","SEI de Vaux-en-Pré","s",289,20.5,0],["PRS_DE_CLUNY","SEI de Cluny","s",115,7.0,0],["VIADUC_DE_LA_ROCHE","Viaduc de la Roche","o",340,12.6,385],["MACON_LOCHE","Macon – Loché TGV","g",0,0,0]],"PARIS_TO_MARSEILLE":[["PARIS_LYON","Paris-Lyon","p",350,8.9,0],["BIF_DE_CRETEIL","Bifurcation de Créteil","b",142,3.9,0],["TUNNEL_DE_LIMEIL_BREVANNES","Tunnel de Limeil-Brevannes","o",118,3.1,1682],["TRANCHEE_COUVERTE_DE_VILLECRESNE","Tranchée couverte de Villecresne","o",300,13.3,2793],["BIF_DE_CHEVRY_COSSIGNY","Bifurcation de Chevry-Cossigny","b",75,4.5,0],["BIF_DE_SOLERS","Bifurcation de Solers","b",240,12.0,0],["BIF_DE_MOISENAY","Bifurcation de Moisenay","b",350,25.2,0],["VIADUC_DE_MONTEREAU","Viaduc de Montereau","o",85,6.3,200],["PRS_DE_MAROLLES","SEI de Marolles","s",305,21.2,0],["PASSAGE_SOUS_L_A19","Passage sous l'A19","p",275,20.1,0],["PRS_DE_VAUMORT","SEI de Vaumort","s",305,22.5,0],["VIADUC_SUR_LE_CANAL_DE_BOURGOGNE","Viaduc sur le canal de Bourgogne","o",20,1.5,160],["BIF_DE_VERGIGNY","Bifurcation de Vergigny","b",300,21.9,0],["PRS_TONNERRE","SEI de Tonnerre","s",305,22.1,0],["BIF_DE_PASILLY","Bifurcation de Pasilly","b",245,22.4,0],["VIADUC_D_EPOISSES","Viaduc d'Époisses","o",90,16.8,90],["PRS_DE_LACOUR_D_ARCENAY","SEI de Lacour d'Arcenay","s",295,6.3,0],["VIADUC_DE_SAULIEU","Viaduc de Saulieu","o",245,17.0,202],["PRS_DE_VIANGES","SEI de Vianges","s",110,19.2,0],["PRS_DE_SULLY","SEI de Sully","s",115,5.8,0],["VIADUC_DE_LA_DIGOINE_DREE","Viaduc de la Digoine","o",290,20.3,420],["CREUSOT_TGV","Le Creusot – Montceau – Montchanin TGV","g",305,18.7,0],["PRS_DE_VAUX_EN_PRE","SEI de Vaux-en-Pré","s",130,20.5,0],["PRS_DE_CLUNY","SEI de Cluny","s",185,7.0,0],["VIADUC_DE_LA_ROCHE","Viaduc de la Roche","o",400,12.6,385],["MACON_LOCHE","Macon – Loché TGV","g",392,24.6,0],["PRS_DE_CESSEIN","SEI de Cessein","s",260,18.4,0],["PASSAGE_SOUS_L_A46","Passage sous l'A46","o",13,1.1,0],["BIF_MONTANAY","Bifurcation V.1 de Montanay","b",62,4.3,0],["PONT_SUR_L_A46","Pont sur l'A46","o",125,8.5,0],["VIADUC_DE_LA_COTIERE","Viaduc de la Cotière","o",205,14.4,0],["LYON_ST_EX","Lyon-Saint-Exupéry TGV","g",95,6.8,0],["BIF_DE_GRENAY_NORD","Bif. de Grenay-Nord","b",340,22.3,0],["TUNNEL_DE_MEYSSIEZ","Tunnel de Meyssiez","o",395,30.8,0],["VIADUC_DE_LA_GALAURE","Viaduc de la Galaure","o",58,4.5,0],["PRCI_DE_CLAVEYSON_BREN","PRCI de Claveyson - Bren","s",245,19.0,0],["VALENCE_TGV","Valence TGV","g",500,34.5,0],["TUNNEL_DE_TARTAIGUILLE","Tunnel de Tartaiguille (2 340 m)","o",314,24.2,2340],["SEI_D_ALLAN","SEI d'Allan","s",180,13.6,0],["VIADUC_SUR_L_A7","Viaduc sur l'A7","o",115,8.4,0],["BIF_VERS_LE_RACC_DE_BOLLENE","Bif. vers le racc. de Bollène","b",230,16.0,0],["SEI_DE_PIOLENC","SEI de Piolenc","s",330,21.2,0],["BIF_D_AVIGNON_NORD","Bif. d'Avignon-Nord","b",180,7.0,0],["AVIGNON_TGV","Avignon TGV","g",660,24.2,0],["VIADUC_DE_CHEVAL_BLANC_900_M","Viaduc de Cheval-Blanc (900 m)","o",240,18.1,900],["VIADUC_DE_VERNEGUES_1_211_M","Viaduc de Vernègues (1 211 m)","o",300,18.7,1211],["VIADUC_DE_VENTABREN_1_730_M","Viaduc de Ventabren (1 730 m)","o",240,10.5,1730],["AIX_TGV","Aix-en-Provence TGV","g",240,3.2,0],["TUNNEL_DES_PENNES_MIRABEAU","Tunnel des Pennes-Mirabeau","o",300,8.3,0],["BIF_DES_TUILERIES","Bif. des Tuileries","b",360,6.2,0],["MARSEILLE_ST_CHARLES","Marseille Saint-Charles","s",0,0,0]],"LPD_TO_PARIS":[["LYON_PART_DIEU","Lyon-Part-Dieu","p",260,3.4,0],["GARE_DE_LYON_SAINT_CLAIR","Gare de Lyon-Saint-Clair","g",210,2.6,0],["TUNNEL_DES_MERCIERES","Tunnel des Mercières","o",30,1.3,1188],["SATHONAY_RILLIEU","Gare de Sathonay-Rillieu","g",280,8.1,0],["BIF_MONTANAY","Bifurcation V.1 de Montanay","b",280,1.0,0],["PASSAGE_SOUS_L_A46","Passage sous l'A46","o",20,18.5,0],["PRS_DE_CESSEIN","SEI de Cessein","s",270,24.6,0],["MACON_LOCHE","Macon – Loché TGV","g",400,12.3,0],["VIADUC_DE_LA_ROCHE","Viaduc de la Roche","o",185,7.4,385],["PRS_DE_CLUNY","SEI de Cluny","s",130,20.5,0],["PRS_DE_VAUX_EN_PRE","SEI de Vaux-en-Pré","s",305,18.7,0],["CREUSOT_TGV","Le Creusot – Montceau – Montchanin TGV","g",285,19.9,0],["VIADUC_DE_LA_DIGOINE_DREE","Viaduc de la Digoine","o",115,6.2,420],["PRS_DE_SULLY","SEI de Sully","s",110,19.2,0],["PRS_DE_VIANGES","SEI de Vianges","s",245,16.8,0],["VIADUC_DE_SAULIEU","Viaduc de Saulieu","o",295,6.5,202],["PRS_DE_LACOUR_D_ARCENAY","SEI de Lacour d'Arcenay","s",90,16.7,0],["VIADUC_D_EPOISSES","Viaduc d'Époisses","o",240,24.2,90],["BIF_DE_PASILLY","Bifurcation de Pasilly","b",305,20.4,0],["PRS_TONNERRE","SEI de Tonnerre","s",295,20.4,0],["BIF_DE_VERGIGNY","Bifurcation de Vergigny","b",20,2.8,0],["VIADUC_SUR_LE_CANAL_DE_BOURGOGNE","Viaduc sur le canal de Bourgogne","o",300,22.7,160],["PRS_DE_VAUMORT","SEI de Vaumort","s",270,20.1,0],["PASSAGE_SOUS_L_A19","Passage sous l'A19","p",305,21.2,0],["PRS_DE_MAROLLES","SEI de Marolles","s",85,6.2,0],["VIADUC_DE_MONTEREAU","Viaduc de Montereau","o",350,25.4,200],["BIF_DE_MOISENAY","Bifurcation de Moisenay","b",240,12.0,0],["BIF_DE_SOLERS","Bifurcation de Solers","b",75,4.5,0],["BIF_DE_CHEVRY_COSSIGNY","Bifurcation de Chevry-Cossigny","b",300,10.5,0],["TRANCHEE_COUVERTE_DE_VILLECRESNE","Tranchée couverte de Villecresne","o",120,4.3,2793],["TUNNEL_DE_LIMEIL_BREVANNES","Tunnel de Limeil-Brevannes","o",145,5.6,1682],["BIF_DE_CRETEIL","Bifurcation de Créteil","b",320,8.9,0],["PARIS_LYON","Paris-Lyon","p",0,0,0]],"MACON_TO_PARIS":[["MACON_LOCHE","Macon – Loché TGV","g",290,12.3,0],["VIADUC_DE_LA_ROCHE","Viaduc de la Roche","o",279,7.4,385],["PRS_DE_CLUNY","SEI de Cluny","s",284,20.5,0],["PRS_DE_VAUX_EN_PRE","SEI de Vaux-en-Pré","s",270,18.7,0],["CREUSOT_TGV","Le Creusot – Montceau – Montchanin TGV","g",85,19.9,0],["VIADUC_DE_LA_DIGOINE_DREE","Viaduc de la Digoine","o",270,6.2,420],["PRS_DE_SULLY","SEI de Sully","s",225,19.2,0],["PRS_DE_VIANGES","SEI de Vianges","s",95,16.8,0],["VIADUC_DE_SAULIEU","Viaduc de Saulieu","o",255,6.5,202],["PRS_DE_LACOUR_D_ARCENAY","SEI de Lacour d'Arcenay","s",330,16.7,0],["VIADUC_D_EPOISSES","Viaduc d'Époisses","o",294,24.2,90],["BIF_DE_PASILLY","Bifurcation de Pasilly","b",290,20.4,0],["PRS_TONNERRE","SEI de Tonnerre","s",290,20.4,0],["BIF_DE_VERGIGNY","Bifurcation de Vergigny","b",26,2.8,0],["VIADUC_SUR_LE_CANAL_DE_BOURGOGNE","Viaduc sur le canal de Bourgogne","o",290,22.7,160],["PRS_DE_VAUMORT","SEI de Vaumort","s",299,20.1,0],["PASSAGE_SOUS_L_A19","Passage sous l'A19","p",83,21.2,0],["PRS_DE_MAROLLES","SEI de Marolles","s",343,6.2,0],["VIADUC_DE_MONTEREAU","Viaduc de Montereau","o",220,25.4,200],["BIF_DE_MOISENAY","Bifurcation de Moisenay","b",86,12.0,0],["BIF_DE_SOLERS","Bifurcation de Solers","b",300,4.5,0],["BIF_DE_CHEVRY_COSSIGNY","Bifurcation de Chevry-Cossigny","b",118,10.5,0],["TRANCHEE_COUVERTE_DE_VILLECRESNE","Tranchée couverte de Villecresne","o",142,4.3,2793],["TUNNEL_DE_LIMEIL_BREVANNES","Tunnel de Limeil-Brevannes","o",350,5.6,1682],["BIF_DE_CRETEIL","Bifurcation de Créteil","b",350,8.9,0],["PARIS_LYON","Paris-Lyon","p",0,0,0]],"MARSEILLE_TO_PARIS":[["MARSEILLE_ST_CHARLES","Marseille Saint-Charles","s",360,6.3,0],["BIF_DES_TUILERIES","Bif. des Tuileries","b",240,1.5,0],["TUNNEL_DES_PENNES_MIRABEAU","Tunnel des Pennes-Mirabeau","o",240,10.2,0],["AIX_TGV","Aix-en-Provence TGV","g",300,8.8,0],["VIADUC_DE_VENTABREN_1_730_M","Viaduc de Ventabren (1 730 m)","o",240,19.1,1730],["VIADUC_DE_VERNEGUES_1_211_M","Viaduc de Vernègues (1 211 m)","o",660,18.4,1211],["VIADUC_DE_CHEVAL_BLANC_900_M","Viaduc de Cheval-Blanc (900 m)","o",180,25.0,900],["AVIGNON_TGV","Avignon TGV","g",230,7.0,0],["BIF_D_AVIGNON_NORD","Bif. d'Avignon-Nord","b",115,21.2,0],["SEI_DE_PIOLENC","SEI de Piolenc","s",180,16.0,0],["BIF_VERS_LE_RACC_DE_BOLLENE","Bif. vers le racc. de Bollène","b",314,8.1,0],["VIADUC_SUR_L_A7","Viaduc sur l'A7","o",500,13.8,0],["SEI_D_ALLAN","SEI d'Allan","s",245,21.9,0],["TUNNEL_DE_TARTAIGUILLE","Tunnel de Tartaiguille (2 340 m)","o",58,55.0,2340],["PRCI_DE_CLAVEYSON_BREN","PRCI de Claveyson - Bren","s",395,4.4,0],["VIADUC_DE_LA_GALAURE","Viaduc de la Galaure","o",340,29.0,0],["TUNNEL_DE_MEYSSIEZ","Tunnel de Meyssiez","o",95,24.1,0],["BIF_DE_GRENAY_NORD","Bif. de Grenay-Nord","b",205,6.8,0],["LYON_ST_EX","Lyon-Saint-Exupéry TGV","g",125,12.0,0],["VIADUC_DE_LA_COTIERE","Viaduc de la Cotière","o",62,10.4,0],["PONT_SUR_L_A46","Pont sur l'A46","o",13,4.3,0],["BIF_MONTANAY","Bifurcation V.1 de Montanay","b",260,1.0,0],["PASSAGE_SOUS_L_A46","Passage sous l'A46","o",392,18.5,0],["PRS_DE_CESSEIN","SEI de Cessein","s",165,24.6,0],["MACON_LOCHE","Macon – Loché TGV","g",290,12.3,0],["VIADUC_DE_LA_ROCHE","Viaduc de la Roche","o",279,7.4,385],["PRS_DE_CLUNY","SEI de Cluny","s",284,20.5,0],["PRS_DE_VAUX_EN_PRE","SEI de Vaux-en-Pré","s",270,18.7,0],["CREUSOT_TGV","Le Creusot – Montceau – Montchanin TGV","g",85,19.9,0],["VIADUC_DE_LA_DIGOINE_DREE","Viaduc de la Digoine","o",270,6.2,420],["PRS_DE_SULLY","SEI de Sully","s",225,19.2,0],["PRS_DE_VIANGES","SEI de Vianges","s",95,16.8,0],["VIADUC_DE_SAULIEU","Viaduc de Saulieu","o",255,6.5,202],["PRS_DE_LACOUR_D_ARCENAY","SEI de Lacour d'Arcenay","s",330,16.7,0],["VIADUC_D_EPOISSES","Viaduc d'Époisses","o",294,24.2,90],["BIF_DE_PASILLY","Bifurcation de Pasilly","b",290,20.4,0],["PRS_TONNERRE","SEI de Tonnerre","s",290,20.4,0],["BIF_DE_VERGIGNY","Bifurcation de Vergigny","b",26,2.8,0],["VIADUC_SUR_LE_CANAL_DE_BOURGOGNE","Viaduc sur le canal de Bourgogne","o",290,22.7,160],["PRS_DE_VAUMORT","SEI de Vaumort","s",299,20.1,0],["PASSAGE_SOUS_L_A19","Passage sous l'A19","p",83,21.2,0],["PRS_DE_MAROLLES","SEI de Marolles","s",343,6.2,0],["VIADUC_DE_MONTEREAU","Viaduc de Montereau","o",220,25.4,200],["BIF_DE_MOISENAY","Bifurcation de Moisenay","b",86,12.0,0],["BIF_DE_SOLERS","Bifurcation de Solers","b",300,4.5,0],["BIF_DE_CHEVRY_COSSIGNY","Bifurcation de Chevry-Cossigny","b",118,10.5,0],["TRANCHEE_COUVERTE_DE_VILLECRESNE","Tranchée couverte de Villecresne","o",142,4.3,2793],["TUNNEL_DE_LIMEIL_BREVANNES","Tunnel de Limeil-Brevannes","o",350,5.6,1682],["BIF_DE_CRETEIL","Bifurcation de Créteil","b",350,8.9,0],["PARIS_LYON","Paris-Lyon","p",0,0,0]]};
+  const LABEL = { PARIS_LYON: 'Paris Gare de Lyon', LYON_PART_DIEU: 'Lyon Part-Dieu', MACON_LOCHE: 'Mâcon-Loché TGV', CREUSOT_TGV: 'Le Creusot TGV', MARSEILLE_ST_CHARLES: 'Marseille Saint-Charles', LYON_ST_EX: 'Lyon-Saint-Exupéry TGV', VALENCE_TGV: 'Valence TGV', AVIGNON_TGV: 'Avignon TGV', AIX_TGV: 'Aix-en-Provence TGV' };
+  const SHORT = { PARIS_LYON: 'Paris', LYON_PART_DIEU: 'Lyon', MACON_LOCHE: 'Mâcon', CREUSOT_TGV: 'Le Creusot', MARSEILLE_ST_CHARLES: 'Marseille', LYON_ST_EX: 'St-Exupéry', VALENCE_TGV: 'Valence', AVIGNON_TGV: 'Avignon', AIX_TGV: 'Aix' };
+  const LINKS = [
+    { id: 'LPD', label: 'Lyon', fwd: 'PARIS_TO_LPD', back: 'LPD_TO_PARIS', stops: ['CREUSOT_TGV', 'MACON_LOCHE'] },
+    { id: 'MAC', label: 'Mâcon', fwd: 'PARIS_TO_MACON', back: 'MACON_TO_PARIS', stops: ['CREUSOT_TGV'] },
+    { id: 'MRS', label: 'Marseille', fwd: 'PARIS_TO_MARSEILLE', back: 'MARSEILLE_TO_PARIS', stops: ['CREUSOT_TGV', 'MACON_LOCHE', 'LYON_ST_EX', 'VALENCE_TGV', 'AVIGNON_TGV', 'AIX_TGV'] },
+  ];
+  const app = $('#app'), track = $('.track');
+  const q = new URLSearchParams(location.hash.split('?')[1] || '');
+  const EMBED = q.get('embed') === '1';
+  app.classList.toggle('embed', EMBED);
+  /* Mode de saisie : au doigt, le champ horaire natif reste invisible et ouvre le
+     sélecteur du système ; à la souris / au clavier, il se révèle au focus. */
+  app.classList.toggle('touch', q.get('input') ? q.get('input') === 'touch' : matchMedia('(pointer:coarse)').matches);
+
+  const S = { ...DEFAULTS, view: 'home', data: 'ok',
+    cfg: { link: 'LPD', dir: 'fwd', stops: ['CREUSOT_TGV'], dep: '09:58', delta: 0, source: 'geo' },
+    session: null, R: null, t: 0, added: null };
+  for (const k of ['homeComp', 'trackComp']) if (q.get(k)) S[k] = q.get(k);
+
+  /* ── Calcul d'horaires : mêmes règles que buildEffectiveRoute ── */
+  const STOP_PENALTY = 360;
+  const routeKey = c => { const l = LINKS.find(x => x.id === c.link); return l ? l[c.dir] : ''; };
+  function buildRoute(c) {
+    const raw = ROUTES[routeKey(c)]; if (!raw) return null;
+    const n = raw.length, dur = raw.map(r => r[3]);
+    const stopSet = new Set([raw[0][0], raw[n - 1][0], ...c.stops]);
+    for (let i = 1; i < n - 1; i++) if (stopSet.has(raw[i][0])) { dur[i - 1] += STOP_PENALTY * .25; dur[i] += STOP_PENALTY * .75; }
+    const base = dur.reduce((a, b) => a + b, 0), scale = (base + c.delta * 60) / base;
+    let t = 0, km = 0;
+    const pts = raw.map((r, i) => { const p = { i, id: r[0], name: LABEL[r[0]] || r[1], type: r[2], len: r[5], isStop: stopSet.has(r[0]), dur: Math.round(dur[i] * scale), km: r[4], t, cum: km }; t += p.dur; km += r[4]; return p; });
+    return { pts, total: t, km, base };
+  }
+  const depSec = dep => { if (!dep) return null; const [h, m] = dep.split(':').map(Number); return h * 3600 + m * 60; };
+  function clock(sec) { const m = Math.floor(sec / 60), d = Math.floor(m / 1440), mm = ((m % 1440) + 1440) % 1440; return { s: String(Math.floor(mm / 60)).padStart(2, '0') + ':' + String(mm % 60).padStart(2, '0'), d }; }
+  const hm = sec => clock(sec).s;
+  const clockHtml = sec => { const c = clock(sec); return c.s + (c.d > 0 ? `<sup>+${c.d} j</sup>` : ''); };
+  function fmtDur(sec) { const m = Math.round(sec / 60); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; }
+  function fmtIn(sec) { sec = Math.max(0, sec); if (sec < 60) return `${Math.round(sec)} s`; if (sec < 600) return `${Math.floor(sec / 60)} min ${String(Math.floor(sec % 60)).padStart(2, '0')}`; return fmtDur(sec); }
+  const fmtKm = km => (km < 100 ? km.toFixed(1).replace('.', ',') : String(Math.round(km))) + ' km';
+  const signedMin = d => (d > 0 ? '+' : '−') + Math.floor(Math.abs(d) / 60) + ' min';
+  /* Seuils d'affichage du retard repris de l'application : +1 min / −3 min. */
+  const align = d => (d > 60 || d < -180) ? d : 0;
+
+  /* ── Accueil ── */
+  const el = { segLink: $('#segLink'), segDir: $('#segDir'), chips: $('#chips'), fiche: $('#fiche'), rest: $('#lineRest'), alt: $('#lineAlt'), barInfo: $('#barInfo'), go: $('#btnGo'), altBtn: $('#btnAlt'), depA: $('#depA'), depB: $('#depB') };
+  const sameCfg = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const valid = () => S.data === 'ok' && !!routeKey(S.cfg) && !!S.cfg.dep;
+  const dirty = () => S.session && !sameCfg(S.cfg, S.session);
+  const ic = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
+
+  function stopOrder(c) { const raw = ROUTES[routeKey(c)] || []; const l = LINKS.find(x => x.id === c.link); return raw.map(r => r[0]).filter(id => l && l.stops.includes(id)); }
+
+  function renderHome() {
+    const c = S.cfg, link = LINKS.find(x => x.id === c.link), R = S.data === 'ok' ? buildRoute(c) : null, d0 = depSec(c.dep);
+    app.dataset.home = S.homeComp;
+    el.segLink.innerHTML = LINKS.map(l => `<button type="button" role="radio" data-v="${l.id}" aria-checked="${l.id === c.link}">${l.label}</button>`).join('');
+    const name = link ? link.label : '', ar = '<span class="arr">→</span>';
+    el.segDir.innerHTML = [['fwd', link ? `Paris${ar}${name}` : 'Aller'], ['back', link ? `${name}${ar}Paris` : 'Retour']].map(([v, t]) => `<button type="button" role="radio" data-v="${v}" aria-checked="${!!link && v === c.dir}" ${link ? '' : 'disabled'}>${t}</button>`).join('');
+    const order = stopOrder(c);
+    el.chips.innerHTML = link ? order.map(id => `<button type="button" class="chip" data-v="${id}" aria-pressed="${c.stops.includes(id)}"><i>${ic('check')}</i>${LABEL[id]}</button>`).join('') : '<p class="hint">Choisissez une liaison pour voir les arrêts possibles.</p>';
+    $('#stopsCount').textContent = link ? (c.stops.length ? `${c.stops.length} sur ${order.length}` : 'direct') : '';
+    for (const i of [el.depA, el.depB]) { if (document.activeElement !== i) i.value = c.dep; i.parentNode.classList.toggle('miss', !c.dep && !!link); }
+    $$('.tbox .tv').forEach(t => { t.textContent = c.dep || '––:––'; });
+    $$('#segLoc button').forEach(b => b.setAttribute('aria-checked', b.dataset.v === c.source));
+    $('#locHint').textContent = c.source === 'sncf' ? 'Position du portail wifi.sncf ; bascule sur le GPS s’il ne répond pas.' : 'Position de l’appareil, plus fiable près d’une fenêtre.';
+
+    const served = R ? R.pts.filter(p => p.isStop) : [];
+    const nS = served.length - 2;
+    const sum = R ? `${nS > 0 ? nS + (nS > 1 ? ' arrêts' : ' arrêt') : 'Direct'} · ${fmtDur(R.total)} · ${Math.round(R.km)} km` : '';
+    const tm = p => d0 == null ? '<time class="na">––:––</time>' : `<time>${clockHtml(d0 + p.t)}</time>`;
+    const legTxt = (a, b) => `${fmtDur(b.t - a.t)} · ${Math.round(b.cum - a.cum)} km`;
+    const noTime = `<div class="note">${ic('warn')}<span>Indiquez l’heure de départ pour calculer les horaires.</span></div>`;
+    const errHtml = `<div class="err"><b>Données de ligne indisponibles</b><p>Les horaires ne peuvent pas être calculés pour l’instant. Vos réglages sont conservés.</p><button type="button" class="btn2" data-retry>Réessayer</button></div>`;
+    const emptyHtml = `<div class="ln ghost empty"><div class="st first"><time class="na">––:––</time><i></i><div><b>Gare de départ</b></div></div><div class="leg"><span></span><i></i><small></small></div><div class="st last"><time class="na">––:––</time><i></i><div><b>Gare d’arrivée</b></div></div></div><p class="hint" style="margin-top:8px">Choisissez une liaison : la desserte et ses horaires s’affichent ici.</p>`;
+
+    /* A — fiche de desserte en lecture seule : départ, arrêts marqués, arrivée */
+    let h = `<div class="fiche-top"><b class="cap">Desserte</b><span>${sum}</span></div>`;
+    if (S.data !== 'ok') h += errHtml; else if (!R) h += emptyHtml; else {
+      h += '<div class="ln">' + served.map((p, i) => `${i ? `<div class="leg" style="--w:${p.t - served[i - 1].t}"><span></span><i></i><div class="legc"><small>${legTxt(served[i - 1], p)}</small></div></div>` : ''}<div class="st ${i === 0 ? 'first' : i === served.length - 1 ? 'last' : ''}">${tm(p)}<i></i><div><b>${p.name}</b><small>${i === 0 ? 'Départ' : i === served.length - 1 ? 'Arrivée' : 'Arrêt'}</small></div></div>`).join('') + '</div>' + (d0 == null ? noTime : '');
+    }
+    el.fiche.innerHTML = h;
+
+    /* B — la ligne est le formulaire. Elle ne trace que la desserte effective ;
+       chaque arrêt possible non desservi est proposé dans le tronçon où il se
+       trouve, avec le temps qu'il ajoute. La ligne de départ reste fixe dans le
+       DOM pour ne jamais fermer le sélecteur d'heure pendant la saisie. */
+    $('#lineSum').textContent = sum;
+    const ok = S.data === 'ok' && !!R;
+    $('#lnB').hidden = !ok; $('#lnB').style.display = ok ? '' : 'none'; $('#lineFoot').style.display = ok ? '' : 'none';
+    el.alt.innerHTML = S.data !== 'ok' ? errHtml : !R ? emptyHtml : (d0 == null ? noTime : '');
+    if (ok) {
+      $('#origName').textContent = served[0].name;
+      let r = '';
+      for (let s = 1; s < served.length; s++) {
+        const a = served[s - 1], b = served[s], last = s === served.length - 1;
+        const cands = R.pts.filter(p => p.i > a.i && p.i < b.i && order.includes(p.id));
+        r += `<div class="leg" style="--w:${b.t - a.t}"><span></span><i></i><div class="legc"><small>${legTxt(a, b)}</small>${cands.length ? `<div class="adds">${cands.map(p => `<button type="button" class="add" data-add="${p.id}" aria-label="Ajouter l’arrêt ${p.name}, 6 minutes de plus"><i>${ic('plus')}</i>${p.name}<em>+6 min</em></button>`).join('')}</div>` : ''}</div></div>`;
+        r += last ? `<div class="st last">${tm(b)}<i></i><div><b>${b.name}</b><small>Arrivée</small></div></div>`
+          : `<div class="st${b.id === S.added ? ' new' : ''}">${tm(b)}<i></i><div><b>${b.name}</b><small>Arrêt</small></div><button type="button" class="rm" data-rm="${b.id}" aria-label="Retirer l’arrêt ${b.name}"><span>${ic('x')}</span></button></div>`;
+      }
+      el.rest.innerHTML = r; S.added = null;
+    }
+    for (const o of $$('#dtA,#dtB')) { o.innerHTML = (c.delta > 0 ? '+' : c.delta < 0 ? '−' : '') + Math.abs(c.delta) + '<small>min</small>'; o.classList.toggle('nz', c.delta !== 0); }
+    $$('.step button').forEach(b => b.disabled = (+b.dataset.d < 0 && c.delta <= -30) || (+b.dataset.d > 0 && c.delta >= 30));
+    $('#dtHintA').textContent = R && c.delta ? `Durée du parcours ${fmtDur(R.base)} → ${fmtDur(R.total)}, répartie sur tout le trajet.` : 'Allonge ou raccourcit la durée totale du parcours.';
+    $('#dtHintB').textContent = R ? (c.delta ? `${fmtDur(R.base)} → ${fmtDur(R.total)}` : `Durée ${fmtDur(R.total)}`) : '';
+    renderBar(R, d0);
+    post({ ev: 'cfg' });
+  }
+
+  function renderBar(R, d0) {
+    const c = S.cfg; if (R === undefined) { R = S.data === 'ok' ? buildRoute(c) : null; d0 = depSec(c.dep); }
+    app.classList.toggle('has-session', !!S.session);
+    let info, warn = false;
+    if (S.data !== 'ok') { info = 'Données de ligne indisponibles'; warn = true; }
+    else if (!R) info = 'Choisissez une liaison';
+    else if (d0 == null) { info = 'Indiquez l’heure de départ'; warn = true; }
+    else info = `<span>Arrivée <b>${clockHtml(d0 + R.total)}</b></span><span>${fmtDur(R.total)} · ${Math.round(R.km)} km</span>`;
+    el.altBtn.hidden = true;
+    if (!S.session) { el.go.innerHTML = 'Lancer le suivi ' + ic('arrow'); el.go.disabled = !valid(); }
+    else if (dirty()) {
+      el.go.textContent = 'Appliquer et reprendre'; el.go.disabled = !valid();
+      el.altBtn.hidden = false; el.altBtn.textContent = 'Annuler';
+      if (valid()) info = '<span>Modifié · le suivi continue, historique conservé</span>';
+    } else {
+      el.go.innerHTML = 'Reprendre le suivi ' + ic('arrow'); el.go.disabled = false;
+      el.altBtn.hidden = false; el.altBtn.textContent = 'Terminer';
+      info = `<span id="liveLine"></span>`;
+    }
+    el.barInfo.innerHTML = info; el.barInfo.classList.toggle('warn', warn);
+  }
+
+  function setCfg(patch) { S.cfg = { ...S.cfg, ...patch }; renderHome(); }
+  el.segLink.addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.v !== S.cfg.link) setCfg({ link: b.dataset.v, stops: [] }); });
+  el.segDir.addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled) setCfg({ dir: b.dataset.v }); });
+  $('#segLoc').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setCfg({ source: b.dataset.v }); });
+  const toggleStop = id => { const on = S.cfg.stops.includes(id); if (!on) S.added = id; setCfg({ stops: on ? S.cfg.stops.filter(x => x !== id) : [...S.cfg.stops, id].sort() }); };
+  el.chips.addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) toggleStop(b.dataset.v); });
+  el.rest.addEventListener('click', e => { const b = e.target.closest('[data-add],[data-rm]'); if (b) toggleStop(b.dataset.add || b.dataset.rm); });
+  $('.home').addEventListener('click', e => { if (e.target.closest('[data-retry]')) { S.data = 'ok'; renderHome(); } });
+  /* Pendant la frappe au clavier, un champ horaire incomplet vaut '' : on ne
+     vide le réglage qu'à la validation (change), jamais en cours de saisie. */
+  for (const i of [el.depA, el.depB]) {
+    i.addEventListener('input', () => { if (i.value) setCfg({ dep: i.value }); });
+    i.addEventListener('change', () => { if (i.value !== S.cfg.dep) setCfg({ dep: i.value }); });
+  }
+  /* Pas-à-pas ΔT : un appui = 1 min, appui maintenu = répétition. `touch-action:
+     manipulation` (CSS) retire le zoom par double-tap sur ces seuls boutons. */
+  let rep = null;
+  const stepDelta = d => { const v = Math.max(-30, Math.min(30, S.cfg.delta + d)); if (v !== S.cfg.delta) setCfg({ delta: v }); };
+  const stopRep = () => { clearTimeout(rep); clearInterval(rep); rep = null; };
+  $('.home').addEventListener('pointerdown', e => { const b = e.target.closest('.step button'); if (!b) return; e.preventDefault(); const d = +b.dataset.d; stepDelta(d); stopRep(); rep = setTimeout(() => { rep = setInterval(() => stepDelta(d), 90); }, 420); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('.home').addEventListener(ev, stopRep);
+  $('.home').addEventListener('click', e => { const b = e.target.closest('.step button'); if (b && e.detail === 0) stepDelta(+b.dataset.d); });
+
+  el.go.addEventListener('click', () => { if (!S.session) launch(); else if (dirty()) applyChanges(); else show('track', true); });
+  el.altBtn.addEventListener('click', () => { if (dirty()) setCfg({ ...S.session }); else endSession(); });
+  $('#btnSet').addEventListener('click', () => show('home', true));
+
+  /* ── Navigation : changer de vue ne touche jamais à la session ── */
+  function show(v, user) { S.view = v; app.dataset.view = v; if (v === 'home') renderBar(); if (user) post({ ev: 'view', v }); snap(); }
+  function launch(tAt) { if (!valid()) return; S.session = { ...S.cfg }; S.R = buildRoute(S.session); S.t = tAt != null ? tAt : seekT(.345); H.key = ''; buildCarousel(); show('track', true); renderBar(); }
+  function applyChanges() { const x = S.R ? tauAt(S.t, S.R) / S.R.total : 0; const sameRoute = routeKey(S.cfg) === routeKey(S.session); S.session = { ...S.cfg }; S.R = buildRoute(S.session); if (!sameRoute) S.t = seekT(Math.min(x, .9)); H.key = ''; buildCarousel(); show('track', true); toast(sameRoute ? 'Horaires recalculés · historique conservé' : 'Trajet resynchronisé · historique conservé'); }
+  function endSession() { S.session = null; S.R = null; renderBar(); post({ ev: 'view', v: 'home' }); }
+  function toast(msg) { const t = $('#toast'); $('span', t).textContent = msg; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 3200); }
+
+  /* ── Simulation (remplace le GPS : position, vitesse et retard sont fictifs) ── */
+  const sm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+  function D(tau, R) { const x = tau / R.total; if (S.scenario === 'late') return 440 * sm((x - .1) / .22) - 150 * sm((x - .62) / .3); if (S.scenario === 'early') return -270 * sm((x - .08) / .3); return 24 * Math.sin(tau / 420); }
+  function tauAt(t, R) { if (t <= 0) return 0; let lo = 0, hi = R.total; if (hi + D(hi, R) <= t) return hi; for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2; if (m + D(m, R) < t) lo = m; else hi = m; } return lo; }
+  const seekT = x => { const R = S.R; const tau = x * R.total; return tau + D(tau, R); };
+  function locate(tau, R) {
+    const p = R.pts, n = p.length; let i = 0; while (i < n - 2 && p[i + 1].t <= tau) i++;
+    if (tau >= R.total) return { i: n - 1, ratio: 0, v: 0, km: R.km, seg: p[n - 1] };
+    const s = p[i], u = s.dur ? Math.min(1, (tau - s.t) / s.dur) : 0, acc = s.isStop, dec = p[i + 1].isStop;
+    let f = u, fp = 1;
+    if (acc && dec) { f = u * u * (3 - 2 * u); fp = 6 * u * (1 - u); } else if (dec) { f = u + .92 * u * (1 - u); fp = 1 + .92 * (1 - 2 * u); } else if (acc) { f = u - .92 * u * (1 - u); fp = 1 - .92 * (1 - 2 * u); }
+    let v = s.dur ? s.km / s.dur * 3600 * fp : 0;
+    const cap = (s.cum < 30 || R.km - s.cum < 12) ? 168 : 299;
+    v = Math.min(v, cap) + (v > 20 ? 1.6 * Math.sin(tau / 7.3) + .9 * Math.sin(tau / 2.1) : 0);
+    if (tau <= 0) v = 0;
+    return { i, ratio: f, v: Math.max(0, v), km: s.cum + f * s.km, seg: s };
+  }
+  /* Vitesse prévue par l'horaire à l'instant théorique tau, lissée. */
+  function planV(tau, R) { if (tau <= 0 || tau >= R.total) return 0; let a = 0, w = 0; for (let k = -6; k <= 6; k++) { const x = tau + k * 30; if (x < 0 || x > R.total) continue; const g = 7 - Math.abs(k); a += locate(x, R).v * g; w += g; } return a / w; }
+  /* Vitesse « mesurée » : le train roule moins vite que prévu quand le retard se creuse. */
+  function speedAt(tau, R) { const f = 1 / (1 + (D(tau + 30, R) - D(tau - 30, R)) / 60); return Math.min(planV(tau, R) * f, 304); }
+  /* Historique de toute la session (vitesse, position, écart) : il vit hors des
+     vues, donc un aller-retour par l'accueil ne le purge pas. */
+  const H = { key: '', arr: [], plan: [], upTo: 0, STEP: 15 };
+  function history() {
+    const R = S.R, key = routeKey(S.session) + S.session.stops + S.session.delta + S.scenario, now = Math.max(0, S.t);
+    if (key !== H.key || now < H.upTo - H.STEP) {
+      H.key = key; H.arr = []; H.upTo = 0; H.plan = [];
+      for (let tau = 0; tau <= R.total; tau += 20) H.plan.push({ tau, km: locate(tau, R).km, v: planV(tau, R) });
+      H.plan.push({ tau: R.total, km: R.km, v: 0 });
+    }
+    while (H.upTo <= now) { const tau = tauAt(H.upTo, R); H.arr.push({ t: H.upTo, tau, km: locate(tau, R).km, v: speedAt(tau, R), vp: planV(tau, R), d: D(tau, R) }); H.upTo += H.STEP; }
+    return H.arr;
+  }
+
+  /* ── Profil du voyage ──
+     Abscisse = la ligne entière (km), gares repérées : le graphe sert aussi de
+     barre de progression. Trait plein = vitesse mesurée depuis le départ ;
+     pointillé = vitesse prévue par l'horaire, y compris pour la suite ; liseré
+     sous l'axe = écart observé à chaque point franchi. La version compacte
+     (téléphone) garde le tracé, les gares et la position. */
+  const P = { range: 'trip', sx: null };
+  const FONT = getComputedStyle(document.body).fontFamily;
+  function drawProfile(cv, o) {
+    const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
+    const dpr = Math.min(3, window.devicePixelRatio || 1); if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    const R = S.R, a = history(), cur = a[a.length - 1], d0 = depSec(S.session.dep), lost = S.signal === 'lost';
+    const ink = o.dark ? '255,255,255' : '139,42,63', txt = o.dark ? 'rgba(255,255,255,.6)' : '#8A8284', strong = o.dark ? '#fff' : '#211D1E', hot = lost ? '#E39A2D' : (o.dark ? '#fff' : '#8B2A3F');
+    const full = o.full, recent = full && P.range === 'recent';
+    const x0 = full ? 30 : 3, x1 = w - (full ? 12 : 3), y1 = full ? 10 : 5, y0 = h - (full ? 40 : 6), VM = 330;
+    const Y = v => y0 - Math.min(Math.max(v, 0), VM) / VM * (y0 - y1);
+    const T1 = Math.max(S.t, 900), T0 = T1 - 900;
+    const X = recent ? t => x0 + (t - T0) / 900 * (x1 - x0) : km => x0 + km / R.km * (x1 - x0);
+    const hist = recent ? a.filter(s => s.t >= T0 - H.STEP).map(s => [X(s.t), s.v, s.vp]) : a.map(s => [X(s.km), s.v]);
+    const ghost = recent ? hist.map(p => [p[0], p[2]]) : H.plan.map(p => [X(p.km), p.v]);
+    g.textBaseline = 'middle';
+    if (full) {
+      g.font = `600 10.5px ${FONT}`; g.textAlign = 'right';
+      for (const v of [100, 200, 300]) { g.fillStyle = `rgba(${ink},.1)`; g.fillRect(x0, Math.round(Y(v)), x1 - x0, 1); g.fillStyle = txt; g.fillText(v, x0 - 7, Y(v)); }
+    }
+    g.fillStyle = `rgba(${ink},${full ? .28 : .2})`; g.fillRect(x0, y0, x1 - x0, full ? 1 : 2);
+    if (!recent) {
+      /* Gares desservies : repères verticaux, libellés sans chevauchement (l'origine et le terminus priment). */
+      const stops = R.pts.filter(p => p.isStop); let occ = [];
+      const lab = (p, k) => {
+        const x = X(p.cum), first = k === 0, last = k === stops.length - 1, nm = SHORT[p.id] || p.name;
+        g.font = `700 11.5px ${FONT}`; const wd = Math.max(g.measureText(nm).width, 30), al = first ? 'left' : last ? 'right' : 'center';
+        const l = al === 'left' ? x - 2 : al === 'right' ? x + 2 - wd : x - wd / 2, r = l + wd;
+        if (occ.some(b => l < b[1] + 10 && r > b[0] - 10)) return; occ.push([l, r]);
+        const ax = al === 'left' ? x - 2 : al === 'right' ? x + 2 : x; g.textAlign = al;
+        g.fillStyle = p.cum <= cur.km + .01 ? strong : txt; g.fillText(nm, ax, y0 + 19);
+        g.font = `600 10.5px ${FONT}`; g.fillStyle = txt; g.fillText(hm(d0 + p.t), ax, y0 + 32);
+      };
+      stops.forEach(p => { const x = Math.round(X(p.cum)); if (full) { g.fillStyle = `rgba(${ink},.13)`; g.fillRect(x, y1, 1, y0 - y1); } g.fillStyle = `rgba(${ink},${full ? .7 : .55})`; g.fillRect(x - 1, y0 - (full ? 5 : 6), 2, full ? 12 : 7); });
+      if (full) { lab(stops[0], 0); lab(stops[stops.length - 1], stops.length - 1); stops.forEach((p, k) => { if (k && k < stops.length - 1) lab(p, k); }); }
+    } else {
+      g.font = `600 10.5px ${FONT}`; g.fillStyle = txt;
+      [[0, '−15 min', 'left'], [300, '−10', 'center'], [600, '−5', 'center'], [900, 'maintenant', 'right']].forEach(([dt, s, al]) => { g.textAlign = al; g.fillText(s, x0 + dt / 900 * (x1 - x0), y0 + 19); });
+    }
+    const path = pts => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], Y(p[1])) : g.moveTo(p[0], Y(p[1]))); };
+    g.save(); g.beginPath(); g.rect(x0, 0, x1 - x0, y0 + 1); g.clip();
+    if (ghost.length > 1) { path(ghost); g.setLineDash([3, 3]); g.strokeStyle = `rgba(${ink},${full ? .42 : .36})`; g.lineWidth = 1; g.stroke(); g.setLineDash([]); }
+    if (hist.length > 1) {
+      const grad = g.createLinearGradient(0, y1, 0, y0); grad.addColorStop(0, `rgba(${ink},.3)`); grad.addColorStop(1, `rgba(${ink},.02)`);
+      path(hist); g.lineTo(hist[hist.length - 1][0], y0); g.lineTo(hist[0][0], y0); g.closePath(); g.fillStyle = grad; g.fill();
+      path(hist); g.strokeStyle = `rgba(${ink},.96)`; g.lineWidth = full ? 2 : 1.6; g.lineJoin = 'round'; g.stroke();
+    }
+    g.restore();
+    if (full && !recent) {
+      /* Écart observé aux points franchis, figé à sa valeur d'époque. */
+      for (const p of R.pts) { if (p.cum >= cur.km || S.t < 0) break; const e = align(D(p.t, R)), xa = X(p.cum), xb = Math.min(X(p.cum + p.km), X(cur.km)); g.fillStyle = e > 0 ? '#E5674F' : e < 0 ? '#3DB583' : `rgba(${ink},.2)`; g.fillRect(xa + .5, y0 + 4, Math.max(1, xb - xa - 1), 4); }
+    }
+    const cx = recent ? X(Math.max(S.t, 0)) : X(cur.km), cy = Y(cur.v);
+    if (full) { g.fillStyle = `rgba(${ink},.5)`; g.fillRect(Math.round(cx), y1, 1, y0 - y1 + 9); }
+    g.beginPath(); g.arc(cx, cy, full ? 7.5 : 6, 0, 7); g.fillStyle = `rgba(${ink},.2)`; g.fill();
+    g.beginPath(); g.arc(cx, cy, full ? 4 : 3.2, 0, 7); g.fillStyle = hot; g.fill();
+    if (!full) return;
+    /* Lecture au survol ou au doigt : valeurs passées mesurées, valeurs futures prévues. */
+    let read = '<span><i class="lg"></i>mesurée</span><span><i class="lg l2"></i>prévue</span>' + (recent ? '' : '<span><i class="lg l3"></i>écart aux points franchis</span>');
+    if (P.sx != null) {
+      const sx = Math.max(x0, Math.min(x1, P.sx)), fr = (sx - x0) / (x1 - x0);
+      g.fillStyle = strong; g.fillRect(Math.round(sx), y1, 1, y0 - y1);
+      const near = (arr, key, val) => arr.reduce((b, s) => Math.abs(s[key] - val) < Math.abs(b[key] - val) ? s : b, arr[0]);
+      if (recent) { const s = near(a, 't', T0 + fr * 900); read = `<span>il y a <b>${fmtIn(Math.max(0, S.t - s.t))}</b></span><span><b>${Math.round(s.v)} km/h</b> · prévu ${Math.round(s.vp)}</span>`; g.beginPath(); g.arc(sx, Y(s.v), 3.5, 0, 7); g.fill(); }
+      else {
+        const km = fr * R.km, pn = R.pts.filter(p => p.cum <= km).pop() || R.pts[0];
+        if (km <= cur.km) { const s = near(a, 'km', km), e = align(s.d); read = `<span>km <b>${Math.round(km)}</b> · ${pn.name}</span><span><b>${Math.round(s.v)} km/h</b> · ${e ? signedMin(s.d) : 'à l’heure'}</span>`; g.beginPath(); g.arc(sx, Y(s.v), 3.5, 0, 7); g.fill(); }
+        else { const s = near(H.plan, 'km', km), e = align(cur.d); read = `<span>km <b>${Math.round(km)}</b> · ${pn.name}</span><span>prévu <b>${Math.round(s.v)} km/h</b> · passage ≈ <b>${hm(d0 + s.tau + e)}</b></span>`; g.beginPath(); g.arc(sx, Y(s.v), 3.5, 0, 7); g.fill(); }
+      }
+    }
+    setHtml(E('profRead'), read);
+  }
+  { const cv = $('#graph'), mv = e => { P.sx = e.clientX - cv.getBoundingClientRect().left; slow = 0; };
+    cv.addEventListener('pointerdown', mv); cv.addEventListener('pointermove', mv);
+    for (const ev of ['pointerleave', 'pointercancel']) cv.addEventListener(ev, () => { P.sx = null; slow = 0; });
+    cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') { P.sx = null; slow = 0; } });
+    $('#rg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; P.range = b.dataset.v; $$('#rg button').forEach(x => x.setAttribute('aria-pressed', x === b)); slow = 0; }); }
+
+  /* Graduations du compteur : tous les 20 km/h, repères forts aux centaines. */
+  { let s = ''; for (let v = 0; v <= 320; v += 20) { const an = (150 + v / 320 * 240) * Math.PI / 180, maj = v % 100 === 0, r1 = 46.5, r2 = maj ? 41.5 : 43.8, c = Math.cos(an), sn = Math.sin(an);
+      s += `<line${maj ? ' class="maj"' : ''} x1="${(60 + r1 * c).toFixed(2)}" y1="${(60 + r1 * sn).toFixed(2)}" x2="${(60 + r2 * c).toFixed(2)}" y2="${(60 + r2 * sn).toFixed(2)}"/>`;
+    }
+    $('#gTicks').innerHTML = s; }
+
+  /* ── Carousel ── */
+  const car = $('#car'), rail = $('#rail'); let rows = [], cursor, cur = { i: -2 }, anim = null, y = 0;
+  function buildCarousel() {
+    const R = S.R, d0 = depSec(S.session.dep);
+    rail.innerHTML = R.pts.map((p, i) => `<div class="pt${p.isStop ? ' stop' : ''}" data-i="${i}"><i class="dot"></i><span class="tl">${hm(d0 + p.t)}</span><div class="info"><div class="name">${p.name}</div><div class="meta"><span class="tm">${hm(d0 + p.t)}</span><span class="x"></span></div><div class="goline"></div><div class="sg"><span></span></div></div></div>`).join('') + '<i class="cursor"></i>';
+    rows = $$('.pt', rail); cursor = $('.cursor', rail); cur = { i: -2 }; anim = null;
+  }
+  const mid = e => e.offsetTop + e.offsetHeight / 2;
+  const anchor = () => car.clientHeight * (car.clientHeight < 520 ? .36 : .4);
+  function target() { const e = rows[Math.min(cur.i + 1, rows.length - 1)]; return e ? mid(e) - anchor() : 0; }
+  function setClasses(i) {
+    rows.forEach((r, j) => { const st = j < i - 1 ? 'passed' : j === i - 1 ? 'p1' : j === i ? 'active' : j === i + 1 ? 'next' : j === i + 2 ? 'f1' : 'future'; r.className = 'pt ' + st + (S.R.pts[j].isStop ? ' stop' : ''); });
+  }
+  function lineBounds() { if (!rows.length) return; const a = mid(rows[0]), b = mid(rows[rows.length - 1]); rail.style.setProperty('--lt', a + 'px'); rail.style.setProperty('--lh', (b - a) + 'px'); }
+  function snap() { anim = null; cur.force = true; slow = 0; }
+  new ResizeObserver(snap).observe(car);
+  const setText = (e, s) => { if (e.textContent !== s) e.textContent = s; };
+  const setHtml = (e, s) => { if (e._h !== s) { e._h = s; e.innerHTML = s; } };
+  const E = id => document.getElementById(id);
+  const unit = (n, u) => `${n}<small>${u}</small>`;
+  let last = performance.now(), slow = 0;
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    if (!S.session) return;
+    const R = S.R, c = S.session, d0 = depSec(c.dep), n = R.pts.length;
+    const tEnd = R.total + D(R.total, R) + 60;
+    if (S.rate) S.t = Math.min(S.t + dt * S.rate, tEnd);
+    const tau = tauAt(S.t, R), L = locate(tau, R), before = S.t < 0, arrived = tau >= R.total, lost = S.signal === 'lost';
+    const d = before ? 0 : D(tau, R), da = align(d);
+    track.dataset.comp = S.trackComp;
+    track.classList.toggle('lost', lost); track.classList.toggle('arrived', arrived);
+
+    /* Instruments */
+    const v = before || arrived ? 0 : Math.round(speedAt(tau, R));
+    setText(E('spd'), lost ? '––' : String(v));
+    E('gVal').style.strokeDashoffset = (217.8 * (1 - Math.min(v, 320) / 320)).toFixed(1);
+    E('gauge').setAttribute('aria-label', lost ? 'Vitesse indisponible' : `Vitesse ${v} km/h`);
+    setText(E('etaV'), hm(d0 + R.total + da));
+    const pill = E('pill'); let pc = 'pill', pt;
+    if (before) pt = `Départ dans ${fmtIn(-S.t)}`;
+    else if (lost) { pt = 'Position estimée'; pc += ' est'; }
+    else if (da > 0) { pt = (arrived ? 'Arrivé · ' : '') + signedMin(d); pc += ' late'; }
+    else if (da < 0) { pt = (arrived ? 'Arrivé · ' : '') + signedMin(d); pc += ' early'; }
+    else { pt = arrived ? 'Arrivé à l’heure' : 'À l’heure'; pc += ' ok'; }
+    setText(pill, pt); if (pill.className !== pc) pill.className = pc;
+    setText(E('theo'), da ? `prévu ${hm(d0 + R.total)}` : '');
+    E('prog').style.width = (L.km / R.km * 100).toFixed(2) + '%';
+
+    /* Carousel : état des points */
+    const i = L.i;
+    if (i !== cur.i) {
+      const first = cur.i === -2; cur.i = i; setClasses(i);
+      rows.forEach((r, j) => { const p = R.pts[j], x = $('.x', r); let s = '';
+        if (j <= i && !before) { const dj = D(p.t, R); if (Math.abs(dj) >= 60) s = `<span class="dl${dj < 0 ? ' early' : ''}">${signedMin(dj)}</span>`; }
+        setHtml(x, s); r.classList.remove('onst'); });
+      if (first || cur.force) { cur.force = true; } else anim = { t0: now, from: y };
+    }
+    const act = rows[i], nxt = rows[i + 1], seg = R.pts[i];
+    if (nxt) {
+      const np = R.pts[i + 1], left = (1 - L.ratio) * seg.km, inS = np.t - tau;
+      setHtml($('.x', nxt), da ? `<span class="proj ${da > 0 ? 'late' : 'early'}">≈ ${hm(d0 + np.t + da)}</span>` : '');
+      setHtml($('.goline', nxt), `${fmtKm(left)} <span>· ${before ? 'après le départ' : 'dans ' + fmtIn(inS)}</span>`);
+    }
+    if (act && !arrived) {
+      const inM = L.ratio * seg.km * 1000, on = seg.type === 'o' && seg.len > 0 && inM < seg.len && !before;
+      act.classList.toggle('onst', on);
+      const dj = D(seg.t, R), badge = (!before && Math.abs(dj) >= 60) ? `<span class="dl${dj < 0 ? ' early' : ''}">${signedMin(dj)}</span>` : '';
+      setHtml($('.x', act), badge + (on ? `<span class="cross">franchissement · ${Math.round(seg.len).toLocaleString('fr-FR')} m</span>` : (before ? '' : `<span>↓ ${fmtKm(L.ratio * seg.km)}</span>`)));
+      if (on) $('.sg span', act).style.width = (inM / seg.len * 100).toFixed(1) + '%';
+    }
+
+    /* Carousel : défilement. Pendant la transition des tailles, la cible est
+       remesurée à chaque image, comme le fait l'application. */
+    if (cur.force) { y = target(); cur.force = false; lineBounds(); }
+    else if (anim) { const k = Math.min(1, (now - anim.t0) / 700), e = 1 - Math.pow(1 - k, 3); y = anim.from + (target() - anim.from) * e; lineBounds(); if (k >= 1) anim = null; }
+    rail.style.transform = `translate3d(0,${(-y).toFixed(1)}px,0)`;
+    if (act) { const a = mid(act), b = nxt ? mid(nxt) : a; rail.style.setProperty('--ct', (a + (b - a) * L.ratio).toFixed(1) + 'px'); }
+
+    /* Mises à jour lentes : graphes, contexte, bandeau de l'accueil */
+    if (now - slow > 240) {
+      slow = now;
+      const dark = S.trackComp === 'A';
+      drawProfile(E('spark'), { dark, full: false }); drawProfile(E('graph'), { dark, full: true });
+      const hist = H.arr; if (hist.length) { setHtml(E('vAvg'), unit(S.t > 30 ? Math.round(L.km / S.t * 3600) : 0, 'km/h')); setHtml(E('vMax'), unit(Math.round(Math.max(...hist.map(s => s.v))), 'km/h')); }
+      let ns = null; for (let j = i + 1; j < n; j++) if (R.pts[j].isStop) { ns = R.pts[j]; break; }
+      if (ns) { setText(E('nsName'), ns.name); setText(E('nsT1'), hm(d0 + ns.t + da)); E('nsT1').className = 't1' + (da > 0 ? ' late' : da < 0 ? ' early' : ''); setText(E('nsT0'), da ? hm(d0 + ns.t) : ''); setText(E('nsIn'), `${before ? 'après le départ' : 'dans ' + fmtIn(ns.t - tau)} · ${fmtKm(ns.cum - L.km)}`); }
+      else { setText(E('nsName'), 'Terminus atteint'); setText(E('nsT1'), hm(d0 + R.total + da)); setText(E('nsT0'), ''); setText(E('nsIn'), R.pts[n - 1].name); }
+      setHtml(E('kmDone'), unit(Math.round(L.km), 'km')); setHtml(E('kmLeft'), unit(Math.round(R.km - L.km), 'km'));
+      const src = c.source === 'sncf' ? 'WiFi SNCF' : 'GPS';
+      setText($('#sig span'), lost ? 'Signal perdu · position estimée' : `${src} · ${c.source === 'sncf' ? 'portail du train' : '±8 m'}`);
+      setText(E('locName'), lost ? 'Signal perdu' : src);
+      setText(E('locInfo'), lost ? 'position estimée · reprise au prochain fix' : (c.source === 'sncf' ? 'portail du train · dernier fix il y a 1 s' : 'précision ±8 m · dernier fix il y a 1 s'));
+      const ll = E('liveLine'); if (ll) setHtml(ll, `<b>${lost ? '––' : v} km/h</b> · ${pt} · arrivée <b>${hm(d0 + R.total + da)}</b>`);
+      post({ ev: 'sim', x: tau / R.total });
+    }
+  }
+
+  /* ── Pilotage par le studio ou l'onglet de démo ── */
+  function setCtl(k, v) {
+    if (k === 'homeComp') { S.homeComp = v; renderHome(); }
+    else if (k === 'trackComp') { S.trackComp = v; track.dataset.comp = v; snap(); }
+    else if (k === 'scenario' || k === 'signal' || k === 'rate') { S[k] = v; slow = 0; }
+    else if (k === 'input') app.classList.toggle('touch', v === 'touch');
+    else if (k === 'homeState') {
+      S.session = null; S.R = null; S.data = v === 'nodata' ? 'unavailable' : 'ok';
+      S.cfg = v === 'blank' ? { link: '', dir: 'fwd', stops: [], dep: '', delta: 0, source: 'geo' }
+        : v === 'long' ? { link: 'MRS', dir: 'fwd', stops: ['AVIGNON_TGV', 'LYON_ST_EX'], dep: '22:07', delta: 0, source: 'geo' }
+        : { link: 'LPD', dir: 'fwd', stops: ['CREUSOT_TGV'], dep: v === 'notime' ? '' : '09:58', delta: 0, source: 'geo' };
+      renderHome(); show('home');
+    }
+    else if (k === 'jump') {
+      if (!S.session) { if (!valid()) return; S.session = { ...S.cfg }; S.R = buildRoute(S.session); buildCarousel(); }
+      const R = S.R, stop = R.pts.find((p, j) => p.isStop && j > 0 && j < R.pts.length - 1), tun = R.pts.find(p => p.type === 'o' && p.len > 900);
+      const tau = v === 'before' ? null : v === 'cruise' ? R.total * .345 : v === 'structure' ? (tun ? tun.t + 4 : R.total * .1) : v === 'approach' ? (stop ? stop.t - 170 : R.total * .93) : R.total + 1;
+      S.t = tau == null ? -200 : tau + D(tau, R) + (v === 'arrived' ? 5 : 0);
+      cur.i = -2; show('track'); renderBar();
+    }
+    else if (k === 'seek' && S.session) { S.t = seekT(v); cur.force = true; slow = 0; }
+    else if (k === 'view') { if (v === 'track') { if (S.session) show('track'); else if (valid()) { S.session = { ...S.cfg }; S.R = buildRoute(S.session); S.t = seekT(.345); H.key = ''; buildCarousel(); show('track'); renderBar(); } } else show('home'); }
+    else if (k === 'safe') ['sat', 'sar', 'sab', 'sal'].forEach((n, j) => app.style.setProperty('--' + n, v[j] + 'px'));
+  }
+  function post(m) { if (EMBED) parent.postMessage({ tallon: 1, ...m }, '*'); }
+  window.addEventListener('message', e => { const m = e.data; if (m && m.tallon && m.k) setCtl(m.k, m.v); });
+
+  if (!EMBED) {
+    const demo = $('#demo'), st = { ...DEFAULTS, homeComp: S.homeComp, trackComp: S.trackComp };
+    renderControls($('#demoIn'), st, (k, v) => { setCtl(k, v); if (k !== 'rate' && k !== 'scenario' && k !== 'signal') demo.classList.remove('on'); });
+    $('#demoIn').insertAdjacentHTML('beforeend', '<p style="margin-top:14px">Prototype de revue : trajet, vitesse et retard sont simulés. Aucune géolocalisation n’est demandée.</p>');
+    $('#demoTab').addEventListener('click', () => demo.classList.add('on'));
+    demo.addEventListener('click', e => { if (e.target === demo) demo.classList.remove('on'); });
+  }
+  renderHome();
+  requestAnimationFrame(frame);
+  post({ ev: 'ready' });
+}
+
+/* ═══════════════════════ STUDIO ═══════════════════════ */
+function initStudio() {
+  if (window.innerWidth < 720) { location.replace(location.pathname + location.search + '#app'); location.reload(); return; }
+  const DEV = {
+    se: { n: 'iPhone SE', w: 375, h: 667, kind: 'phone-old', p: [20, 0, 0, 0], l: [0, 0, 0, 0] },
+    ip: { n: 'iPhone 16', w: 393, h: 852, kind: 'phone', p: [59, 0, 34, 0], l: [0, 59, 21, 59] },
+    max: { n: 'Pro Max', w: 440, h: 956, kind: 'phone', p: [62, 0, 34, 0], l: [0, 62, 21, 62] },
+    pad: { n: 'iPad 11″', w: 820, h: 1180, kind: 'pad', p: [24, 0, 20, 0], l: [24, 0, 20, 0] },
+    pad13: { n: 'iPad 13″', w: 1024, h: 1366, kind: 'pad', p: [24, 0, 20, 0], l: [24, 0, 20, 0] },
+    pc: { n: 'Ordinateur', w: 1440, h: 900, kind: 'pc', p: [0, 0, 0, 0], l: [0, 0, 0, 0] },
+    free: { n: 'Libre', kind: 'free', p: [0, 0, 0, 0], l: [0, 0, 0, 0] },
+  };
+  const st = { ...DEFAULTS, dev: 'ip', land: false, cmp: false };
+  const slots = $$('.slot').map(s => ({ s, box: $('.dev-box', s), dev: $('.dev', s), fr: $('iframe', s), cap: $('.slot-cap', s), ready: false }));
+  const NAMES = { home: { A: 'Accueil A · Réglages + fiche', B: 'Accueil B · Ligne éditable' }, track: { A: 'Suivi A · Cockpit', B: 'Suivi B · Fil' } };
+  let view = 'home';
+  const send = (sl, k, v) => sl.ready && sl.fr.contentWindow.postMessage({ tallon: 1, k, v }, '*');
+  const comps = j => st.cmp ? { homeComp: 'AB'[j], trackComp: 'AB'[j] } : { homeComp: st.homeComp, trackComp: st.trackComp };
+
+  $('#devs').innerHTML = Object.entries(DEV).map(([k, d]) => `<button data-v="${k}" aria-pressed="${k === st.dev}">${d.n}</button>`).join('');
+  $('#devs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; st.dev = b.dataset.v; st.land = false; $$('#devs button').forEach(x => x.setAttribute('aria-pressed', x === b)); layout(); });
+  $('#rot').addEventListener('click', () => { st.land = !st.land; layout(); });
+  $('#cmp').addEventListener('click', () => { st.cmp = !st.cmp; $('#cmp').setAttribute('aria-pressed', st.cmp); layout(); syncComps(); });
+  $('#solo').href = location.pathname + '#app';
+
+  function layout() {
+    const d = DEV[st.dev], stage = $('#stage'), n = st.cmp ? 2 : 1;
+    const availW = (stage.clientWidth - 52 - (n - 1) * 36) / n, availH = stage.clientHeight - 52 - 44;
+    let w = d.w, h = d.h; if (d.kind === 'free') { w = Math.round(availW); h = Math.round(availH); } else if (st.land) { [w, h] = [h, w]; }
+    const land = w > h, pad = d.kind === 'phone' ? 11 : d.kind === 'phone-old' ? 14 : d.kind === 'pad' ? 16 : 0;
+    const ow = w + pad * 2, oh = h + pad * 2, sc = Math.min(1, availW / ow, availH / oh);
+    const touch = d.kind !== 'pc' && d.kind !== 'free';
+    slots.forEach((sl, j) => {
+      sl.s.hidden = j >= n; sl.dev.dataset.kind = d.kind; sl.dev.classList.toggle('land', land);
+      sl.dev.style.width = ow + 'px'; sl.dev.style.height = oh + 'px'; sl.dev.style.transform = `scale(${sc})`;
+      sl.box.style.width = ow * sc + 'px'; sl.box.style.height = oh * sc + 'px';
+      send(sl, 'safe', land ? d.l : d.p); send(sl, 'input', touch ? 'touch' : 'mouse');
+      sl.cap.textContent = NAMES[view][comps(j)[view === 'home' ? 'homeComp' : 'trackComp']];
+    });
+    $('#dim').textContent = `${d.n} · ${w} × ${h}${sc < 1 ? ` · affiché à ${Math.round(sc * 100)} %` : ''} · saisie ${touch ? 'tactile' : 'souris / clavier'} · données et position simulées`;
+  }
+  function syncComps() { slots.forEach((sl, j) => { const c = comps(j); send(sl, 'homeComp', c.homeComp); send(sl, 'trackComp', c.trackComp); }); layout(); }
+
+  const side = $('#stSide'), ctl = document.createElement('div'); side.append(ctl);
+  renderControls(ctl, st, (k, v) => {
+    if (k === 'homeComp' || k === 'trackComp') { if (st.cmp) { st.cmp = false; $('#cmp').setAttribute('aria-pressed', false); } syncComps(); return; }
+    if (k === 'homeState') view = 'home'; if (k === 'jump') view = 'track';
+    slots.forEach(sl => send(sl, k, v)); layout();
+  });
+  ctl.insertAdjacentHTML('beforeend', '<div class="cg"><span>Position dans le trajet</span><input type="range" id="seek" min="0" max="1000" value="345" aria-label="Position dans le trajet"></div>');
+  const seek = $('#seek'); let seeking = false;
+  seek.addEventListener('input', () => { seeking = true; slots.forEach(sl => send(sl, 'seek', seek.value / 1000)); });
+  seek.addEventListener('change', () => { seeking = false; });
+  side.insertAdjacentHTML('beforeend', `
+    <details open><summary>Recommandation</summary>
+      <p><b>Accueil B · Ligne éditable.</b> La ligne ne trace plus que la desserte réelle : départ, arrêts marqués, arrivée, chacun avec son heure. Les arrêts possibles se proposent hors du trait, dans le tronçon où ils s’inséreraient, avec leur coût (+6 min). Ce qui est sur la ligne est vrai ; ce qui est à côté est une option.</p>
+      <p><b>Suivi A · Cockpit.</b> Un pupitre sombre continu porte vitesse, arrivée et écart ; la feuille de route claire glisse dessus. Sur grand écran, le pupitre s’élargit et accueille le profil du voyage au lieu d’aligner des cartes.</p>
+    </details>
+    <details open><summary>Nouveautés de l’itération 2</summary><ul>
+      <li><b>Heure de départ</b> : affichage maison en 24 h, champ natif invisible par-dessus. Plus de troncature à 375 px, quel que soit le format 12/24 h du système.</li>
+      <li><b>iPad portrait</b> : deux colonnes dès 700 px ; sur écran haut, les tronçons de la ligne prennent une hauteur proportionnelle à leur durée.</li>
+      <li><b>Profil du voyage</b> : la ligne entière en abscisse, vitesse mesurée, vitesse prévue en pointillé, écart aux points franchis. Survol ou doigt pour lire une valeur ; bascule « 15 min ».</li>
+      <li><b>Carousel large</b> : l’heure passe à gauche du rail, comme sur une fiche horaire.</li>
+      <li><b>Identité</b> : Avenir Next pour le texte, DIN pour les chiffres, compteur gradué, perforation de billet.</li>
+    </ul></details>
+    <details><summary>À essayer</summary><ul>
+      <li>État « Longue desserte » (Marseille, départ 22:07) : ajouts groupés par tronçon, passage de minuit.</li>
+      <li>Ajouter puis retirer un arrêt sur la ligne ; toucher l’heure de départ.</li>
+      <li>Maintenir + ou − du ΔT ; appuis rapides sans zoom.</li>
+      <li>Lancer, puis Réglages : le bandeau du bas reste vivant, « Reprendre » revient au carousel sans rien réinitialiser.</li>
+      <li>iPad et Ordinateur, portrait puis paysage, pendant le suivi ; survoler le profil.</li>
+    </ul></details>
+    <details><summary>Ce qui est simulé</summary>
+      <p>Position, vitesse, retard et état du signal sont fictifs ; aucune géolocalisation n’est demandée. Les points, durées et distances viennent des données du dépôt, et les horaires suivent les règles du moteur (6 min par arrêt, ΔT réparti).</p>
+      <p>Les encoches et zones de sécurité des cadres sont approchées, et le sélecteur d’heure natif d’iOS ne peut pas être reproduit dans un cadre : pour un essai réel, ouvrir le prototype seul sur l’appareil.</p>
+    </details>`);
+
+  window.addEventListener('message', e => {
+    const m = e.data; if (!m || !m.tallon) return; const sl = slots.find(x => x.fr.contentWindow === e.source); if (!sl) return;
+    if (m.ev === 'ready') { sl.ready = true; const j = slots.indexOf(sl), c = comps(j); for (const k of ['scenario', 'signal', 'rate']) send(sl, k, st[k]); send(sl, 'homeComp', c.homeComp); send(sl, 'trackComp', c.trackComp); layout(); }
+    if (m.ev === 'view') { view = m.v; slots.forEach(o => { if (o !== sl) send(o, 'view', m.v); }); layout(); }
+    if (m.ev === 'sim' && sl === slots[0] && !seeking) seek.value = Math.round(m.x * 1000);
+  });
+  slots.forEach(sl => { sl.fr.src = location.pathname + location.search + '#app?embed=1'; });
+  new ResizeObserver(layout).observe($('#stage'));
+  layout();
+}
+
+IS_APP ? initApp() : initStudio();
+</script>
+</body>
+</html>
