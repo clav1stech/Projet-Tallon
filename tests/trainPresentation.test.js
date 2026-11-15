@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { STATE, createSessionState } from '../js/state.js';
 import { buildCarouselModel, buildCockpitModel, buildSpeedProfile, ingestFix, installTripPlan, startSession } from '../js/tracking-session.js';
-import { buildProfileEnvelope } from '../js/train-profile.js';
+import { buildProfileEnvelope, buildRecentWindow } from '../js/train-profile.js';
 import { fixesAlongRoute, planFromRoute, southboundRoute } from './fixtures.js';
 
 const DEP = new Date(2026, 10, 15, 23, 58).getTime();
@@ -91,5 +91,26 @@ describe('profil du voyage', () => {
         const buckets = buildProfileEnvelope(profile, 1);
         expect(buckets).toHaveLength(1);
         expect(buckets[0].last).toBe(profile.samples.at(-1));
+    });
+
+    it('fenêtre récente : dernières mesures seulement, trous de signal et moyenne théorique du segment', () => {
+        const planned = [{ fromKm: 0, toKm: 50, kmh: 200 }, { fromKm: 50, toKm: 100, kmh: 300 }];
+        const samples = Array.from({ length: 3000 }, (_, i) => ({ ts: i * 1000, routeKm: i / 30, v: 250, reliable: true, speedReliable: true }));
+        samples[2500] = { ts: 2_500_000, v: 250, reliable: false };
+        samples[2990] = { ts: 2_990_000, routeKm: null, v: 120, reliable: true, speedReliable: true };
+        const before = structuredClone(samples);
+        const recent = buildRecentWindow({ samples, planned }, 900_000);
+        expect(recent.toTs).toBe(2_999_000);
+        expect(recent.fromTs).toBe(2_099_000);
+        expect(recent.points).toHaveLength(900);
+        expect(recent.points[0].ts).toBe(2_099_000);
+        expect(recent.points[0].gap).toBe(true);
+        expect(recent.points.find(p => p.ts === 2_501_000).gap).toBe(true);
+        expect(recent.points.find(p => p.ts === 2_502_000).gap).toBe(false);
+        expect(recent.points.find(p => p.ts === 2_100_000).plannedKmh).toBe(300);
+        expect(recent.points.find(p => p.ts === 2_990_000).plannedKmh).toBeNull();
+        expect(samples).toEqual(before);
+        expect(buildRecentWindow({ samples: [], planned }, 900_000)).toEqual({ fromTs: null, toTs: null, points: [] });
+        expect(buildRecentWindow({ samples: samples.slice(0, 60), planned }, 900_000).points[59].plannedKmh).toBe(200);
     });
 });

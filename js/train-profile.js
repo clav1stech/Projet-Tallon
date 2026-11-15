@@ -23,3 +23,35 @@ export function buildProfileEnvelope(profile, pixelWidth) {
     }
     return buckets.filter(Boolean);
 }
+
+// Fenêtre récente sur un axe temporel : les dernières mesures fiables, chacune
+// avec la moyenne horaire théorique du segment où elle a été prise. Le coût
+// dépend de la fenêtre, pas de la durée de la session.
+export function buildRecentWindow(profile, windowMs) {
+    const samples = profile.samples;
+    if (!samples.length) return { fromTs: null, toTs: null, points: [] };
+    const toTs = samples[samples.length - 1].ts;
+    const fromTs = toTs - windowMs;
+    let start = samples.length;
+    while (start > 0 && samples[start - 1].ts >= fromTs) start--;
+    const planned = profile.planned || [];
+    const points = [];
+    let segment = 0;
+    let gap = true;
+    for (let i = start; i < samples.length; i++) {
+        const sample = samples[i];
+        if (!sample.reliable || !sample.speedReliable || !Number.isFinite(sample.v)) {
+            gap = true;
+            continue;
+        }
+        let plannedKmh = null;
+        if (Number.isFinite(sample.routeKm) && planned.length) {
+            while (segment > 0 && planned[segment].fromKm > sample.routeKm) segment--;
+            while (segment < planned.length - 1 && planned[segment].toKm < sample.routeKm) segment++;
+            plannedKmh = planned[segment].kmh;
+        }
+        points.push({ ts: sample.ts, v: sample.v, routeKm: sample.routeKm ?? null, plannedKmh, gap });
+        gap = false;
+    }
+    return { fromTs, toTs, points };
+}

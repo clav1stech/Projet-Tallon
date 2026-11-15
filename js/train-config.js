@@ -33,9 +33,14 @@ export const DEPARTURE_DAY_ROLLOVER_MS = 18 * 3_600_000;
 // Bornes du décalage global ΔT, en minutes.
 export const DELTA_MIN_MINUTES = -30;
 export const DELTA_MAX_MINUTES = 30;
+// Appui maintenu sur − / + : délai avant répétition, puis cadence.
+export const DELTA_REPEAT_DELAY_MS = 420;
+export const DELTA_REPEAT_INTERVAL_MS = 90;
 
 // Rendu : animations du carousel et notifications, sans effet sur l'acquisition.
 export const CAROUSEL_ANIMATION_MS = 500;
 export const CAROUSEL_HERO_RATIO = 0.48;
 export const INFO_DISPLAY_MS = 6000;
 export const PROFILE_MAX_COLUMNS = 1600;
+// Étendue de la vue « 15 min » du profil.
+export const PROFILE_RECENT_WINDOW_MS = 15 * 60_000;

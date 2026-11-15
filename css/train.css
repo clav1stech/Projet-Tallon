@@ -337,6 +337,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
     height:18px;
 }
 
+.service-stop>div {
+    padding-left:6px;
+}
+
 .service-stop strong {
     display:block;
     font-size:17px;
@@ -353,6 +357,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
 }
 
 .service-stop time {
+    padding-left:8px;
     font:700 22px var(--num);
     font-variant-numeric:tabular-nums;
     white-space:nowrap;
@@ -364,29 +369,84 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
     margin-left:2px;
 }
 
+/* La pastille reprend l'origine typographique des autres horaires (retrait de
+   8 px, même corps) : la colonne reste alignée du départ à l'arrivée. */
 .departure-box {
     position:relative;
-    margin-right:2px;
-    background:var(--soft);
+    justify-self:start;
+    display:flex;
+    align-items:center;
+    min-width:44px;
+    height:44px;
+    padding:0 8px;
     border-radius:10px;
+    background:var(--soft);
+    color:var(--bx-deep);
+    box-shadow:inset 0 0 0 1px #8b2a3f29;
+    cursor:pointer;
 }
 
-.departure-box input {
-    width:100%;
-    height:44px;
-    padding:0 2px;
-    border:0;
-    border-radius:10px;
-    background:transparent;
-    color:var(--bx-deep);
-    font:700 19px var(--num);
+.departure-box.missing {
+    background:#fff6e6;
+    color:var(--amber);
+    box-shadow:inset 0 0 0 1.5px var(--amber);
+}
+
+#departure-display {
+    font:700 22px var(--num);
     font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+}
+
+/* Le champ natif couvre toute la pastille : il reçoit lui-même le toucher,
+   le clic et le focus, sans relais par un élément décoratif. */
+.departure-box input {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    margin:0;
+    padding:0 8px;
+    border:0;
+    border-radius:inherit;
+    background:var(--soft);
+    color:inherit;
+    font:700 22px var(--num);
+    font-variant-numeric:tabular-nums;
+    -webkit-appearance:none;
+    appearance:none;
+    opacity:0;
+    cursor:pointer;
 }
 
 .departure-box input::-webkit-calendar-picker-indicator {
-    width:10px;
+    display:none;
+}
+
+.departure-box input::-webkit-date-and-time-value {
     margin:0;
-    padding:0;
+    text-align:left;
+}
+
+.departure-box input:focus-visible {
+    outline:0;
+}
+
+.departure-box:focus-within {
+    outline:3px solid #b8697b;
+    outline-offset:3px;
+}
+
+/* Au clavier, les segments heures/minutes du champ natif doivent être
+   visibles ; au toucher, le sélecteur du système tient lieu d'éditeur. */
+@media (hover:hover) and (pointer:fine) {
+    .departure-box:focus-within input {
+        right:auto;
+        width:auto;
+        min-width:100%;
+        opacity:1;
+        z-index:3;
+    }
 }
 
 .service-stop .remove-stop {
@@ -403,7 +463,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
 
 .leg-content {
     grid-column:3/-1;
-    padding:5px 0;
+    padding:5px 0 5px 6px;
 }
 
 .leg-content>small {
@@ -475,7 +535,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
     background:var(--well);
     border-radius:14px;
     padding:3px;
+    -webkit-user-select:none;
     user-select:none;
+    -webkit-touch-callout:none;
 }
 
 .stepper button {
@@ -675,9 +737,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
 
 .arrival-row {
     display:flex;
-    flex-wrap:wrap;
-    gap:5px 9px;
-    align-items:center;
+    flex-direction:column;
+    gap:4px;
+    align-items:flex-start;
     margin-top:6px;
 }
 
@@ -715,10 +777,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
     font-size:13px;
     font-weight:600;
     white-space:nowrap;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    line-height:1;
 }
 
 .settings-button>span {
     font-size:21px;
+    line-height:1;
     margin-right:3px;
 }
 
@@ -765,6 +832,45 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
     display:block;
     width:100%;
     height:42px;
+}
+
+.range-toggle {
+    display:flex;
+    gap:2px;
+    width:max-content;
+    padding:2px;
+    border-radius:12px;
+    background:var(--well);
+}
+
+.range-toggle button {
+    padding:0 12px;
+    border-radius:10px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--muted);
+}
+
+.range-toggle button[aria-pressed=true] {
+    background:#fff;
+    color:var(--ink);
+}
+
+/* Le profil compact ne montre que le voyage entier : la bascule accompagne
+   le profil détaillé (grands formats et dialogue). */
+.profile-panel .range-toggle {
+    display:none;
+    margin-left:auto;
+    background:#ffffff16;
+}
+
+.profile-panel .range-toggle button {
+    color:#c8c1c3;
+}
+
+.profile-panel .range-toggle button[aria-pressed=true] {
+    background:#ffffff2e;
+    color:#fff;
 }
 
 .graph-legend {
@@ -1249,7 +1355,7 @@ td:not(:first-child) {
         font-size:clamp(36px,10vh,64px);
     }
     .arrival-row {
-        justify-content:center;
+        align-items:center;
     }
     .trip-context {
         display:flex;
@@ -1277,8 +1383,17 @@ td:not(:first-child) {
     .settings-button {
         min-height:44px;
     }
+    /* L'espace libre entre l'arrivée et le profil revient au profil : le canvas
+       absorbe la hauteur disponible (height:0 évite qu'il ne dicte la mise en page). */
+    .profile-panel {
+        flex:1 1 0;
+        min-height:0;
+    }
     .profile-panel canvas {
-        height:30px;
+        flex:1 1 0;
+        height:0;
+        min-height:30px;
+        max-height:160px;
     }
     .profile-heading .caption {
         font-size:9px;
@@ -1334,7 +1449,7 @@ td:not(:first-child) {
     .profile-panel canvas {
         height:150px;
     }
-    .profile-panel .graph-legend {
+    .profile-panel .graph-legend,.profile-panel .range-toggle {
         display:flex;
     }
     .next-stop,.trip-stats {
@@ -1370,7 +1485,7 @@ td:not(:first-child) {
         font-size:clamp(60px,8vh,80px);
     }
     .arrival-row {
-        justify-content:flex-start;
+        align-items:flex-start;
     }
     .arrival>b {
         font-size:clamp(52px,7vh,76px);
@@ -1395,7 +1510,7 @@ td:not(:first-child) {
         min-height:100px;
         height:100px;
     }
-    .profile-panel .graph-legend {
+    .profile-panel .graph-legend,.profile-panel .range-toggle {
         display:flex;
     }
     .carousel-stage {
@@ -1493,50 +1608,6 @@ td:not(:first-child) {
     }
 }
 
-.departure-box {
-    height:44px;
-    display:grid;
-    place-items:center;
-    overflow:visible;
-}
-
-#departure-display {
-    font:700 21px var(--num);
-    font-variant-numeric:tabular-nums;
-    white-space:nowrap;
-}
-
-.departure-box input {
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    opacity:0;
-    cursor:pointer;
-}
-
-.departure-box input:focus-visible {
-    opacity:1;
-    background:#fff;
-    width:8.5em;
-    z-index:5;
-    box-shadow:0 4px 18px #28141926;
-    padding:0 8px;
-}
-
-.departure-box:focus-within {
-    outline:2px solid var(--bx);
-    outline-offset:1px;
-}
-
-.departure-box input::-webkit-calendar-picker-indicator {
-    position:absolute;
-    inset:0;
-    width:auto;
-    height:auto;
-    opacity:0;
-}
-
 .profile-readout {
     font-size:12px;
     line-height:1.35;
@@ -1603,7 +1674,7 @@ dialog .profile-readout {
         font-size:32px;
     }
     .profile-panel canvas {
-        height:24px;
+        min-height:24px;
     }
     .trip-context {
         padding-bottom:calc(var(--sab) + 8px);

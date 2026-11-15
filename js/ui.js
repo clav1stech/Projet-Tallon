@@ -2,10 +2,10 @@ import { STATE } from './state.js';
 import { MAIN_ROUTES } from './routes-config.js';
 import { buildCockpitModel, buildCarouselModel, buildSpeedProfile } from './tracking-session.js';
 import { computeSegmentRatio } from './functions.js';
-import { buildProfileEnvelope } from './train-profile.js';
+import { buildProfileEnvelope, buildRecentWindow } from './train-profile.js';
 import { formatTime } from './utils.js';
 import { formatPk } from './linearref.js';
-import { CAROUSEL_ANIMATION_MS, CAROUSEL_HERO_RATIO, DELTA_MAX_MINUTES, DELTA_MIN_MINUTES, INFO_DISPLAY_MS, MAX_TRAIN_SPEED_KMH, PROFILE_MAX_COLUMNS } from './train-config.js';
+import { CAROUSEL_ANIMATION_MS, CAROUSEL_HERO_RATIO, DELTA_MAX_MINUTES, DELTA_MIN_MINUTES, INFO_DISPLAY_MS, MAX_TRAIN_SPEED_KMH, PROFILE_MAX_COLUMNS, PROFILE_RECENT_WINDOW_MS } from './train-config.js';
 
 const el = id => document.getElementById(id);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -82,6 +82,7 @@ export function renderServiceSummary(summary) {
     setText('service-notice', SUMMARY_MESSAGES[summary.status] || '');
     el('service-notice').hidden = summary.status === 'ok';
     setText('departure-display', STATE.draftConfig.departureTime || '––:––');
+    el('departure-display').parentNode.classList.toggle('missing', !STATE.draftConfig.departureTime);
     const first = summary.stops[0];
     setText('origin-name', first?.name || 'Gare de départ');
     setText('service-meta', summary.stops.length ? `${summary.intermediateStopCount ? `${summary.intermediateStopCount} arrêt${summary.intermediateStopCount > 1 ? 's' : ''}` : 'Direct'} · ${duration(summary.totalSeconds)}` : '');
@@ -137,6 +138,7 @@ export function renderNavigation() {
         activeIndex = null;
         following = true;
         el('recenter-btn').hidden = true;
+        setProfileRange('trip');
     }
     el('home-view').hidden = tracking;
     el('tracking-view').hidden = !tracking;
@@ -160,6 +162,24 @@ let activeIndex = null;
 let following = true;
 let scrollFrame = null;
 let lastPassageKey = '';
+let profileRange = 'trip';
+const PROFILE_HELP = 'Survolez ou touchez le profil pour lire une mesure. Au clavier, utilisez les flèches.';
+
+/** Étendue du profil détaillé : tout le voyage (axe en km) ou fenêtre récente (axe en temps). */
+export function setProfileRange(range) {
+    const next = range === 'recent' ? 'recent' : 'trip';
+    document.querySelectorAll('[data-profile-range]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.profileRange === next));
+    });
+    document.querySelectorAll('[data-trip-legend]').forEach(node => { node.hidden = next === 'recent'; });
+    if (next === profileRange) return;
+    profileRange = next;
+    el('profile-readout').hidden = true;
+    setText('details-readout', PROFILE_HELP);
+    if (!currentProfile || STATE.view !== 'tracking') return;
+    drawSpeedProfile(el('speed-profile'), currentProfile, true);
+    if (el('trip-details').open) drawSpeedProfile(el('details-profile'), currentProfile);
+}
 
 export function pauseCarouselFollow() {
     following = false;
@@ -215,7 +235,7 @@ function renderCarousel(model, nowTs, relayout) {
         routeRevision = STATE.planRevision;
         lastPassageKey = '';
         el('profile-readout').hidden = true;
-        setText('details-readout', 'Survolez ou touchez le profil pour lire une mesure. Au clavier, utilisez les flèches.');
+        setText('details-readout', PROFILE_HELP);
         container.innerHTML = STATE.currentRoute.map((point, index) => `<article class="train-point${point.isStop ? ' stop' : ''}" data-index="${index}"><i class="point-dot" aria-hidden="true"></i><div class="point-name">${escapeHtml(point.name)}</div><div class="point-meta"><span class="theory"></span><span class="point-result"></span></div><div class="point-detail"></div></article>`).join('') + '<i class="train-cursor" aria-hidden="true" hidden></i>';
     }
     const points = buildCarouselModel(STATE, model, nowTs);
@@ -228,8 +248,11 @@ function renderCarousel(model, nowTs, relayout) {
         if (active && STATE.trackingSnapshot) node.setAttribute('aria-current', 'step');
         else node.removeAttribute('aria-current');
         const theory = node.querySelector('.theory');
-        theory.textContent = clock(point.theoreticalTs);
-        theory.title = `Horaire théorique : ${dateTime(point.theoreticalTs)}`;
+        const theoryText = clock(point.theoreticalTs);
+        if (theory.textContent !== theoryText) {
+            theory.textContent = theoryText;
+            theory.title = `Horaire théorique : ${dateTime(point.theoreticalTs)}`;
+        }
         const result = node.querySelector('.point-result');
         let text = '';
         if (point.observedTs != null) text = `Observé ${clock(point.observedTs)} · ${delayText(point.delayMs)}`;
@@ -237,7 +260,8 @@ function renderCarousel(model, nowTs, relayout) {
         else if (point.index < model.progress.currentIdx) text = 'Passage non observé';
         else text = 'Théorique';
         if (result.textContent !== text) result.textContent = text;
-        result.className = `point-result${point.observedTs != null ? point.delayMs > 0 ? ' late' : ' observed' : ''}`;
+        const resultClass = `point-result${point.observedTs != null ? point.delayMs > 0 ? ' late' : ' observed' : ''}`;
+        if (result.className !== resultClass) result.className = resultClass;
         const detail = node.querySelector('.point-detail');
         const info = next && point.distanceKm != null ? `${kmText(point.distanceKm)} km${point.remainingSeconds != null ? ` · ${duration(point.remainingSeconds)}` : ''}${point.isStop ? ' · arrêt commercial' : ''}` : active && STATE.trackingSnapshot ? model.phase === 'arrived' ? 'Voyage arrivé' : 'Dernier repère · position sur le segment' : point.isStop ? 'Arrêt commercial' : '';
         if (detail.textContent !== info) detail.textContent = info;
@@ -274,7 +298,7 @@ export function renderTrainTracking({ relayout = false, nowTs = Date.now(), rail
     const uncertain = model.phase !== 'arrived' && (!hasEstimate || model.location.signal !== 'ok');
     setText('delay-chip', uncertain ? hasEstimate ? 'Dernière estimation' : 'En attente' : model.phase === 'before-departure' ? 'Avant départ' : model.displayDelayMs ? `${model.displayDelayMs > 0 ? '+' : '−'}${Math.abs(model.displayDelayMs) / 60000} min` : 'À l’heure');
     el('delay-chip').className = `delay-chip ${uncertain ? '' : model.displayDelayMs > 0 ? 'late' : model.displayDelayMs < 0 ? 'early' : 'ok'}`;
-    setText('arrival-theory', `Théo. ${clock(model.arrival.theoreticalTs)}`);
+    setText('arrival-theory', `Horaire théorique ${clock(model.arrival.theoreticalTs)}`);
     const next = model.nextStop;
     setText('next-stop-name', next?.name || 'Arrivée atteinte');
     setText('next-stop-time', next ? `${hasEstimate ? '≈ ' : ''}${clock(next.estimatedTs)}` : '');
@@ -308,26 +332,59 @@ function drawSpeedProfile(canvas, profile, dark = false) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
     const detailed = height >= 90;
+    const recent = detailed && profileRange === 'recent';
     const left = detailed ? 30 : 1, right = 12, bottom = detailed ? 23 : 3, top = 8;
     const w = Math.max(1, width - left - right), h = Math.max(1, height - top - bottom);
-    let max = Math.max(MAX_TRAIN_SPEED_KMH, profile.maxKmh);
-    for (const segment of profile.planned) max = Math.max(max, segment.kmh);
-    const x = km => left + km / (profile.totalKm || 1) * w;
-    const y = v => top + h - v / max * h;
+    // L'échelle est celle des vitesses mesurables : une moyenne horaire
+    // aberrante sur un segment court est écrêtée, elle n'écrase pas la courbe.
+    const max = MAX_TRAIN_SPEED_KMH;
+    const y = v => top + h - Math.min(max, Math.max(0, v)) / max * h;
+    const colors = dark
+        ? { grid: '#ffffff20', text: '#c8c1c3', planned: '#c8c1c3', measured: '#fff', cursor: '#f0b9c4', stop: '#ffffff30', late: '#ff8a73', onTime: '#6fd9a8' }
+        : { grid: '#211d1e20', text: '#71676a', planned: '#8a777e', measured: '#8b2a3f', cursor: '#8b2a3f', stop: '#211d1e20', late: '#b8371f', onTime: '#1f7a52' };
     ctx.font = '11px system-ui';ctx.lineWidth = 1;
-    ctx.strokeStyle = dark ? '#ffffff20' : '#211d1e20';ctx.fillStyle = dark ? '#c8c1c3' : '#71676a';
+    ctx.strokeStyle = colors.grid;ctx.fillStyle = colors.text;
     if (detailed) {
         for (const v of [0, max / 2, max]) {
             ctx.beginPath();ctx.moveTo(left, y(v));ctx.lineTo(width - right, y(v));ctx.stroke();ctx.fillText(String(Math.round(v)), 0, y(v) + 4);
         }
+    }
+    if (recent) {
+        const recentWindow = buildRecentWindow(profile, PROFILE_RECENT_WINDOW_MS);
+        const { fromTs, toTs, points } = recentWindow;
+        const x = ts => left + (ts - fromTs) / PROFILE_RECENT_WINDOW_MS * w;
+        const minutes = PROFILE_RECENT_WINDOW_MS / 60_000;
+        ctx.fillText(`−${minutes} min`, left, height - 4);
+        ctx.textAlign = 'right';ctx.fillText(toTs == null ? 'Aucune mesure' : `Dernière mesure ${clock(toTs)}`, width - right, height - 4);ctx.textAlign = 'left';
+        ctx.strokeStyle = colors.planned;ctx.setLineDash([4, 4]);ctx.beginPath();
+        let previous = null;
+        for (const point of points) {
+            if (point.plannedKmh == null) { previous = null; continue; }
+            if (!previous || point.gap) ctx.moveTo(x(point.ts), y(point.plannedKmh));
+            else { ctx.lineTo(x(point.ts), y(previous.plannedKmh));ctx.lineTo(x(point.ts), y(point.plannedKmh)); }
+            previous = point;
+        }
+        ctx.stroke();ctx.setLineDash([]);
+        ctx.strokeStyle = colors.measured;ctx.lineWidth = 1.7;ctx.beginPath();
+        points.forEach((point, index) => {
+            if (index === 0 || point.gap) ctx.moveTo(x(point.ts), y(point.v));
+            else ctx.lineTo(x(point.ts), y(point.v));
+        });
+        ctx.stroke();
+        profileLayouts.set(canvas, { recent: true, points, fromTs, toTs, left, width: w });
+        canvas.setAttribute('aria-label', `Vitesse des ${minutes} dernières minutes, axe en temps. ${points.length} mesures. Mesures pleines, moyennes horaires théoriques en pointillés.`);
+        return;
+    }
+    const x = km => left + km / (profile.totalKm || 1) * w;
+    if (detailed) {
         ctx.fillText('0', left, height - 4);ctx.textAlign = 'right';ctx.fillText(`${kmText(profile.totalKm)} km`, width - right, height - 4);ctx.textAlign = 'left';
     }
-    ctx.strokeStyle = dark ? '#c8c1c3' : '#8a777e';ctx.setLineDash([4, 4]);ctx.beginPath();
+    ctx.strokeStyle = colors.planned;ctx.setLineDash([4, 4]);ctx.beginPath();
     for (const segment of profile.planned) { ctx.moveTo(x(segment.fromKm), y(segment.kmh));ctx.lineTo(x(segment.toKm), y(segment.kmh)); }
     ctx.stroke();ctx.setLineDash([]);
     const envelope = buildProfileEnvelope(profile, Math.min(PROFILE_MAX_COLUMNS, w));
     profileLayouts.set(canvas, { envelope, totalKm: profile.totalKm, left, width: w });
-    ctx.strokeStyle = dark ? '#fff' : '#8b2a3f';ctx.lineWidth = 1.7;ctx.beginPath();
+    ctx.strokeStyle = colors.measured;ctx.lineWidth = 1.7;ctx.beginPath();
     let previous = null;
     for (const bucket of envelope) {
         const points = [bucket.first, bucket.min, bucket.max, bucket.last].sort((a, b) => a.ts - b.ts);
@@ -338,14 +395,14 @@ function drawSpeedProfile(canvas, profile, dark = false) {
     }
     ctx.stroke();
     if (profile.currentKm != null) {
-        ctx.strokeStyle = dark ? '#f0b9c4' : '#8b2a3f';ctx.lineWidth = 1;ctx.beginPath();ctx.moveTo(x(profile.currentKm), top);ctx.lineTo(x(profile.currentKm), top + h);ctx.stroke();
+        ctx.strokeStyle = colors.cursor;ctx.lineWidth = 1;ctx.beginPath();ctx.moveTo(x(profile.currentKm), top);ctx.lineTo(x(profile.currentKm), top + h);ctx.stroke();
     }
     if (detailed) {
         for (const stop of profile.stops) {
-            ctx.strokeStyle = dark ? '#ffffff30' : '#211d1e20';ctx.beginPath();ctx.moveTo(x(stop.km), top);ctx.lineTo(x(stop.km), top + h);ctx.stroke();
+            ctx.strokeStyle = colors.stop;ctx.beginPath();ctx.moveTo(x(stop.km), top);ctx.lineTo(x(stop.km), top + h);ctx.stroke();
         }
         for (const passage of profile.passages) {
-            ctx.fillStyle = passage.delayMs > 0 ? dark ? '#ff8a73' : '#b8371f' : dark ? '#6fd9a8' : '#1f7a52';ctx.beginPath();ctx.arc(x(passage.km), top + h, 3, 0, Math.PI * 2);ctx.fill();
+            ctx.fillStyle = passage.delayMs > 0 ? colors.late : colors.onTime;ctx.beginPath();ctx.arc(x(passage.km), top + h, 3, 0, Math.PI * 2);ctx.fill();
         }
     }
     canvas.setAttribute('aria-label', `Vitesse sur ${kmText(profile.totalKm)} kilomètres. Maximum mesuré ${Math.round(profile.maxKmh)} km/h. ${profile.passages.length} passages observés. Mesures pleines, moyennes horaires théoriques en pointillés. Détails dans le journal des passages.`);
@@ -368,28 +425,40 @@ export function renderTripDetails() {
 /** Inspection au doigt, à la souris et au clavier, depuis les mesures du tracé. */
 export function inspectSpeedProfile(canvas, event) {
     const layout = profileLayouts.get(canvas);
-    if (!layout || !layout.envelope.length) return;
+    const items = layout?.recent ? layout.points : layout?.envelope;
+    if (!items || !items.length) return;
     const rect = canvas.getBoundingClientRect();
-    let ratio;
+    const readout = el(canvas.id === 'details-profile' ? 'details-readout' : 'profile-readout');
+    let index = null;
+    let ratio = 0;
     if (event.type === 'keydown') {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
-        const index = Math.max(0, Math.min(layout.envelope.length - 1,
-            event.key === 'Home' ? 0 : event.key === 'End' ? layout.envelope.length - 1 : Number(canvas.dataset.readIndex || 0) + (event.key === 'ArrowRight' ? 1 : -1)));
+        index = Math.max(0, Math.min(items.length - 1,
+            event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : Number(canvas.dataset.readIndex || 0) + (event.key === 'ArrowRight' ? 1 : -1)));
         canvas.dataset.readIndex = index;
-        ratio = layout.envelope[index].last.routeKm / (layout.totalKm || 1);
     } else {
         ratio = Math.max(0, Math.min(1, (event.clientX - rect.left - layout.left) / layout.width));
     }
-    const targetKm = ratio * layout.totalKm;
     let sample = null;
-    for (const bucket of layout.envelope) {
+    if (layout.recent) {
+        if (index != null) sample = items[index];
+        else {
+            const targetTs = layout.fromTs + ratio * (layout.toTs - layout.fromTs);
+            for (const point of items) {
+                if (!sample || Math.abs(point.ts - targetTs) < Math.abs(sample.ts - targetTs)) sample = point;
+            }
+        }
+        readout.hidden = false;
+        readout.textContent = `${dateTime(sample.ts)} · ${Math.round(sample.v)} km/h mesurés${sample.plannedKmh != null ? ` · moyenne théorique ${Math.round(sample.plannedKmh)} km/h` : ''}`;
+        return;
+    }
+    const targetKm = index != null ? items[index].last.routeKm : ratio * layout.totalKm;
+    for (const bucket of items) {
         for (const point of [bucket.first, bucket.min, bucket.max, bucket.last]) {
             if (!sample || Math.abs(point.routeKm - targetKm) < Math.abs(sample.routeKm - targetKm)) sample = point;
         }
     }
-    if (!sample) return;
-    const readout = el(canvas.id === 'details-profile' ? 'details-readout' : 'profile-readout');
     readout.hidden = false;
     readout.textContent = `${kmText(sample.routeKm)} km · ${Math.round(sample.v)} km/h mesurés · ${dateTime(sample.ts)}`;
 }

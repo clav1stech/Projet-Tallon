@@ -59,7 +59,24 @@ async function run() {
         for(let i=0;i<35;i++)$('delta-plus').click();
         assert(STATE.draftConfig.globalDeltaSeconds===1800&&$('delta-plus').disabled,'ΔT : appuis répétés et borne haute');
         change('global-delta','0');
-        for(const [w,h] of sizes){await resize(w,h);assert(doc.documentElement.scrollWidth<=w+1,`Accueil sans débordement ${w}×${h}`);assert(visible($('start-btn')),`Action principale accessible ${w}×${h}`);}
+        const hold=$('delta-plus');const held=STATE.draftConfig.globalDeltaSeconds;
+        hold.dispatchEvent(new win.PointerEvent('pointerdown',{bubbles:true,button:0}));hold.dispatchEvent(new win.PointerEvent('pointerup',{bubbles:true}));hold.dispatchEvent(new win.MouseEvent('click',{bubbles:true,detail:1}));
+        assert(STATE.draftConfig.globalDeltaSeconds===held+60,'ΔT : un appui au pointeur vaut une seule minute');
+        change('global-delta','0');
+        const textLeft=node=>{const range=doc.createRange();range.selectNodeContents(node);return range.getBoundingClientRect().left;};
+        for(const [w,h] of sizes){
+            await resize(w,h);assert(doc.documentElement.scrollWidth<=w+1,`Accueil sans débordement ${w}×${h}`);assert(visible($('start-btn')),`Action principale accessible ${w}×${h}`);
+            const pill=$('departure-time').parentNode.getBoundingClientRect(),field=$('departure-time').getBoundingClientRect();
+            assert(pill.width>=44&&pill.height>=44&&field.left===pill.left&&field.width===pill.width&&field.height===pill.height,`Heure de départ : champ natif sur toute la pastille, 44 px minimum ${w}×${h}`);
+            const times=[...$('service-rest').querySelectorAll('time')];
+            assert(times.every(time=>Math.abs(textLeft(time.firstChild)-textLeft($('departure-display')))<.5)&&win.getComputedStyle(times[0]).fontSize===win.getComputedStyle($('departure-display')).fontSize,`Colonne des horaires alignée du départ à l’arrivée ${w}×${h}`);
+        }
+        let pickers=0;$('departure-time').showPicker=()=>{pickers++;};
+        $('departure-time').dispatchEvent(new win.PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse'}));$('departure-time').dispatchEvent(new win.MouseEvent('click',{bubbles:true}));
+        $('departure-time').dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'Enter'}));
+        $('departure-time').dispatchEvent(new win.PointerEvent('pointerdown',{bubbles:true,pointerType:'touch'}));$('departure-time').dispatchEvent(new win.MouseEvent('click',{bubbles:true}));
+        assert(pickers===2,'Heure de départ : sélecteur demandé à la souris et au clavier, natif au toucher');
+        delete $('departure-time').showPicker;
         $('start-btn').click();
         assert(STATE.view==='tracking'&&STATE.session.active,'Lancer ouvre le cockpit');
         assert(win.__starts===1&&win.__requests===1,'Une boucle, une acquisition');
@@ -92,6 +109,13 @@ async function run() {
         assert(STATE.globalDeltaSeconds===60&&STATE.session.samples===raw&&raw.length===acquired,'Application explicite conserve l’historique brut');
         assert(JSON.stringify(STATE.passageTimes)===times,'Application horaire conserve les instants observés');
         $('details-btn').click();assert($('trip-details').open&&$('passage-log').rows.length>1,'Détail du profil et journal observé');
+        const sampleRef=STATE.session.samples,sampleTotal=sampleRef.length;
+        $('trip-details').querySelector('[data-profile-range="recent"]').click();
+        assert($('details-profile').getAttribute('aria-label').includes('dernières minutes')&&doc.querySelectorAll('[data-profile-range="recent"][aria-pressed="true"]').length===2,'Profil : vue 15 min sur axe temporel');
+        $('details-profile').dispatchEvent(new win.KeyboardEvent('keydown',{bubbles:true,key:'End'}));
+        assert($('details-readout').textContent.includes('km/h mesurés'),'Profil 15 min : lecture d’une mesure au clavier');
+        $('trip-details').querySelector('[data-profile-range="trip"]').click();
+        assert($('details-profile').getAttribute('aria-label').includes('kilomètres')&&STATE.session.samples===sampleRef&&sampleRef.length===sampleTotal,'Profil : retour au voyage entier, historique intact');
         $('trip-details').querySelector('[data-close-dialog]').click();
         $('train-carousel').dispatchEvent(new win.Event('wheel'));assert(!$('recenter-btn').hidden,'Défilement libre avec recentrage explicite');
         $('recenter-btn').click();assert($('recenter-btn').hidden,'Recentrage du carousel');

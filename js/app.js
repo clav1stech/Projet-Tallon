@@ -8,12 +8,15 @@ import {
 import {
     populateRouteChoices, syncFormControls, syncLocationControls, updateInfo,
     renderTrainTracking, renderServiceSummary, renderHomeActions, renderNavigation,
-    pauseCarouselFollow, recenterCarousel, renderTripDetails, inspectSpeedProfile
+    pauseCarouselFollow, recenterCarousel, renderTripDetails, inspectSpeedProfile, setProfileRange
 } from './ui.js';
 import { geoErrorMessage } from './geo.js';
 import { loadDataset } from './csv.js';
 import { buildCorridor, locateOnCorridor } from './linearref.js';
-import { DELTA_MAX_MINUTES, DELTA_MIN_MINUTES, GEOLOCATION_OPTIONS, TRACKING_TICK_MS } from './train-config.js';
+import {
+    DELTA_MAX_MINUTES, DELTA_MIN_MINUTES, DELTA_REPEAT_DELAY_MS, DELTA_REPEAT_INTERVAL_MS,
+    GEOLOCATION_OPTIONS, TRACKING_TICK_MS
+} from './train-config.js';
 
 // Boucle d'acquisition : créée au lancement d'une session, détruite à sa
 // clôture. Ni la navigation ni une reconfiguration n'y touchent.
@@ -208,6 +211,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (departureInput.value) updateDraft({ departureTime: departureInput.value });
         });
         departureInput.addEventListener('change', () => updateDraft({ departureTime: departureInput.value || '' }));
+
+        // Au toucher, le champ natif ouvre lui-même le sélecteur du système.
+        // À la souris ou au clavier, il ne fait que placer le curseur sur un
+        // segment : le sélecteur est alors demandé explicitement, la saisie
+        // directe dans le champ restant le repli des navigateurs sans sélecteur.
+        let departurePointerType = '';
+        const openDeparturePicker = () => {
+            try { departureInput.showPicker(); } catch { /* saisie directe */ }
+        };
+        departureInput.addEventListener('pointerdown', event => { departurePointerType = event.pointerType; });
+        departureInput.addEventListener('click', () => {
+            if (departurePointerType !== 'touch') openDeparturePicker();
+        });
+        departureInput.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            openDeparturePicker();
+        });
     }
 
     document.querySelectorAll('input[name="location-method"]').forEach(input => {
@@ -228,8 +249,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     deltaInput?.addEventListener('change', () => setDeltaMinutes(Number(deltaInput.value)));
     const stepDelta = (step) => setDeltaMinutes(Math.round(STATE.draftConfig.globalDeltaSeconds / 60) + step);
-    el('delta-minus')?.addEventListener('click', () => stepDelta(-1));
-    el('delta-plus')?.addEventListener('click', () => stepDelta(1));
+    // Un appui = une minute, un appui maintenu répète. Le pas est appliqué dès
+    // l'appui ; le clic ne sert qu'au clavier et aux technologies d'assistance
+    // (aucun pointeur, `detail` nul).
+    const bindDeltaButton = (button, step) => {
+        let delay = null;
+        let repeat = null;
+        const stop = () => {
+            if (delay !== null) clearTimeout(delay);
+            if (repeat !== null) clearInterval(repeat);
+            delay = repeat = null;
+        };
+        button.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || button.disabled) return;
+            stop();
+            stepDelta(step);
+            delay = setTimeout(() => {
+                delay = null;
+                repeat = setInterval(() => {
+                    if (button.disabled) stop();
+                    else stepDelta(step);
+                }, DELTA_REPEAT_INTERVAL_MS);
+            }, DELTA_REPEAT_DELAY_MS);
+        });
+        ['pointerup', 'pointercancel', 'pointerleave', 'blur'].forEach(type => button.addEventListener(type, stop));
+        button.addEventListener('contextmenu', event => event.preventDefault());
+        button.addEventListener('click', event => { if (event.detail === 0) stepDelta(step); });
+    };
+    bindDeltaButton(el('delta-minus'), -1);
+    bindDeltaButton(el('delta-plus'), 1);
 
     el('start-btn')?.addEventListener('click', onPrimaryAction);
     el('secondary-btn')?.addEventListener('click', onSecondaryAction);
@@ -253,6 +301,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     [el('speed-profile'), el('details-profile')].forEach(canvas => {
         ['pointermove', 'pointerdown', 'keydown'].forEach(type => canvas.addEventListener(type, event => inspectSpeedProfile(canvas, event)));
+    });
+    document.querySelectorAll('[data-profile-range]').forEach(button => {
+        button.addEventListener('click', () => setProfileRange(button.dataset.profileRange));
     });
     const carousel = el('train-carousel');
     ['wheel', 'touchstart', 'pointerdown'].forEach(type => carousel.addEventListener(type, pauseCarouselFollow, { passive: true }));
