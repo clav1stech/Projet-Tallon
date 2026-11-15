@@ -5,5 +5,8 @@
         "**/.DS_Store",
         "python/**",
         "*.log"
+    ],
+    "powerquery.client.additionalSymbolsDirectories": [
+        "/Users/clementroose/Code/Projet-Tallon/.vscode/excel-pq-symbols"
     ]
 }
