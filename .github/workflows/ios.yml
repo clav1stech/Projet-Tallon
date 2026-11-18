@@ -3,20 +3,12 @@ name: iOS
 # Produit un IPA NON SIGNÉ, à signer et installer avec Sideloadly (identifiant
 # Apple gratuit, voir docs/ios-sideloadly.md). Aucun certificat ni identifiant
 # Apple n'est stocké dans le dépôt ou les secrets GitHub.
+#
+# Déclenchement manuel uniquement (Actions → iOS → Run workflow) pour ne pas
+# consommer de minutes macOS à chaque push. La validation automatique reste
+# portée par ci.yml.
 on:
   workflow_dispatch:
-  push:
-    branches: [main, 'feat/26-ios-wrapper']
-    paths:
-      - 'ios/**'
-      - 'js/**'
-      - 'css/**'
-      - 'data/**'
-      - 'assets/**'
-      - '*.html'
-      - '*.webmanifest'
-      - 'sw.js'
-      - '.github/workflows/ios.yml'
 
 permissions:
   contents: read

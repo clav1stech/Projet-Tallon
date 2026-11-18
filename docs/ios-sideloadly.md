@@ -1,10 +1,12 @@
-# App iOS Tallon : compilation en CI et installation via Sideloadly (Windows)
+# App iOS Tallon : compilation en CI et installation via Sideloadly (Mac ou Windows)
 
 L'app iOS est une enveloppe minimale (`ios/`) autour de la PWA : même
 interface, mêmes fichiers (la liste de précache de `sw.js`), plus un accès
 **natif** à l'API du WiFi SNCF, sans restriction CORS. Elle se compile sur un
-runner macOS de GitHub Actions et s'installe depuis Windows avec
-[Sideloadly](https://sideloadly.io) et un **identifiant Apple gratuit**.
+runner macOS de GitHub Actions et s'installe depuis un Mac ou un PC Windows
+avec [Sideloadly](https://sideloadly.io) et un **identifiant Apple gratuit**.
+Sur Mac avec Xcode, une [installation directe](#6-variante-mac--installer-avec-xcode-sans-ci-ni-sideloadly)
+évite la CI et Sideloadly.
 
 > Rien de ce document n'est validé tant que la procédure n'a pas été déroulée
 > sur un iPhone réel : compilation, signature, autorisations réseau et
@@ -56,11 +58,14 @@ Le workflow `.github/workflows/ios.yml` :
 3. génère le projet avec XcodeGen, compile **sans signature** ;
 4. publie `Tallon.ipa` comme artifact (conservé 30 jours).
 
-Déclenchement :
-- **automatique** à chaque push sur `main` ou `feat/26-ios-wrapper` touchant
-  `ios/`, `js/`, `css/`, `data/`, `assets/`, les pages HTML ou `sw.js` ;
-- **manuel** : GitHub → *Actions* → *iOS* → *Run workflow*. GitHub n'affiche ce
-  bouton qu'une fois le workflow présent sur la branche par défaut (`main`).
+Déclenchement : **manuel uniquement**, pour ne pas consommer de minutes macOS
+à chaque push. Aucun push, pull request, tag, release ni planification ne le
+lance.
+- GitHub → *Actions* → *iOS* → *Run workflow* (choisir la branche). GitHub
+  n'affiche ce bouton qu'une fois le workflow présent sur la branche par défaut
+  (`main`).
+- En ligne de commande : `gh workflow run ios.yml --ref <branche>`, sur
+  n'importe quelle branche déjà poussée, sans attendre `main`.
 
 Récupération :
 - Interface web : ouvrir l'exécution → section *Artifacts* →
@@ -72,20 +77,30 @@ Récupération :
   ```
 
 Aucun certificat, profil ni identifiant Apple n'est utilisé ou stocké par le
-workflow : la signature est faite par Sideloadly, sur votre PC.
+workflow : la signature est faite par Sideloadly, sur votre ordinateur.
 
-## 2. Préparer Windows et l'iPhone (une fois)
+## 2. Préparer l'ordinateur et l'iPhone (une fois)
 
-1. Installer **iTunes** et **iCloud** depuis le site d'Apple (versions « hors
-   Microsoft Store », comme le demande Sideloadly), puis **Sideloadly**.
-2. Brancher l'iPhone en USB, le déverrouiller, répondre « Se fier à cet
+**Mac** : installer [Sideloadly](https://sideloadly.io) (macOS 11 ou plus).
+Ni iTunes ni iCloud : le Mac gère déjà l'iPhone nativement.
+1. Brancher l'iPhone en USB, le déverrouiller, répondre « Se fier à cet
    ordinateur ».
-3. Pour le renouvellement sans câble, cocher dans iTunes « Synchroniser avec
+2. Pour le renouvellement sans câble, cocher dans le Finder (iPhone → onglet
+   *Général*) « Afficher cet iPhone lorsqu'il est connecté au Wi-Fi ».
+
+**Windows** : installer **iTunes** et **iCloud** depuis le site d'Apple
+(versions « hors Microsoft Store », comme le demande Sideloadly), puis
+Sideloadly.
+1. Brancher l'iPhone en USB, le déverrouiller, répondre « Se fier à cet
+   ordinateur ».
+2. Pour le renouvellement sans câble, cocher dans iTunes « Synchroniser avec
    cet iPhone en Wi-Fi ».
-4. Identifiant Apple : un compte **gratuit** suffit. Sideloadly demande ses
-   identifiants (et le code de double authentification) pour obtenir un
-   certificat de développement gratuit. Un identifiant Apple secondaire,
-   réservé à cet usage, limite l'exposition du compte principal.
+
+**Dans les deux cas**, identifiant Apple :
+- Un compte **gratuit** suffit. Sideloadly demande ses identifiants (et le
+  code de double authentification) pour obtenir un certificat de développement
+  gratuit. Un identifiant Apple secondaire, réservé à cet usage, limite
+  l'exposition du compte principal.
 
 ## 3. Installer
 
@@ -114,14 +129,15 @@ Une signature avec un identifiant Apple gratuit **expire au bout de 7 jours** :
 l'app ne s'ouvre plus. Il n'existe pas d'installation permanente ni de
 validité plus longue avec un compte gratuit. Autres limites du compte gratuit :
 3 apps signées ainsi actives en même temps, 10 identifiants d'app par semaine.
-Le renouvellement est impossible sans le PC : renouveler la veille d'un voyage.
+Le renouvellement est impossible sans l'ordinateur : renouveler la veille d'un
+voyage.
 
 - **Manuel** : réinstaller la même IPA (ou une plus récente) avec Sideloadly,
   même identifiant Apple, même Bundle ID. Les réglages sont conservés.
 - **Automatique** : activer le rafraîchissement automatique de Sideloadly
-  (service *Sideloadly Daemon*). Il ne fonctionne que si le PC est allumé,
-  Sideloadly en cours d'exécution, et l'iPhone joignable (USB, ou même réseau
-  Wi-Fi avec la synchronisation Wi-Fi d'iTunes activée) avant l'expiration.
+  (service *Sideloadly Daemon*). Il ne fonctionne que si l'ordinateur est
+  allumé, Sideloadly en cours d'exécution, et l'iPhone joignable (USB, ou même
+  réseau Wi-Fi avec la synchronisation Wi-Fi activée, voir § 2) avant l'expiration.
   Vérifier la date d'expiration affichée par Sideloadly après chaque
   renouvellement.
 
@@ -146,5 +162,36 @@ Le renouvellement est impossible sans le PC : renouveler la veille d'un voyage.
 | « position figée » | Le routeur répète la même position : repli GPS, retour automatique dès qu'elle avance |
 | Pas de position GPS | *Réglages → Tallon → Position* : « Lorsque l'app est active » |
 
-Pour inspecter la page depuis un Mac (facultatif), compiler en configuration
-Debug : la WebView y est inspectable par Safari (*Développement*).
+Pour inspecter la page depuis un Mac (facultatif) : la WebView est inspectable
+dans toutes les configurations, IPA de la CI compris (iOS 16.4 et plus).
+Activer *Réglages → Safari → Avancé → Inspecteur web* sur l'iPhone, puis
+Safari sur le Mac → *Développement* → l'iPhone → Tallon.
+
+## 6. Variante Mac : installer avec Xcode (sans CI ni Sideloadly)
+
+Sur un Mac équipé de **Xcode** (la seule présence des Command Line Tools ne
+suffit pas), le même projet se compile et s'installe directement, avec un
+identifiant Apple gratuit (*Personal Team*). Les limites du compte gratuit
+(expiration à 7 jours, 3 apps) sont les mêmes.
+
+```bash
+brew install xcodegen
+node ios/copy-web.mjs
+cd ios && xcodegen generate
+open Tallon.xcodeproj
+```
+
+Dans Xcode :
+1. Cible *Tallon* → *Signing & Capabilities* → cocher *Automatically manage
+   signing* et choisir votre identifiant Apple dans *Team*. Si le Bundle ID
+   `fr.projet-tallon.app` est refusé (déjà pris par un autre compte), y ajouter
+   un suffixe, puis le garder identique ensuite : c'est ce qui conserve les
+   réglages.
+2. Brancher l'iPhone, le choisir comme destination, *Run* (⌘R). Activer le mode
+   développeur et faire confiance au certificat comme au § 3.
+3. Pour renouveler, relancer *Run* avant l'expiration, sans réinstaller depuis
+   zéro.
+
+Le dossier `ios/Tallon.xcodeproj` et `ios/www` sont générés et gitignorés :
+après une modification du web, relancer `node ios/copy-web.mjs` avant de
+compiler.
