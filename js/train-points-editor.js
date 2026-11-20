@@ -2,9 +2,14 @@ import { MAIN_ROUTES } from './routes-config.js';
 import { haversineDistance } from './geo.js';
 import {
     buildMasterRoutesDocument,
-    downloadMasterRoutesDocument,
-    loadMasterRoutes
+    downloadMasterRoutesDocument
 } from './master-routes-data.js';
+import {
+    clearMasterRoutesDraft,
+    loadEditableMasterRoutes,
+    writeMasterRoutesDraft
+} from './master-routes-draft.js';
+import { mountEditorShell, readQueryParam, setStatus, showReloadNotice } from './editor-shell.js';
 import {
     getTrainPointCoordinates,
     resetTrainPointCoordinates,
@@ -35,10 +40,16 @@ const coordinateTitle = document.getElementById('train-coordinate-title');
 const coordinateMeta = document.getElementById('train-coordinate-meta');
 const latitudeInput = document.getElementById('train-coordinate-lat');
 const longitudeInput = document.getElementById('train-coordinate-lon');
+const searchInput = document.getElementById('train-point-search');
+
+const shell = mountEditorShell({ active: 'rail-map' });
+const COORDINATE_FIELDS = ['lat', 'lon', 'lat_V1', 'lon_V1', 'lat_V2', 'lon_V2'];
 
 const state = {
     data: null,
     originalData: null,
+    storage: null,
+    draftSavedAt: null,
     contexts: [],
     entries: [],
     selections: new Map(),
@@ -58,8 +69,70 @@ function cloneData(value) {
 }
 
 function showStatus(message, type = '') {
-    statusEl.textContent = message;
-    statusEl.className = type;
+    setStatus(statusEl, message, type);
+}
+
+/**
+ * Brouillon partagé : les extrémités V2 calculées n'y sont pas écrites, elles
+ * sont recalculées au chargement et restent ainsi signalées comme calculées.
+ */
+function saveDraft() {
+    const snapshot = cloneData(state.data);
+    for (const key of state.derivedEndpointKeys) {
+        const point = snapshot.points[key.replace(/::V2$/, '')];
+        if (!point) continue;
+        delete point.lat_V2;
+        delete point.lon_V2;
+    }
+    try {
+        state.draftSavedAt = writeMasterRoutesDraft(state.storage, snapshot, state.originalData);
+    } catch (error) {
+        showStatus(error.message, 'error');
+    }
+    updateDraftBanner();
+}
+
+function updateDraftBanner() {
+    if (!state.draftSavedAt) {
+        shell.hideDraft();
+        return;
+    }
+    shell.showDraft(state.draftSavedAt, [
+        { label: 'Exporter le JSON', kind: 'primary', onClick: exportJson },
+        { label: 'Abandonner le brouillon', kind: 'ghost danger', onClick: discardDraft }
+    ]);
+}
+
+function discardDraft() {
+    if (!confirm('Abandonner le brouillon partagé (positions et durées) et revenir au fichier versionné ?')) return;
+    clearMasterRoutesDraft(state.storage);
+    location.reload();
+}
+
+function coordinatesDifferFromFile(entry) {
+    const original = state.originalData.points[entry.pointId];
+    if (!original) return true;
+    const voie = entry.voie || [...entry.voies][0] || 1;
+    const current = getTrainPointCoordinates(entry.point, voie);
+    const reference = getTrainPointCoordinates(original, voie);
+    return current.lat !== reference.lat || current.lon !== reference.lon;
+}
+
+function exportJson() {
+    try {
+        const endpointValidation = validateStructureEndpoints(
+            state.data.points,
+            TRAIN_EDITOR_MAP_CONFIG.minStructureEndpointDistanceM
+        );
+        if (!endpointValidation.valid) {
+            throw new Error(`Export refusé : ${endpointValidation.errors.join(' ')}`);
+        }
+        const data = buildMasterRoutesDocument(state.data.points, state.data.trajets);
+        downloadMasterRoutesDocument(data);
+        showStatus(`Export JSON validé. ${selectionSummary()}`, 'success');
+    } catch (error) {
+        showStatus(error.message, 'error');
+    }
 }
 
 function routeByConfig(config) {
@@ -157,6 +230,13 @@ function buildEntries() {
         if (pointDifference !== 0) return pointDifference;
         return (left.voie || 0) - (right.voie || 0);
     });
+    // Un brouillon rechargé porte des corrections sans historique de session :
+    // l'écart au fichier est la seule mesure fiable de « modifié ».
+    for (const entry of state.entries) {
+        if (state.derivedEndpointKeys.has(entry.key)) continue;
+        if (coordinatesDifferFromFile(entry)) state.modifiedKeys.add(entry.key);
+        else state.modifiedKeys.delete(entry.key);
+    }
 }
 
 function coordinatesForEntry(entry) {
@@ -166,7 +246,7 @@ function coordinatesForEntry(entry) {
 
 function entryCssVoie(entry) {
     const voie = entry.voie || (entry.voies.size === 1 ? [...entry.voies][0] : null);
-    return voie ? ` voie-${voie}` : '';
+    return voie ? ` dir-${voie}` : '';
 }
 
 function markerGlyph(point) {
@@ -183,7 +263,7 @@ function markerIcon(entry) {
     const needsPositioning = entryNeedsPositioning(entry) ? ' needs-positioning' : '';
     const active = state.activeEntryKey === entry.key ? ' active' : '';
     return L.divIcon({
-        className: `train-map-marker${entryCssVoie(entry)}${modified}${suggested}${needsPositioning}${active}`,
+        className: `map-marker${entryCssVoie(entry)}${modified}${suggested}${needsPositioning}${active}`,
         html: `<span>${markerGlyph(entry.point)}</span>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14]
@@ -354,28 +434,46 @@ function escapeHtml(value) {
 
 function renderList() {
     listEl.innerHTML = '';
+    const query = searchInput.value.trim().toLocaleLowerCase('fr');
     for (const [index, entry] of state.entries.entries()) {
+        if (query && !`${entry.point.name} ${entry.pointId}`.toLocaleLowerCase('fr').includes(query)) continue;
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = `train-point-item${entryCssVoie(entry)}`
-            + `${entry.key === state.activeEntryKey ? ' active' : ''}`
-            + `${state.modifiedKeys.has(entry.key) ? ' modified' : ''}`
-            + `${state.derivedEndpointKeys.has(entry.key) ? ' suggested' : ''}`
-            + `${entryNeedsPositioning(entry) ? ' needs-positioning' : ''}`;
+        button.className = `point-item${entryCssVoie(entry)}`
+            + `${entry.key === state.activeEntryKey ? ' active' : ''}`;
 
         const title = document.createElement('strong');
         title.textContent = `${index + 1}. ${entry.point.name}`;
         const badge = document.createElement('span');
-        badge.className = 'train-voie-badge';
+        badge.className = 'point-item-badge';
         badge.textContent = voieDescription(entry);
         const coordinates = coordinatesForEntry(entry);
         const meta = document.createElement('span');
-        meta.className = 'train-point-meta';
+        meta.className = 'point-item-meta';
         meta.textContent = `${entry.point.type || 'passage'} · ${coordinates.lat.toFixed(6)}, ${coordinates.lon.toFixed(6)}`;
 
+        const flags = document.createElement('span');
+        flags.className = 'point-item-flags';
+        const flag = (className, text) => {
+            const node = document.createElement('span');
+            node.className = `point-flag ${className}`;
+            node.textContent = text;
+            flags.appendChild(node);
+        };
+        if (state.modifiedKeys.has(entry.key)) flag('modified', 'modifié');
+        if (state.derivedEndpointKeys.has(entry.key)) flag('suggested', 'calculé sur la polyline');
+        if (entryNeedsPositioning(entry)) flag('needs-positioning', 'entrée V2 à positionner');
+
         button.append(title, badge, meta);
+        if (flags.children.length) button.appendChild(flags);
         button.addEventListener('click', () => selectEntry(entry.key));
         listEl.appendChild(button);
+    }
+    if (!listEl.children.length) {
+        const empty = document.createElement('p');
+        empty.className = 'map-hint';
+        empty.textContent = 'Aucun repère ne correspond au filtre.';
+        listEl.appendChild(empty);
     }
 }
 
@@ -431,6 +529,7 @@ function updateEntryCoordinates(entry, lat, lon, actionLabel) {
             refreshDerivedStructureEndpoint(entry.pointId);
         }
         state.activeEntryKey = entry.key;
+        saveDraft();
         refreshSelection(false);
         showStatus(`${actionLabel} pour ${entry.point.name}. ${selectionSummary()}`, 'success');
     } catch (error) {
@@ -479,8 +578,9 @@ function resetActiveEntry() {
         );
         if (suggestions.has(entry.pointId)) state.derivedEndpointKeys.add(v2Key);
     }
+    saveDraft();
     refreshSelection(false);
-    showStatus(`${entry.point.name} a retrouvé sa position d’origine. ${selectionSummary()}`, 'success');
+    showStatus(`${entry.point.name} a retrouvé la position du fichier. ${selectionSummary()}`, 'success');
 }
 
 function selectionSummary() {
@@ -506,8 +606,15 @@ async function init() {
         showStatus('La carte n’a pas pu être chargée. Vérifiez la connexion Internet.', 'error');
         return;
     }
-    state.data = await loadMasterRoutes();
-    state.originalData = cloneData(state.data);
+    const loaded = await loadEditableMasterRoutes();
+    state.data = loaded.data;
+    state.originalData = cloneData(loaded.fileData);
+    state.storage = loaded.storage;
+    state.draftSavedAt = loaded.draftSavedAt;
+    updateDraftBanner();
+    shell.onExternalDraftChange(() => showReloadNotice(
+        'Le brouillon a été modifié dans un autre onglet d’éditeur. Rechargez pour repartir de sa dernière version.'
+    ));
     state.railCorridors = await loadRailCorridors(TRAIN_EDITOR_MAP_CONFIG.railDatasetDescriptorUrl);
     applyAutomaticStructureEndpoints();
 
@@ -528,37 +635,41 @@ async function init() {
     map.on('zoomend', updateMarkerDisplayPositions);
 
     renderRouteOptions();
+    const requested = readQueryParam('route');
+    if (state.selections.has(requested)) routeSelect.value = requested;
+    const syncShellRoute = () => shell.setRouteKey(
+        MAIN_ROUTES[routeSelect.value] ? routeSelect.value : state.selections.get(routeSelect.value)?.[0]
+    );
+    syncShellRoute();
     routeSelect.addEventListener('change', () => {
         state.activeEntryKey = null;
+        syncShellRoute();
         refreshSelection();
         showStatus(selectionSummary());
     });
-    document.getElementById('train-editor-export').addEventListener('click', () => {
-        try {
-            const endpointValidation = validateStructureEndpoints(
-                state.data.points,
-                TRAIN_EDITOR_MAP_CONFIG.minStructureEndpointDistanceM
-            );
-            if (!endpointValidation.valid) {
-                throw new Error(`Export refusé : ${endpointValidation.errors.join(' ')}`);
-            }
-            const data = buildMasterRoutesDocument(state.data.points, state.data.trajets);
-            downloadMasterRoutesDocument(data);
-            showStatus(`Export JSON validé. ${selectionSummary()}`, 'success');
-        } catch (error) {
-            showStatus(error.message, 'error');
-        }
-    });
+    searchInput.addEventListener('input', renderList);
+    document.getElementById('train-editor-export').addEventListener('click', exportJson);
     document.getElementById('train-editor-reset').addEventListener('click', () => {
-        if (!state.modifiedKeys.size) return;
-        if (!confirm('Annuler toutes les corrections cartographiques de cette session ?')) return;
-        state.data = cloneData(state.originalData);
+        if (!state.modifiedKeys.size) {
+            showStatus('Aucune position ne diffère du fichier.');
+            return;
+        }
+        if (!confirm('Rétablir toutes les positions du fichier ? Les durées du brouillon sont conservées.')) return;
+        for (const [pointId, point] of Object.entries(state.data.points)) {
+            const original = state.originalData.points[pointId];
+            if (!original) continue;
+            for (const field of COORDINATE_FIELDS) {
+                if (Object.hasOwn(original, field)) point[field] = original[field];
+                else delete point[field];
+            }
+        }
         state.modifiedKeys.clear();
         state.derivedEndpointKeys.clear();
         applyAutomaticStructureEndpoints();
         state.activeEntryKey = null;
+        saveDraft();
         refreshSelection(false);
-        showStatus(`Toutes les corrections ont été annulées. ${selectionSummary()}`, 'success');
+        showStatus(`Positions du fichier rétablies. ${selectionSummary()}`, 'success');
     });
     document.getElementById('train-coordinate-apply').addEventListener('click', () => {
         const entry = state.entries.find(candidate => candidate.key === state.activeEntryKey);

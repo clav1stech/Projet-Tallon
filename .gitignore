@@ -8,6 +8,9 @@ node_modules/
 data/raw/*
 !data/raw/README.md
 
+# Sauvegardes datées prises avant toute correction de données (agent.md § Écriture de données).
+data/backups/
+
 # Dossier d'export généré par python/export.py (voir docs/commands.md)
 /Export/
 

@@ -1,5 +1,74 @@
 # Changelog
 
+## Non publié
+
+### Durées Paris ⇄ Mâcon / Lyon-Part-Dieu / Marseille
+
+- Les totaux des trajets étaient plausibles, mais le temps était mal réparti
+  entre segments : des tronçons de LGV à 500-3 300 km/h jouxtaient des
+  tronçons à 12-90 km/h, et le retard affiché faisait des sauts de 2 à 4 min
+  en les traversant. 108 durées corrigées par `python/fix_route_durations.py`
+  (sauvegarde datée, écriture atomique, refus si les données ont bougé) :
+  - `PAR_LPD_SUD` / `LPD_PAR_NORD` : durées interverties entre Cessein et le
+    passage sous l'A46 ; la LGV de Pasilly au viaduc de la Roche reprend le
+    profil cohérent de `PAR_MAC_SUD`, le solde du bloc revenant au passage
+    sans arrêt à Mâcon-Loché (l'heure de passage à Mâcon est inchangée à
+    l'aller) ; Cessein → Mâcon au retour passe de 270 s (363 km/h) à 392 s,
+    comme à l'aller, d'où un retour plus long de 2 min 07 ;
+  - `MAC_PAR_NORD` : durées décalées d'une ligne de Cluny à Vergigny et de
+    Vaumort à Paris, remises en place (total ramené de 1 h 37 à 1 h 34) ;
+  - Vergigny → canal de Bourgogne en remontée : 35 s au lieu de 20-26 s, son
+    entrée V2 étant à 2,8 km du canal.
+  - `PAR_MRS_SUD` : même tronc commun que Paris → Lyon, mêmes corrections de
+    Pasilly à Mâcon ; total inchangé (3 h 19 min 19 s) ;
+  - `MRS_PAR_NORD` : Valence TGV manquait (Tartaiguille → Claveyson, 55 km
+    en 58 s), si bien que l'arrêt « Valence TGV » proposé par l'app était
+    inopérant ; il est réinséré. Le reste était l'aller retourné avec un
+    décalage d'un segment (la durée suivait le point et non le segment) :
+    Marseille → Mâcon reprend le miroir exact de l'aller, chaque bloc de longs
+    ouvrages étant réparti selon les distances de la voie 2 (leur entrée V2 est
+    à l'autre extrémité), et Mâcon → Paris reprend Lyon → Paris. Total porté de
+    3 h 16 min 18 s à 3 h 18 min 34 s.
+- `KNOWN_ANOMALIES` et `KNOWN_SPEED_ANOMALIES` sont désormais vides.
+
+### Contrôle des vitesses théoriques
+
+- `tests/dataIntegrity.test.js` refuse tout segment dont la vitesse moyenne
+  (distance du moteur, entrées propres à la voie) sort de
+  `ROUTE_SPEED_BOUNDS_KMH` (30-320 km/h, `js/train-config.js`). L'ancienne
+  version des données aurait été rejetée sur 21 segments.
+- `js/route-speed.js` porte ce calcul pour toute l'application d'édition :
+  distance moteur et PK, vitesse moyenne, statut. Le calcul PK de l'éditeur y
+  est déplacé, et lit désormais en kilomètres un PK à deux décimales.
+
+### Atelier d'édition
+
+- Les quatre éditeurs partagent une barre de navigation, un socle visuel
+  clair/sombre (`css/editor.css`, qui remplace `styles.css`,
+  `train-points-editor.css` et les styles en ligne de la carte voiture) et
+  conservent le trajet sélectionné d'une page à l'autre.
+- Nouveau profil de vitesse (`route-profile.html`) : aller et retour
+  superposés, infobulle au survol, segments hors plage surlignés, tableau
+  détaillé avec lien « Corriger » vers le segment dans l'éditeur.
+- Brouillon local partagé par l'éditeur de trajets, le profil et la carte
+  rail : plus aucune modification perdue en rechargeant, et une correction se
+  voit partout avant l'export. Il s'efface de lui-même quand le fichier servi
+  lui devient identique ; l'application ne le lit jamais.
+- Éditeur de trajets : synthèse (durée, distance, vitesses, segments hors
+  plage), bande des vitesses cliquable, durées saisies en secondes ou `m:ss`
+  (Entrée pour passer au segment suivant, flèches pour ajuster), annulation
+  (⌘Z), filtre « anomalies seulement », insertion d'un point au milieu d'un
+  segment avec partage de sa durée, suppression qui reporte la durée au lieu
+  de la perdre et retire le point devenu orphelin, refus de supprimer ou de
+  renommer un point nommé par `MAIN_ROUTES`. Alertes quand la distance PK est
+  plus courte que le vol d'oiseau, ou quand les coordonnées communes d'un
+  point s'écartent de plus de 2 km de son entrée de voie.
+- Cartes : filtre des repères, pastilles d'état lisibles, aide repliable. La
+  carte rail rétablit les positions du fichier sans toucher aux durées ; la
+  carte voiture avertit avant de quitter avec des corrections non appliquées.
+- Les quatre éditeurs sont précachés, donc disponibles hors ligne et dans le
+  conteneur iOS ; le test d'intégrité le vérifie.
+
 ## v3.1.7 - 2026-08-26
 
 ### Continuité des animations

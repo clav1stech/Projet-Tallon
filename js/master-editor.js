@@ -1,673 +1,868 @@
+// js/master-editor.js
+// Éditeur des trajets de data/masterRoutes.normalized.json : points, types,
+// PK et durées entre points. Chaque modification va dans le brouillon partagé
+// des éditeurs (master-routes-draft.js) ; seul l'export JSON, recopié à la main
+// sur le fichier, atteint l'application.
+
 import { MAIN_ROUTES } from './routes-config.js';
+import { buildMasterRoutesDocument, downloadMasterRoutesDocument } from './master-routes-data.js';
 import {
-    buildMasterRoutesDocument,
-    downloadMasterRoutesDocument,
-    loadMasterRoutes
-} from './master-routes-data.js';
-import { getVoieForRoute } from './utils.js';
+    clearMasterRoutesDraft,
+    loadEditableMasterRoutes,
+    writeMasterRoutesDraft
+} from './master-routes-draft.js';
+import {
+    buildRouteSegments,
+    formatDuration,
+    parseDurationInput,
+    routePointCoordinates,
+    summarizeRouteSegments
+} from './route-speed.js';
+import { haversineDistance } from './geo.js';
+import { ROUTE_SPEED_BOUNDS_KMH } from './train-config.js';
+import {
+    mountEditorShell,
+    readQueryParam,
+    setStatus,
+    showReloadNotice
+} from './editor-shell.js';
 
-const state = {
-    routes: [],        // Tous les trajets chargés depuis le JSON
-    globalPoints: {},
-    selectedRouteKey: '',  // Clé dans MAIN_ROUTES (ex: 'PARIS_TO_MACON')
-    dirty: false
-};
-
-const NUMBER_FIELDS = new Set(['lat', 'lon', 'lat_V1', 'lon_V1', 'lat_V2', 'lon_V2', 'durationToNext', 'Vmax', 'altitude', 'longueur']);
-
-const GLOBAL_FIELDS = new Set([
-    'name', 'lat', 'lon', 'type',
-    // non-bifurcation
-    'code_ligne', 'PK', 'longueur',
-    // points directionnels : coordonnées différentes par voie
-    'code_ligne_2', 'PK_V1', 'PK_2_V1', 'PK_V2', 'PK_2_V2',
-    'lat_V1', 'lon_V1', 'lat_V2', 'lon_V2',
-    // commun
-    'Vmax', 'altitude',
-]);
+const UNDO_LIMIT = 60;
+// Une distance PK plus courte que le vol d'oiseau est géométriquement
+// impossible : au-delà de cette marge, une coordonnée ou un PK est faux.
+const PK_SHORTER_THAN_GPS_RATIO = 0.97;
+const PK_CHECK_MIN_KM = 0.3;
+// Coordonnées communes trop loin de l'entrée de voie : elles ne servent qu'en
+// repli, mais trompent l'œil (et la carte) quand elles divergent.
+const SHARED_COORDINATE_DRIFT_KM = 2;
+const SPEED_STRIP_MAX_KMH = 360;
 
 const POINT_TYPES = [
-    { value: 'passage',          label: 'Passage' },
-    { value: 'gare',             label: 'Gare' },
-    { value: 'ouvrage_art',      label: "Ouvrage d'art" },
-    { value: 'bifurcation',      label: 'Bifurcation' },
-    { value: 'poste_aiguillage', label: 'Poste d\'aiguillage (PRS/SEI/PRCI)' },
+    { value: 'passage', label: 'Passage', glyph: '●' },
+    { value: 'gare', label: 'Gare', glyph: 'G' },
+    { value: 'ouvrage_art', label: 'Ouvrage d’art', glyph: '⌢' },
+    { value: 'bifurcation', label: 'Bifurcation', glyph: '⑂' },
+    { value: 'poste_aiguillage', label: 'Poste d’aiguillage (PRS/SEI/PRCI)', glyph: 'S' }
 ];
+
+const STATUS_LABELS = {
+    'too-fast': { label: 'Trop rapide', icon: 'fa-exclamation-triangle' },
+    'too-slow': { label: 'Trop lent', icon: 'fa-hourglass-half' },
+    'no-duration': { label: 'Durée manquante', icon: 'fa-question-circle' }
+};
+
+const OPTIONAL_NUMBER_FIELDS = new Set(['Vmax', 'altitude', 'longueur']);
+const COORDINATE_FIELDS = new Set(['lat', 'lon', 'lat_V1', 'lon_V1', 'lat_V2', 'lon_V2']);
 
 const routePicker = document.getElementById('route-picker');
 const voiePicker = document.getElementById('voie-picker');
+const anomaliesOnly = document.getElementById('anomalies-only');
+const undoButton = document.getElementById('undo-btn');
 const pointsList = document.getElementById('points-list');
-const summaryPoints = document.getElementById('summary-points');
-const summaryDuration = document.getElementById('summary-duration');
-const summaryDistance = document.getElementById('summary-distance');
-const messages = document.getElementById('editor-messages');
-const dirtyIndicator = document.getElementById('dirty-indicator');
+const statsEl = document.getElementById('route-stats');
+const barsEl = document.getElementById('speed-bars');
+const statusEl = document.getElementById('editor-status');
+const profileLink = document.getElementById('profile-link');
 
-document.getElementById('add-point-btn')?.addEventListener('click', () => addPointAtEnd());
-document.getElementById('duplicate-route-btn')?.addEventListener('click', () => duplicateRoute());
-document.getElementById('export-btn')?.addEventListener('click', () => exportJson());
-routePicker?.addEventListener('change', () => {
-    state.selectedRouteKey = routePicker.value;
-    syncVoiePicker();
-    renderTable();
-    updateSummary();
-    clearMessages();
-});
-voiePicker?.addEventListener('change', () => {
-    const route = getSelectedRoute();
-    if (route) {
-        route.voie = Number(voiePicker.value);
-        markDirty();
-        renderTable();
-        updateSummary();
-    }
-});
+const shell = mountEditorShell({ active: 'routes' });
 
-init();
+const state = {
+    data: null,
+    fileData: null,
+    storage: null,
+    routeKey: '',
+    openPointIds: new Set(),
+    undo: [],
+    segments: [],
+    anomalyCursor: -1
+};
 
-async function init() {
+let segmentViews = [];
+let pointViews = [];
+
+// ---------- Accès ----------
+
+function currentRoute() {
+    const config = MAIN_ROUTES[state.routeKey];
+    return config ? state.data.trajets.find(route => route.id === config.masterRouteId) || null : null;
+}
+
+function currentVoie() {
+    return currentRoute()?.voie === 2 ? 2 : 1;
+}
+
+function pointAt(index) {
+    const routePoint = currentRoute()?.points[index];
+    return routePoint ? state.data.points[routePoint.id] : null;
+}
+
+/** Points nommés par la configuration de l'app : les retirer casserait le sélecteur. */
+function appReferences(pointId) {
+    return Object.entries(MAIN_ROUTES)
+        .filter(([, config]) => config.startPointId === pointId
+            || config.endPointId === pointId
+            || config.stopOptions.some(option => option.id === pointId))
+        .map(([, config]) => config.label);
+}
+
+// ---------- Mutations ----------
+
+/**
+ * Point d'entrée unique des modifications : instantané pour l'annulation,
+ * enregistrement du brouillon, puis rendu (complet si la structure change).
+ */
+function commit(mutator, { structural = false } = {}) {
+    const snapshot = JSON.stringify(state.data);
+    const result = mutator();
+    if (result === false) return false;
+    state.undo.push(snapshot);
+    if (state.undo.length > UNDO_LIMIT) state.undo.shift();
+    persist();
+    if (structural) render();
+    else refreshComputed();
+    return true;
+}
+
+function persist() {
+    undoButton.disabled = state.undo.length === 0;
     try {
-        const masterData = await loadMasterRoutes();
-
-        state.globalPoints = masterData.points || {};
-        state.routes = masterData.trajets || [];
-        state.selectedRouteKey = Object.keys(MAIN_ROUTES)[0] || '';
-        renderRoutePicker();
-        syncVoiePicker();
-        renderTable();
-        updateSummary();
-    } catch (e) {
-        showMessage(`Erreur de chargement des master routes : ${e.message}`, 'error');
+        const savedAt = writeMasterRoutesDraft(state.storage, state.data, state.fileData);
+        updateDraftBanner(savedAt);
+    } catch (error) {
+        setStatus(statusEl, `${error.message} La modification reste en mémoire dans cette page.`, 'warning');
     }
 }
 
-function renderRoutePicker() {
-    if (!routePicker) return;
-    routePicker.innerHTML = '';
-    // Piloté par MAIN_ROUTES — source unique, même liste que l'app
-    for (const [key, cfg] of Object.entries(MAIN_ROUTES)) {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = cfg.label;
-        routePicker.appendChild(opt);
-    }
-    routePicker.value = state.selectedRouteKey;
-}
-
-function getSelectedRoute() {
-    const cfg = MAIN_ROUTES[state.selectedRouteKey];
-    if (!cfg) return null;
-    return state.routes.find(r => r.id === cfg.masterRouteId) || null;
-}
-
-function renderTable() {
-    if (!pointsList) return;
-    const route = getSelectedRoute();
-    pointsList.innerHTML = '';
-    if (!route) return;
-
-    const points = route.points || [];
-    points.forEach((routePt, idx) => {
-        const point = { ...state.globalPoints[routePt.id], ...routePt };
-        // --- Point card ---
-        const card = document.createElement('div');
-        card.className = 'point-card';
-
-        const cardHeader = document.createElement('div');
-        cardHeader.className = 'point-card-header';
-
-        const indexBadge = document.createElement('span');
-        indexBadge.className = 'point-index-badge';
-        indexBadge.textContent = idx + 1;
-        cardHeader.appendChild(indexBadge);
-
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'point-card-actions';
-
-        const upBtn = document.createElement('button');
-        upBtn.textContent = '↑';
-        upBtn.title = 'Monter';
-        upBtn.disabled = idx === 0;
-        upBtn.addEventListener('click', () => movePoint(idx, idx - 1));
-
-        const downBtn = document.createElement('button');
-        downBtn.textContent = '↓';
-        downBtn.title = 'Descendre';
-        downBtn.disabled = idx === (points.length - 1);
-        downBtn.addEventListener('click', () => movePoint(idx, idx + 1));
-
-        const delBtn = document.createElement('button');
-        delBtn.textContent = '🗑️';
-        delBtn.title = 'Supprimer';
-        delBtn.addEventListener('click', () => {
-            if (confirm(`Supprimer le point ${point.name || point.id} ?`)) {
-                deletePoint(idx);
-            }
-        });
-
-        actionsDiv.appendChild(upBtn);
-        actionsDiv.appendChild(downBtn);
-        actionsDiv.appendChild(delBtn);
-        cardHeader.appendChild(actionsDiv);
-        card.appendChild(cardHeader);
-
-        const cardFields = document.createElement('div');
-        cardFields.className = 'point-card-fields';
-
-        cardFields.appendChild(labeledInput('ID', 'text', point.id, val => updatePoint(idx, 'id', val)));
-        cardFields.appendChild(labeledInput('Nom', 'text', point.name, val => updatePoint(idx, 'name', val)));
-        cardFields.appendChild(labeledInput('Lat', 'number', point.lat, val => updatePoint(idx, 'lat', val), '0.00001'));
-        cardFields.appendChild(labeledInput('Lon', 'number', point.lon, val => updatePoint(idx, 'lon', val), '0.00001'));
-        cardFields.appendChild(labeledTypeSelect(point.type || 'passage', newType => changePointType(idx, newType)));
-        renderTypeFields(cardFields, point, idx);
-        cardFields.appendChild(labeledInput('Vmax (km/h)', 'number', point.Vmax, val => updatePoint(idx, 'Vmax', val), '1'));
-        cardFields.appendChild(labeledInput('Altitude (m)', 'number', point.altitude, val => updatePoint(idx, 'altitude', val), '1'));
-
-        card.appendChild(cardFields);
-        pointsList.appendChild(card);
-
-        // --- Segment connector (not after last point) ---
-        if (idx < points.length - 1) {
-            const seg = document.createElement('div');
-            seg.className = 'segment-connector';
-
-            const nextRoutePt = points[idx + 1];
-            const nextPoint = { ...state.globalPoints[nextRoutePt.id], ...nextRoutePt };
-            const voie = getVoieForRoute(route) || 1;
-            const pkCalc = calcSegmentFromPK(point, nextPoint, voie);
-
-            // Warn if code_ligne_2 of this point doesn't match code_ligne of next (when both have data)
-            const normA = normalizeForPK(point, voie);
-            const normB = normalizeForPK(nextPoint, voie);
-            const hasLineChangeMismatch = normA.code_ligne_2 && normB.code_ligne
-                && normA.code_ligne_2 !== normB.code_ligne
-                && normA.code_ligne !== normB.code_ligne;
-
-            const duration = Number(point.durationToNext || 0);
-            // Distance : PK si disponible, sinon Haversine (lecture seule — non persisté)
-            const distance = pkCalc !== null ? pkCalc.distance : Math.round(haversineMeters(point.lat, point.lon, nextPoint.lat, nextPoint.lon));
-            const speedKmh = duration > 0 ? (distance / 1000) / (duration / 3600) : 0;
-            const gpsDistance = haversineMeters(point.lat, point.lon, nextPoint.lat, nextPoint.lon);
-
-            const segFields = document.createElement('div');
-            segFields.className = 'segment-fields';
-
-            const durationWrap = document.createElement('div');
-            durationWrap.className = 'segment-field';
-            const durationLabel = document.createElement('span');
-            durationLabel.className = 'segment-label';
-            durationLabel.textContent = 'Durée (s)';
-            const durationInput = document.createElement('input');
-            durationInput.type = 'number';
-            durationInput.value = duration;
-            durationInput.step = '1';
-            durationInput.addEventListener('change', e => {
-                updatePoint(idx, 'durationToNext', e.target.value);
-                renderTable();
-            });
-            durationWrap.appendChild(durationLabel);
-            durationWrap.appendChild(durationInput);
-
-            const distanceWrap = document.createElement('div');
-            distanceWrap.className = 'segment-field';
-            const distanceLabel = document.createElement('span');
-            distanceLabel.className = 'segment-label';
-            distanceLabel.textContent = 'Distance (m)';
-            if (pkCalc !== null) {
-                const distanceReadonly = document.createElement('span');
-                distanceReadonly.className = 'segment-speed-value';
-                const lineTag = pkCalc.isLineChange
-                    ? `<small style="color:#FF9800;font-weight:600">⚡ ${pkCalc.lineCode} (chgt ligne)</small>`
-                    : `<small style="color:#4CAF50;font-weight:600">⚡ ${pkCalc.lineCode}</small>`;
-                distanceReadonly.innerHTML = `${pkCalc.distance} ${lineTag}`;
-                distanceWrap.appendChild(distanceLabel);
-                distanceWrap.appendChild(distanceReadonly);
-            } else {
-                // Pas de PK calculable : affichage Haversine en lecture seule (non persisté)
-                const distanceReadonly = document.createElement('span');
-                distanceReadonly.className = 'segment-speed-value';
-                distanceReadonly.innerHTML = `${distance} <small style="color:#9E9E9E">GPS</small>`;
-                distanceWrap.appendChild(distanceLabel);
-                distanceWrap.appendChild(distanceReadonly);
-            }
-
-            const speedWrap = document.createElement('div');
-            speedWrap.className = 'segment-field segment-speed';
-            const speedLabel = document.createElement('span');
-            speedLabel.className = 'segment-label';
-            speedLabel.textContent = 'Vitesse moy.';
-            const speedValue = document.createElement('span');
-            speedValue.className = 'segment-speed-value';
-            speedValue.textContent = `${speedKmh.toFixed(1)} km/h`;
-            speedWrap.appendChild(speedLabel);
-            speedWrap.appendChild(speedValue);
-
-            const gpsWrap = document.createElement('div');
-            gpsWrap.className = 'segment-field segment-speed';
-            const gpsLabel = document.createElement('span');
-            gpsLabel.className = 'segment-label';
-            gpsLabel.textContent = 'Dist. GPS';
-            const gpsValue = document.createElement('span');
-            gpsValue.className = 'segment-speed-value';
-            const gpsFormatted = gpsDistance >= 1000
-                ? `${(gpsDistance / 1000).toFixed(2)} km`
-                : `${Math.round(gpsDistance)} m`;
-            const ratio = distance > 0 ? (gpsDistance / distance).toFixed(2) : '–';
-            gpsValue.textContent = `${gpsFormatted} (×${ratio})`;
-            gpsWrap.appendChild(gpsLabel);
-            gpsWrap.appendChild(gpsValue);
-
-            segFields.appendChild(durationWrap);
-            segFields.appendChild(distanceWrap);
-            segFields.appendChild(gpsWrap);
-            segFields.appendChild(speedWrap);
-            seg.appendChild(segFields);
-
-            if (hasLineChangeMismatch) {
-                const warn = document.createElement('div');
-                warn.style.cssText = 'color:#e53935;font-size:0.8em;padding:2px 8px;';
-                warn.textContent = `⚠ code_ligne_2 "${normA.code_ligne_2}" ≠ code_ligne suivant "${normB.code_ligne}"`;
-                seg.appendChild(warn);
-            }
-
-            pointsList.appendChild(seg);
-        }
-    });
-}
-
-function labeledTypeSelect(currentType, onChange) {
-    const wrap = document.createElement('div');
-    wrap.className = 'point-field point-field--type';
-    const lbl = document.createElement('span');
-    lbl.className = 'point-field-label';
-    lbl.textContent = 'Type';
-    const select = document.createElement('select');
-    select.className = 'point-type-select';
-    for (const t of POINT_TYPES) {
-        const opt = document.createElement('option');
-        opt.value = t.value;
-        opt.textContent = t.label;
-        if (t.value === currentType) opt.selected = true;
-        select.appendChild(opt);
-    }
-    select.addEventListener('change', e => onChange(e.target.value));
-    wrap.appendChild(lbl);
-    wrap.appendChild(select);
-    return wrap;
-}
-
-function renderTypeFields(container, point, idx) {
-    const type = point.type || 'passage';
-
-    if (type === 'bifurcation') {
-        // Lignes communes aux deux voies
-        container.appendChild(labeledInput('Code ligne', 'text', point.code_ligne, val => { updatePoint(idx, 'code_ligne', val); renderTable(); }));
-        container.appendChild(labeledInput('Code ligne 2', 'text', point.code_ligne_2, val => { updatePoint(idx, 'code_ligne_2', val); renderTable(); }));
-        // PK et coordonnées différents par voie
-        const groups = [
-            { label: 'Voie 1', pkFld: 'PK_V1', pk2Fld: 'PK_2_V1', latFld: 'lat_V1', lonFld: 'lon_V1' },
-            { label: 'Voie 2', pkFld: 'PK_V2', pk2Fld: 'PK_2_V2', latFld: 'lat_V2', lonFld: 'lon_V2' },
-        ];
-        for (const g of groups) {
-            const groupDiv = document.createElement('div');
-            groupDiv.className = 'point-field-group';
-            const title = document.createElement('span');
-            title.className = 'point-field-group-title';
-            title.textContent = g.label;
-            groupDiv.appendChild(title);
-            groupDiv.appendChild(labeledInput('PK', 'text', point[g.pkFld], val => { updatePoint(idx, g.pkFld, val); renderTable(); }));
-            groupDiv.appendChild(labeledInput('PK 2', 'text', point[g.pk2Fld], val => { updatePoint(idx, g.pk2Fld, val); renderTable(); }));
-            groupDiv.appendChild(labeledInput('Lat', 'number', point[g.latFld], val => { updatePoint(idx, g.latFld, val); }, '0.00001'));
-            groupDiv.appendChild(labeledInput('Lon', 'number', point[g.lonFld], val => { updatePoint(idx, g.lonFld, val); }, '0.00001'));
-            container.appendChild(groupDiv);
-        }
+function updateDraftBanner(savedAt) {
+    if (!savedAt) {
+        shell.hideDraft();
         return;
     }
+    shell.showDraft(savedAt, [
+        { label: 'Exporter le JSON', kind: 'primary', onClick: exportJson },
+        { label: 'Abandonner le brouillon', kind: 'ghost danger', onClick: discardDraft }
+    ]);
+}
 
-    container.appendChild(labeledInput('Code ligne', 'text', point.code_ligne, val => { updatePoint(idx, 'code_ligne', val); renderTable(); }));
-    container.appendChild(labeledInput('PK', 'text', point.PK, val => { updatePoint(idx, 'PK', val); renderTable(); }));
-    if (type === 'ouvrage_art') {
-        container.appendChild(labeledInput('Longueur (m)', 'number', point.longueur, val => updatePoint(idx, 'longueur', val), '1'));
-        for (const voie of [1, 2]) {
-            const groupDiv = document.createElement('div');
-            groupDiv.className = 'point-field-group';
-            const title = document.createElement('span');
-            title.className = 'point-field-group-title';
-            title.textContent = `Entrée voie ${voie}`;
-            groupDiv.appendChild(title);
-            groupDiv.appendChild(labeledInput(
-                'Lat', 'number', point[`lat_V${voie}`],
-                val => updatePoint(idx, `lat_V${voie}`, val), '0.00001'
-            ));
-            groupDiv.appendChild(labeledInput(
-                'Lon', 'number', point[`lon_V${voie}`],
-                val => updatePoint(idx, `lon_V${voie}`, val), '0.00001'
-            ));
-            container.appendChild(groupDiv);
+function undo() {
+    const snapshot = state.undo.pop();
+    if (!snapshot) return;
+    state.data = JSON.parse(snapshot);
+    persist();
+    render();
+    setStatus(statusEl, 'Dernière modification annulée.', 'success');
+}
+
+function discardDraft() {
+    if (!confirm('Abandonner le brouillon et revenir au fichier versionné ? Les modifications non exportées seront perdues.')) return;
+    clearMasterRoutesDraft(state.storage);
+    state.data = structuredClone(state.fileData);
+    state.undo = [];
+    persist();
+    render();
+    setStatus(statusEl, 'Brouillon abandonné : retour au fichier versionné.', 'success');
+}
+
+function setPointField(index, field, rawValue) {
+    const routePoint = currentRoute()?.points[index];
+    const point = pointAt(index);
+    if (!point) return;
+    const text = String(rawValue ?? '').trim();
+
+    if (COORDINATE_FIELDS.has(field)) {
+        if (text === '' && field.includes('_V')) {
+            const axisPartner = field.startsWith('lat') ? field.replace('lat', 'lon') : field.replace('lon', 'lat');
+            commit(() => { delete point[field]; delete point[axisPartner]; });
+            setStatus(statusEl, `Entrée ${field.slice(-2)} retirée : la voie se replie sur les coordonnées communes.`, 'success');
+            render();
+            return;
         }
+        const value = Number(text.replace(',', '.'));
+        const limit = field.startsWith('lat') ? 90 : 180;
+        if (!Number.isFinite(value) || Math.abs(value) > limit) {
+            setStatus(statusEl, `Coordonnée invalide pour ${field} : ${text || 'vide'}.`, 'error');
+            refreshComputed();
+            return;
+        }
+        commit(() => { point[field] = value; });
+        return;
     }
+    if (OPTIONAL_NUMBER_FIELDS.has(field)) {
+        const value = text === '' ? null : Number(text.replace(',', '.'));
+        if (value !== null && !Number.isFinite(value)) {
+            setStatus(statusEl, `Valeur numérique invalide pour ${field}.`, 'error');
+            return;
+        }
+        commit(() => { point[field] = value; });
+        return;
+    }
+    if (field === 'name' && !text) {
+        setStatus(statusEl, 'Un point doit garder un nom.', 'error');
+        refreshComputed();
+        return;
+    }
+    if (routePoint && field === 'id') {
+        renamePoint(routePoint.id, text);
+        return;
+    }
+    commit(() => { point[field] = text; });
+}
+
+function renamePoint(oldId, rawId) {
+    const newId = rawId.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+    if (!newId || newId === oldId) return;
+    if (state.data.points[newId]) {
+        setStatus(statusEl, `L’identifiant ${newId} existe déjà.`, 'error');
+        render();
+        return;
+    }
+    const references = appReferences(oldId);
+    if (references.length) {
+        setStatus(statusEl, `${oldId} est nommé dans js/routes-config.js (${references.join(', ')}) : `
+            + 'renommez-le aussi là-bas, puis ici.', 'error');
+        render();
+        return;
+    }
+    commit(() => {
+        state.data.points[newId] = state.data.points[oldId];
+        delete state.data.points[oldId];
+        for (const route of state.data.trajets) {
+            for (const routePoint of route.points) if (routePoint.id === oldId) routePoint.id = newId;
+        }
+        if (state.openPointIds.delete(oldId)) state.openPointIds.add(newId);
+    }, { structural: true });
+    setStatus(statusEl, `${oldId} renommé en ${newId} dans tous les trajets.`, 'success');
 }
 
 /**
- * Change le type d'un point et migre ses champs PK/code_ligne en conséquence.
- * - → bifurcation : copie code_ligne → V1+V2, PK → V1+V2, idem pour _2
- * - bifurcation → autre : copie V1 → code_ligne/PK, supprime les champs V2
+ * Change le type d'un point en migrant ses champs : une bifurcation porte ses
+ * PK et coordonnées par voie, un ouvrage d'art ses entrées par voie.
  */
-function changePointType(idx, newType) {
-    const route = getSelectedRoute();
-    if (!route) return;
-    const ptId = route.points[idx].id;
-    const gp = state.globalPoints[ptId];
-    if (!gp) return;
-
-    const oldType = gp.type || 'passage';
-    if (oldType === newType) return;
-
-    if (newType === 'bifurcation') {
-        // code_ligne reste, PK → PK_V1 = PK_V2 (à affiner manuellement), idem pour _2
-        const pk  = gp.PK  ?? '';
-        delete gp.PK; delete gp.longueur;
-        gp.code_ligne_2 = '';
-        gp.PK_V1   = pk;  gp.PK_V2   = pk;
-        gp.PK_2_V1 = '';  gp.PK_2_V2 = '';
-        // Initialiser lat/lon par voie avec la valeur commune (à affiner manuellement)
-        gp.lat_V1 = gp.lat ?? null; gp.lon_V1 = gp.lon ?? null;
-        gp.lat_V2 = gp.lat ?? null; gp.lon_V2 = gp.lon ?? null;
-    } else if (oldType === 'bifurcation') {
-        // Garde PK_V1 et lat_V1/lon_V1 comme valeurs principales
-        const pk = gp.PK_V1 ?? '';
-        if (gp.lat_V1 != null) { gp.lat = gp.lat_V1; gp.lon = gp.lon_V1; }
-        delete gp.code_ligne_2;
-        delete gp.PK_V1; delete gp.PK_V2;
-        delete gp.PK_2_V1; delete gp.PK_2_V2;
-        delete gp.lat_V1; delete gp.lon_V1;
-        delete gp.lat_V2; delete gp.lon_V2;
-        gp.PK     = pk;
-        gp.longueur = null;
-    } else if (oldType === 'ouvrage_art' && newType !== 'ouvrage_art') {
-        gp.longueur = null;
-        delete gp.lat_V1; delete gp.lon_V1;
-        delete gp.lat_V2; delete gp.lon_V2;
-    }
-
-    gp.type = newType;
-    markDirty();
-    renderTable();
-    updateSummary();
-}
-
-function labeledInput(label, type, value, onChange, step = null) {
-    const wrap = document.createElement('div');
-    wrap.className = 'point-field';
-    const lbl = document.createElement('span');
-    lbl.className = 'point-field-label';
-    lbl.textContent = label;
-    const input = document.createElement('input');
-    input.type = type;
-    input.value = value ?? '';
-    if (step) input.step = step;
-    if (type === 'number') input.inputMode = 'decimal';
-    input.addEventListener('change', e => onChange(e.target.value));
-    wrap.appendChild(lbl);
-    wrap.appendChild(input);
-    return wrap;
-}
-
-function updatePoint(index, field, rawValue) {
-    const route = getSelectedRoute();
-    if (!route) return;
-
-    let value = rawValue;
-    if (NUMBER_FIELDS.has(field)) {
-        value = Number(rawValue);
-        if (!Number.isFinite(value)) {
-            showMessage(`Valeur numérique invalide pour ${field}`, 'error');
-            renderTable();
-            return;
-        }
-    }
-
-    const ptId = route.points[index].id;
-
-    if (field === 'id') {
-        // Cascade : renommer la clé dans globalPoints puis mettre à jour tous les points de toutes les routes
-        if (state.globalPoints[ptId]) {
-            state.globalPoints[value] = state.globalPoints[ptId];
-            delete state.globalPoints[ptId];
-        }
-        for (const r of state.routes) {
-            for (const pt of r.points || []) {
-                if (pt.id === ptId) pt.id = value;
+function changePointType(index, newType) {
+    const point = pointAt(index);
+    if (!point || (point.type || 'passage') === newType) return;
+    commit(() => {
+        const oldType = point.type || 'passage';
+        if (newType === 'bifurcation') {
+            const pk = point.PK ?? '';
+            delete point.PK;
+            delete point.longueur;
+            Object.assign(point, { code_ligne_2: '', PK_V1: pk, PK_V2: pk, PK_2_V1: '', PK_2_V2: '' });
+            for (const voie of [1, 2]) {
+                point[`lat_V${voie}`] ??= point.lat;
+                point[`lon_V${voie}`] ??= point.lon;
             }
+        } else if (oldType === 'bifurcation') {
+            const pk = point.PK_V1 ?? '';
+            if (Number.isFinite(point.lat_V1)) { point.lat = point.lat_V1; point.lon = point.lon_V1; }
+            for (const field of ['code_ligne_2', 'PK_V1', 'PK_V2', 'PK_2_V1', 'PK_2_V2', 'lat_V1', 'lon_V1', 'lat_V2', 'lon_V2']) {
+                delete point[field];
+            }
+            point.PK = pk;
+            point.longueur = null;
         }
-    } else if (GLOBAL_FIELDS.has(field)) {
-        if (!state.globalPoints[ptId]) state.globalPoints[ptId] = {};
-        state.globalPoints[ptId][field] = value;
-    } else {
-        route.points[index][field] = value;
-    }
-
-    markDirty();
-    updateSummary();
+        if (oldType === 'ouvrage_art' && newType !== 'ouvrage_art' && newType !== 'bifurcation') {
+            point.longueur = null;
+            for (const field of ['lat_V1', 'lon_V1', 'lat_V2', 'lon_V2']) delete point[field];
+        }
+        point.type = newType;
+    }, { structural: true });
 }
 
-function addPointAtEnd() {
-    const route = getSelectedRoute();
+function setDuration(index, seconds) {
+    const routePoint = currentRoute()?.points[index];
+    if (!routePoint || routePoint.durationToNext === seconds) return;
+    commit(() => { routePoint.durationToNext = seconds; });
+}
+
+function newPointId() {
+    let id = `NOUVEAU_POINT_${Date.now().toString(36).toUpperCase()}`;
+    while (state.data.points[id]) id += '_';
+    return id;
+}
+
+/**
+ * Insère un point après `index`, au milieu du segment, qui se partage la
+ * durée : les vitesses voisines restent plausibles et le total ne bouge pas.
+ */
+function insertPointAfter(index) {
+    const route = currentRoute();
     if (!route) return;
-    const newId = `NEW_${Date.now()}`;
-    state.globalPoints[newId] = {
-        name: 'Nouveau point',
-        lat: 0,
-        lon: 0,
-        type: 'passage',
-        code_ligne: '',
-        PK: '',
-        longueur: null,
-        Vmax: null,
-        altitude: null
-    };
-    route.points.push({ id: newId, durationToNext: 0 });
-    markDirty();
-    renderTable();
-    updateSummary();
+    const voie = currentVoie();
+    const from = routePointCoordinates(pointAt(index), voie);
+    const isLast = index === route.points.length - 1;
+    const to = isLast ? { lat: from.lat - 0.01, lon: from.lon } : routePointCoordinates(pointAt(index + 1), voie);
+    const id = newPointId();
+    commit(() => {
+        state.data.points[id] = {
+            name: 'Nouveau point',
+            lat: Number(((from.lat + to.lat) / 2).toFixed(6)),
+            lon: Number(((from.lon + to.lon) / 2).toFixed(6)),
+            type: 'passage',
+            code_ligne: '',
+            PK: '',
+            Vmax: null,
+            altitude: null,
+            longueur: null
+        };
+        const duration = Number(route.points[index].durationToNext) || 0;
+        const first = isLast ? 60 : Math.round(duration / 2);
+        route.points[index].durationToNext = first;
+        route.points.splice(index + 1, 0, { id, durationToNext: isLast ? 0 : duration - first });
+        state.openPointIds.add(id);
+    }, { structural: true });
+    setStatus(statusEl, 'Point inséré au milieu du segment, durée partagée : renseignez son nom, ses coordonnées et son PK.', 'success');
+    pointViews[index + 1]?.row.querySelector('input[data-field="name"]')?.focus();
 }
 
 function deletePoint(index) {
-    const route = getSelectedRoute();
-    if (!route) return;
-    route.points.splice(index, 1);
-    markDirty();
-    renderTable();
-    updateSummary();
+    const route = currentRoute();
+    const routePoint = route?.points[index];
+    if (!routePoint) return;
+    const point = state.data.points[routePoint.id];
+    const references = appReferences(routePoint.id);
+    if (references.length) {
+        setStatus(statusEl, `${point.name} est un départ, un terminus ou un arrêt proposé par l’app `
+            + `(${references.join(', ')}) : retirez-le d’abord de js/routes-config.js.`, 'error');
+        return;
+    }
+    if (route.points.length <= 2) {
+        setStatus(statusEl, 'Un trajet garde au moins deux points.', 'error');
+        return;
+    }
+    const carried = index > 0 && index < route.points.length - 1 ? Number(routePoint.durationToNext) || 0 : 0;
+    const question = carried
+        ? `Retirer « ${point.name} » du trajet ? Sa durée (${formatDuration(carried)}) est reportée sur le segment précédent.`
+        : `Retirer « ${point.name} » du trajet ?`;
+    if (!confirm(question)) return;
+    commit(() => {
+        if (carried) route.points[index - 1].durationToNext += carried;
+        route.points.splice(index, 1);
+        const stillUsed = state.data.trajets.some(other => other.points.some(item => item.id === routePoint.id));
+        if (!stillUsed) delete state.data.points[routePoint.id];
+    }, { structural: true });
+    setStatus(statusEl, `${point.name} retiré${carried ? ', durée reportée sur le segment précédent' : ''}.`, 'success');
 }
 
-function movePoint(fromIdx, toIdx) {
-    const route = getSelectedRoute();
-    if (!route) return;
-    if (toIdx < 0 || toIdx >= route.points.length) return;
-    const [item] = route.points.splice(fromIdx, 1);
-    route.points.splice(toIdx, 0, item);
-    markDirty();
-    renderTable();
-    updateSummary();
+function movePoint(index, offset) {
+    const route = currentRoute();
+    const target = index + offset;
+    if (!route || target < 0 || target >= route.points.length) return;
+    commit(() => {
+        const [item] = route.points.splice(index, 1);
+        route.points.splice(target, 0, item);
+    }, { structural: true });
+    const touched = [target - 1, target, index - 1, index].filter(i => i >= 0 && i < segmentViews.length);
+    for (const i of new Set(touched)) flash(segmentViews[i].row);
+    setStatus(statusEl, 'Point déplacé. Chaque durée reste attachée à son point de départ : vérifiez les segments surlignés.', 'warning');
 }
 
 function duplicateRoute() {
-    const route = getSelectedRoute();
+    const route = currentRoute();
     if (!route) return;
-    const copy = JSON.parse(JSON.stringify(route));
-    const newId = `${route.id}_COPY`;
-    copy.id = newId;
-    copy.name = `${route.name || route.id} (copie)`;
-    state.routes.push(copy);
-    markDirty();
-    showMessage(`Trajet "${newId}" créé dans l'export JSON. Pour l'ajouter au sélecteur, ajoutez-le dans js/routes-config.js.`, 'info');
+    let id = `${route.id}_COPIE`;
+    for (let n = 2; state.data.trajets.some(other => other.id === id); n++) id = `${route.id}_COPIE_${n}`;
+    commit(() => {
+        state.data.trajets.push({ ...structuredClone(route), id, name: `${route.name || route.id} (copie)` });
+    });
+    setStatus(statusEl, `Trajet ${id} ajouté à l’export. Pour le proposer dans l’app, déclarez-le dans js/routes-config.js.`, 'success');
 }
 
 function exportJson() {
     try {
-        const data = buildMasterRoutesDocument(state.globalPoints, state.routes);
-        downloadMasterRoutesDocument(data);
-        showMessage('Export validé et réalisé. Remplacez data/masterRoutes.normalized.json avec ce fichier pour mettre à jour l\'app et l\'éditeur.', 'success');
-        clearDirty();
+        const document_ = buildMasterRoutesDocument(state.data.points, state.data.trajets);
+        downloadMasterRoutesDocument(document_);
+        const outOfRange = state.data.trajets.flatMap(route =>
+            buildRouteSegments(state.data.points, route).filter(segment => segment.status !== 'ok'));
+        const note = outOfRange.length
+            ? ` ${outOfRange.length} segment${outOfRange.length > 1 ? 's restent' : ' reste'} hors de la plage `
+                + `${ROUTE_SPEED_BOUNDS_KMH.min}–${ROUTE_SPEED_BOUNDS_KMH.max} km/h (tous trajets confondus).`
+            : '';
+        setStatus(statusEl, 'Export validé : remplacez data/masterRoutes.normalized.json par ce fichier. '
+            + `Le brouillon s’effacera de lui-même une fois le fichier à jour.${note}`, outOfRange.length ? 'warning' : 'success');
     } catch (error) {
-        showMessage(error.message, 'error');
+        setStatus(statusEl, error.message, 'error');
     }
 }
 
-function syncVoiePicker() {
-    if (!voiePicker) return;
-    const route = getSelectedRoute();
-    voiePicker.value = String(getVoieForRoute(route) || 1);
+// ---------- Rendu ----------
+
+function element(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
 }
 
-function updateSummary() {
-    const route = getSelectedRoute();
-    if (!route) return;
-    const points = route.points || [];
-    // Le dernier point est le terminus : son durationToNext est ignoré par buildEffectiveRoute
-    const totalDuration = points.slice(0, -1).reduce((sum, p) => sum + Number(p.durationToNext || 0), 0);
+function iconButton(iconName, label, onClick, extraClass = '') {
+    const button = element('button', `icon-btn ${extraClass}`.trim());
+    button.type = 'button';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    const glyph = element('i', `fas ${iconName}`);
+    glyph.setAttribute('aria-hidden', 'true');
+    button.appendChild(glyph);
+    button.addEventListener('click', onClick);
+    return button;
+}
 
-    // Distance totale calculée par Haversine (non persistée)
-    let totalDistanceKm = 0;
-    for (let i = 0; i < points.length - 1; i++) {
-        const a = { ...state.globalPoints[points[i].id], ...points[i] };
-        const b = { ...state.globalPoints[points[i + 1].id], ...points[i + 1] };
-        if (typeof a.lat === 'number' && typeof b.lat === 'number') {
-            totalDistanceKm += haversineMeters(a.lat, a.lon, b.lat, b.lon) / 1000;
+function inputField(label, field, value, { index, type = 'text', step, placeholder } = {}) {
+    const wrap = element('label', 'field');
+    const input = element('input');
+    input.type = type;
+    input.value = value ?? '';
+    input.dataset.field = field;
+    if (step) input.step = step;
+    if (placeholder) input.placeholder = placeholder;
+    if (type === 'number') input.inputMode = 'decimal';
+    input.addEventListener('change', () => setPointField(index, field, input.value));
+    wrap.append(element('span', '', label), input);
+    return wrap;
+}
+
+function typeField(index, currentType) {
+    const wrap = element('label', 'field');
+    const select = element('select');
+    for (const type of POINT_TYPES) {
+        const option = element('option', '', type.label);
+        option.value = type.value;
+        option.selected = type.value === currentType;
+        select.appendChild(option);
+    }
+    select.addEventListener('change', () => changePointType(index, select.value));
+    wrap.append(element('span', '', 'Type'), select);
+    return wrap;
+}
+
+function fieldGroup(title, fields) {
+    const group = element('div', 'field-group');
+    const grid = element('div', 'field-grid');
+    grid.append(...fields);
+    group.append(element('span', 'field-group-title', title), grid);
+    return group;
+}
+
+function renderDetails(index, point) {
+    const details = element('div', 'point-details');
+    const type = point.type || 'passage';
+    const common = element('div', 'field-grid');
+    common.append(
+        inputField('Identifiant', 'id', currentRoute().points[index].id, { index }),
+        inputField('Nom', 'name', point.name, { index }),
+        typeField(index, type),
+        inputField('Latitude commune', 'lat', point.lat, { index, type: 'number', step: '0.000001' }),
+        inputField('Longitude commune', 'lon', point.lon, { index, type: 'number', step: '0.000001' }),
+        inputField('Vmax (km/h)', 'Vmax', point.Vmax, { index, type: 'number', step: '1' }),
+        inputField('Altitude (m)', 'altitude', point.altitude, { index, type: 'number', step: '1' })
+    );
+    details.appendChild(common);
+
+    const groups = element('div', 'field-groups');
+    if (type === 'bifurcation') {
+        const lines = element('div', 'field-grid');
+        lines.append(
+            inputField('Code ligne', 'code_ligne', point.code_ligne, { index }),
+            inputField('Code ligne 2', 'code_ligne_2', point.code_ligne_2, { index })
+        );
+        details.appendChild(lines);
+        for (const voie of [1, 2]) {
+            groups.appendChild(fieldGroup(`Voie ${voie}`, [
+                inputField('PK', `PK_V${voie}`, point[`PK_V${voie}`], { index, placeholder: '123,456' }),
+                inputField('PK ligne 2', `PK_2_V${voie}`, point[`PK_2_V${voie}`], { index, placeholder: '123,456' }),
+                inputField('Latitude', `lat_V${voie}`, point[`lat_V${voie}`], { index, type: 'number', step: '0.000001', placeholder: 'commune' }),
+                inputField('Longitude', `lon_V${voie}`, point[`lon_V${voie}`], { index, type: 'number', step: '0.000001', placeholder: 'commune' })
+            ]));
+        }
+    } else {
+        const lines = element('div', 'field-grid');
+        lines.append(
+            inputField('Code ligne', 'code_ligne', point.code_ligne, { index }),
+            inputField('PK', 'PK', point.PK, { index, placeholder: '123,456' })
+        );
+        if (type === 'ouvrage_art') {
+            lines.appendChild(inputField('Longueur (m)', 'longueur', point.longueur, { index, type: 'number', step: '1' }));
+        }
+        details.appendChild(lines);
+        if (type === 'ouvrage_art') {
+            for (const voie of [1, 2]) {
+                groups.appendChild(fieldGroup(`Entrée voie ${voie}`, [
+                    inputField('Latitude', `lat_V${voie}`, point[`lat_V${voie}`], { index, type: 'number', step: '0.000001', placeholder: 'commune' }),
+                    inputField('Longitude', `lon_V${voie}`, point[`lon_V${voie}`], { index, type: 'number', step: '0.000001', placeholder: 'commune' })
+                ]));
+            }
         }
     }
-
-    if (summaryPoints) summaryPoints.textContent = points.length.toString();
-    if (summaryDuration) summaryDuration.textContent = formatMinutes(totalDuration);
-    if (summaryDistance) summaryDistance.textContent = `${totalDistanceKm.toFixed(1)} km`;
+    if (groups.children.length) details.appendChild(groups);
+    details.appendChild(element('p', 'segment-warning point-drift'));
+    return details;
 }
 
-function markDirty() {
-    state.dirty = true;
-    if (dirtyIndicator) dirtyIndicator.style.display = 'inline-flex';
+function pointMetaText(routePoint, point) {
+    const pk = point.type === 'bifurcation'
+        ? [point.PK_V1, point.PK_V2].filter(Boolean).join(' / ')
+        : point.PK;
+    const parts = [POINT_TYPES.find(type => type.value === (point.type || 'passage'))?.label || point.type];
+    if (point.code_ligne) parts.push(`ligne ${point.code_ligne}${point.code_ligne_2 ? ` → ${point.code_ligne_2}` : ''}`);
+    if (pk) parts.push(`PK ${pk}`);
+    return parts.join(' · ');
 }
 
-function clearDirty() {
-    state.dirty = false;
-    if (dirtyIndicator) dirtyIndicator.style.display = 'none';
-}
+function renderPointRow(routePoint, index, total) {
+    const point = state.data.points[routePoint.id] || { name: routePoint.id };
+    const row = element('li', `point-row${state.openPointIds.has(routePoint.id) ? ' is-open' : ''}`);
+    row.dataset.point = String(index);
+    const head = element('div', 'point-head');
 
-function showMessage(text, type = 'info') {
-    if (!messages) return;
-    const div = document.createElement('div');
-    div.className = `message ${type}`;
-    div.textContent = text;
-    messages.innerHTML = '';
-    messages.appendChild(div);
-}
+    const indexBadge = element('span', 'point-index', String(index + 1));
+    const type = point.type || 'passage';
+    const chip = element('span', `type-chip ${type}`, POINT_TYPES.find(item => item.value === type)?.glyph || '●');
+    chip.title = POINT_TYPES.find(item => item.value === type)?.label || type;
 
-function clearMessages() {
-    if (messages) messages.innerHTML = '';
-}
-
-/**
- * Parse un PK SNCF en mètres.
- * Formats supportés : "123+456" → 123456 m, "123.456" / "123,456" → 123456 m, nombre seul → valeur brute
- */
-function parsePK(pk) {
-    if (!pk && pk !== 0) return null;
-    const str = String(pk).trim();
-    if (str === '') return null;
-    const plusMatch = str.match(/^(\d+)\+(\d{3})$/);
-    if (plusMatch) return parseInt(plusMatch[1]) * 1000 + parseInt(plusMatch[2]);
-    const dotMatch = str.match(/^(\d+)[.,](\d{3})$/);
-    if (dotMatch) return parseInt(dotMatch[1]) * 1000 + parseInt(dotMatch[2]);
-    const num = parseFloat(str.replace(',', '.'));
-    return isNaN(num) ? null : Math.round(num);
-}
-
-/**
- * Calcule la longueur du segment entre deux points en mètres à partir de leurs PK.
- * Priorité : code_ligne_2[A] = code_ligne[B] (changement de ligne), puis autres combinaisons.
- * Retourne { distance, lineCode, isLineChange } ou null.
- */
-/**
- * Normalise un point v2 en forme plate {code_ligne, PK, code_ligne_2, PK_2}
- * pour le calcul de segment. Pour les bifurcations, utilise les valeurs V1.
- */
-function normalizeForPK(point, voie = 1) {
-    if (point.type === 'bifurcation') {
-        const cl2 = point.code_ligne_2 ?? '';
-        const hasLineChange = cl2 && cl2 !== (point.code_ligne ?? '');
-        const pkField   = voie === 2 ? 'PK_V2'   : 'PK_V1';
-        const pk2Field  = voie === 2 ? 'PK_2_V2' : 'PK_2_V1';
-        return {
-            code_ligne:   point.code_ligne ?? '',
-            PK:           point[pkField]   ?? '',
-            code_ligne_2: hasLineChange ? cl2 : '',
-            PK_2:         hasLineChange ? (point[pk2Field] ?? '') : '',
-        };
-    }
-    return {
-        code_ligne:   point.code_ligne ?? '',
-        PK:           point.PK         ?? '',
-        code_ligne_2: '',
-        PK_2:         '',
+    const title = element('button', 'point-title');
+    title.type = 'button';
+    title.setAttribute('aria-expanded', String(state.openPointIds.has(routePoint.id)));
+    const name = element('span', 'point-name');
+    const meta = element('span', 'point-meta');
+    title.append(name, meta);
+    const toggle = () => {
+        const open = !row.classList.contains('is-open');
+        row.classList.toggle('is-open', open);
+        title.setAttribute('aria-expanded', String(open));
+        if (open) state.openPointIds.add(routePoint.id);
+        else state.openPointIds.delete(routePoint.id);
     };
+    title.addEventListener('click', toggle);
+
+    const actions = element('div', 'point-actions');
+    const up = iconButton('fa-arrow-up', 'Monter', () => movePoint(index, -1));
+    up.disabled = index === 0;
+    const down = iconButton('fa-arrow-down', 'Descendre', () => movePoint(index, 1));
+    down.disabled = index === total - 1;
+    actions.append(
+        iconButton('fa-plus', index === total - 1 ? 'Ajouter un point après le terminus' : 'Insérer un point au milieu du segment suivant', () => insertPointAfter(index)),
+        up,
+        down,
+        iconButton('fa-trash-alt', 'Retirer du trajet', () => deletePoint(index), 'danger'),
+        iconButton('fa-chevron-right chevron', 'Détails', toggle)
+    );
+
+    head.append(indexBadge, chip, title, actions);
+    row.append(head, renderDetails(index, point));
+    pointViews[index] = { row, name, meta };
+    return row;
 }
 
-function calcSegmentFromPK(pointA, pointB, voie = 1) {
-    const a = normalizeForPK(pointA, voie);
-    const b = normalizeForPK(pointB, voie);
+function renderSegmentRow(index) {
+    const row = element('li', 'segment-row');
+    row.dataset.segment = String(index);
 
-    const aEntries = [
-        { code: a.code_ligne,   pk: parsePK(a.PK),   slot: 1 },
-        { code: a.code_ligne_2, pk: parsePK(a.PK_2), slot: 2 }
-    ].filter(x => x.code && x.pk !== null);
+    const durationWrap = element('div', 'duration-field');
+    const input = element('input');
+    input.type = 'text';
+    input.inputMode = 'numeric';
+    input.autocomplete = 'off';
+    input.setAttribute('aria-label', `Durée du segment ${index + 1} en secondes ou m:ss`);
+    const hint = element('span', 'duration-hint');
+    durationWrap.append(input, hint);
 
-    const bEntries = [
-        { code: b.code_ligne,   pk: parsePK(b.PK),   slot: 1 },
-        { code: b.code_ligne_2, pk: parsePK(b.PK_2), slot: 2 }
-    ].filter(x => x.code && x.pk !== null);
-
-    // Priorité au changement de ligne : slot 2 de A → slot 1 de B
-    for (const a of aEntries.filter(x => x.slot === 2)) {
-        for (const b of bEntries.filter(x => x.slot === 1)) {
-            if (a.code === b.code) {
-                return { distance: Math.abs(b.pk - a.pk), lineCode: a.code, isLineChange: true };
-            }
+    const commitInput = () => {
+        const seconds = parseDurationInput(input.value);
+        if (seconds === null) {
+            input.setAttribute('aria-invalid', 'true');
+            setStatus(statusEl, `Durée illisible : « ${input.value} ». Saisissez des secondes (245) ou m:ss (4:05).`, 'error');
+            return false;
         }
-    }
-    // Même ligne : slot 1 de A → slot 1 de B
-    for (const a of aEntries.filter(x => x.slot === 1)) {
-        for (const b of bEntries.filter(x => x.slot === 1)) {
-            if (a.code === b.code) {
-                return { distance: Math.abs(b.pk - a.pk), lineCode: a.code, isLineChange: false };
-            }
+        input.removeAttribute('aria-invalid');
+        setDuration(index, seconds);
+        return true;
+    };
+    input.addEventListener('change', commitInput);
+    input.addEventListener('blur', () => {
+        const stored = currentRoute()?.points[index]?.durationToNext;
+        if (!input.hasAttribute('aria-invalid') && Number.isFinite(stored)) input.value = String(stored);
+    });
+    input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (commitInput()) focusDuration(index + (event.shiftKey ? -1 : 1));
+        } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            const current = parseDurationInput(input.value) ?? 0;
+            const step = (event.shiftKey ? 10 : 1) * (event.key === 'ArrowUp' ? 1 : -1);
+            input.value = String(Math.max(0, current + step));
+            commitInput();
         }
-    }
-    // Fallback : toutes les autres combinaisons
-    for (const a of aEntries) {
-        for (const b of bEntries) {
-            if (a.code === b.code) {
-                return { distance: Math.abs(b.pk - a.pk), lineCode: a.code, isLineChange: a.slot !== b.slot };
-            }
-        }
-    }
-    return null;
+    });
+
+    const measures = element('div', 'segment-measures');
+    const speed = element('div', 'segment-speed');
+    const warning = element('div', 'segment-warning');
+    row.append(durationWrap, measures, speed, warning);
+    segmentViews[index] = { row, input, hint, measures, speed, warning };
+    return row;
 }
 
-function haversineMeters(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const toRad = deg => deg * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat / 2) ** 2
-        + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+function render() {
+    const route = currentRoute();
+    pointsList.replaceChildren();
+    segmentViews = [];
+    pointViews = [];
+    if (!route) {
+        pointsList.appendChild(element('li', 'empty-state', 'Trajet introuvable dans masterRoutes.'));
+        return;
+    }
+    voiePicker.value = String(currentVoie());
+    pointsList.classList.toggle('dir-2', currentVoie() === 2);
+    route.points.forEach((routePoint, index) => {
+        pointsList.appendChild(renderPointRow(routePoint, index, route.points.length));
+        if (index < route.points.length - 1) pointsList.appendChild(renderSegmentRow(index));
+    });
+    refreshComputed();
 }
 
-function formatMinutes(totalSeconds) {
-    const minutes = Math.round(Number(totalSeconds || 0) / 60);
-    const hh = Math.floor(minutes / 60);
-    const mm = Math.abs(minutes % 60);
-    const hhStr = hh.toString().padStart(2, '0');
-    const mmStr = mm.toString().padStart(2, '0');
-    return `${hhStr}:${mmStr}`;
+const km = value => `${value.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`;
+const kmh = value => (Number.isFinite(value) ? `${Math.round(value).toLocaleString('fr-FR')} km/h` : '—');
+
+function statusPill(status) {
+    const meta = STATUS_LABELS[status];
+    if (!meta) return null;
+    const pill = element('span', `status-pill ${status}`);
+    const glyph = element('i', `fas ${meta.icon}`);
+    glyph.setAttribute('aria-hidden', 'true');
+    pill.append(glyph, element('span', '', meta.label));
+    return pill;
 }
+
+/** Met à jour tout ce qui découle des données, sans reconstruire les champs (le focus est préservé). */
+function refreshComputed() {
+    const route = currentRoute();
+    if (!route) return;
+    const voie = currentVoie();
+    state.segments = buildRouteSegments(state.data.points, route);
+
+    route.points.forEach((routePoint, index) => {
+        const view = pointViews[index];
+        const point = state.data.points[routePoint.id];
+        if (!view || !point) return;
+        view.name.textContent = point.name || routePoint.id;
+        view.meta.textContent = pointMetaText(routePoint, point);
+        // Entrée la plus proche : pour un long ouvrage, l'entrée V2 est l'autre
+        // extrémité et s'éloigne légitimement des coordonnées communes.
+        const drift = view.row.querySelector('.point-drift');
+        const entries = [1, 2].map(v => [point[`lat_V${v}`], point[`lon_V${v}`]])
+            .filter(([lat, lon]) => typeof lat === 'number' && typeof lon === 'number');
+        const driftKm = entries.length
+            ? Math.min(...entries.map(([lat, lon]) => haversineDistance(point.lat, point.lon, lat, lon)))
+            : 0;
+        drift.textContent = driftKm > SHARED_COORDINATE_DRIFT_KM
+            ? `⚠ Les coordonnées communes sont à ${km(driftKm)} des entrées de voie. Le suivi utilise `
+                + 'ces entrées ; les communes ne servent qu’en repli, mais faussent la lecture et la carte.'
+            : '';
+    });
+
+    for (const segment of state.segments) {
+        const view = segmentViews[segment.index];
+        if (!view) continue;
+        view.row.classList.remove('too-fast', 'too-slow', 'no-duration');
+        if (segment.status !== 'ok') view.row.classList.add(segment.status);
+        if (document.activeElement !== view.input) view.input.value = String(segment.durationS);
+        view.hint.textContent = `${formatDuration(segment.durationS)} min`;
+
+        view.measures.replaceChildren();
+        const gps = element('span');
+        gps.append('Moteur ', element('b', '', km(segment.distanceKm)));
+        view.measures.appendChild(gps);
+        const pk = element('span');
+        if (segment.pkDistanceKm !== null) {
+            pk.append('PK ', element('b', '', km(segment.pkDistanceKm)), ' ',
+                element('small', '', `${segment.pkLineCode}${segment.pkLineChange ? ' · changement de ligne' : ''}`));
+        } else {
+            pk.append('PK ', element('small', '', 'non calculable'));
+        }
+        view.measures.appendChild(pk);
+        view.measures.appendChild(element('span', '', `${segment.fromName} → ${segment.toName}`));
+
+        view.speed.replaceChildren();
+        const pill = statusPill(segment.status);
+        if (pill) view.speed.appendChild(pill);
+        view.speed.appendChild(element('span', 'speed-value', kmh(segment.speedKmh)));
+
+        const warnings = [];
+        if (segment.pkDistanceKm !== null && segment.distanceKm > PK_CHECK_MIN_KM
+            && segment.pkDistanceKm < segment.distanceKm * PK_SHORTER_THAN_GPS_RATIO) {
+            warnings.push(`⚠ Distance PK (${km(segment.pkDistanceKm)}) plus courte que le vol d’oiseau `
+                + `(${km(segment.distanceKm)}) : un PK ou une coordonnée de voie ${voie} est à vérifier.`);
+        }
+        const from = state.data.points[segment.fromId];
+        const to = state.data.points[segment.toId];
+        if (from?.type === 'bifurcation' && from.code_ligne_2 && to?.code_ligne
+            && from.code_ligne_2 !== to.code_ligne && from.code_ligne !== to.code_ligne) {
+            warnings.push(`⚠ Ligne 2 « ${from.code_ligne_2} » ≠ ligne du point suivant « ${to.code_ligne} ».`);
+        }
+        view.warning.textContent = warnings.join(' ');
+        view.warning.hidden = warnings.length === 0;
+    }
+
+    renderStats();
+    renderSpeedStrip();
+    applyFilter();
+}
+
+function renderStats() {
+    const route = currentRoute();
+    const summary = summarizeRouteSegments(state.segments);
+    const count = summary.anomalies.length;
+    const tile = (label, value, sub, extraClass = '') => {
+        const node = element('div', `stat ${extraClass}`.trim());
+        node.append(element('span', 'stat-label', label), element('span', 'stat-value', value));
+        if (sub) node.appendChild(element('span', 'stat-sub', sub));
+        return node;
+    };
+    const anomalyTile = element('button', `stat ${count ? 'has-issue' : 'is-clean'}`);
+    anomalyTile.type = 'button';
+    anomalyTile.append(
+        element('span', 'stat-label', 'Segments hors plage'),
+        element('span', 'stat-value', count ? String(count) : 'Aucun'),
+        element('span', 'stat-sub', count
+            ? 'Cliquer pour passer au suivant'
+            : `tout entre ${ROUTE_SPEED_BOUNDS_KMH.min} et ${ROUTE_SPEED_BOUNDS_KMH.max} km/h`)
+    );
+    anomalyTile.disabled = !count;
+    anomalyTile.addEventListener('click', nextAnomaly);
+    statsEl.replaceChildren(
+        tile('Durée de base', formatDuration(summary.totalS), 'hors arrêts et ΔT'),
+        tile('Distance (moteur)', km(summary.totalKm), `${route.points.length} points · ${state.segments.length} segments`),
+        tile('Vitesse moyenne', kmh(summary.averageKmh), `${kmh(summary.minKmh)} → ${kmh(summary.maxKmh)}`),
+        anomalyTile
+    );
+}
+
+function renderSpeedStrip() {
+    barsEl.replaceChildren();
+    const dirClass = currentVoie() === 2 ? ' dir-2' : '';
+    for (const segment of state.segments) {
+        const bar = element('button', `speed-bar${dirClass} ${segment.status}`);
+        bar.type = 'button';
+        bar.style.flexGrow = String(Math.max(segment.distanceKm, 0.4));
+        const fill = element('span');
+        const ratio = Math.min(segment.speedKmh ?? 0, SPEED_STRIP_MAX_KMH) / SPEED_STRIP_MAX_KMH;
+        fill.style.height = `${Math.max(ratio * 100, 4)}%`;
+        bar.appendChild(fill);
+        const label = `${segment.index + 1}. ${segment.fromName} → ${segment.toName} · `
+            + `${formatDuration(segment.durationS)} · ${kmh(segment.speedKmh)}`
+            + `${STATUS_LABELS[segment.status] ? ` · ${STATUS_LABELS[segment.status].label}` : ''}`;
+        bar.title = label;
+        bar.setAttribute('aria-label', label);
+        bar.addEventListener('click', () => focusSegment(segment.index));
+        barsEl.appendChild(bar);
+    }
+}
+
+function applyFilter() {
+    const only = anomaliesOnly.checked;
+    const flagged = new Set(state.segments.filter(segment => segment.status !== 'ok').map(segment => segment.index));
+    segmentViews.forEach((view, index) => view?.row.classList.toggle('is-filtered-out', only && !flagged.has(index)));
+    pointViews.forEach((view, index) => view?.row.classList.toggle(
+        'is-filtered-out',
+        only && !flagged.has(index) && !flagged.has(index - 1)
+    ));
+}
+
+function flash(row) {
+    if (!row) return;
+    row.classList.remove('is-flash');
+    void row.offsetWidth;
+    row.classList.add('is-flash');
+}
+
+function focusDuration(index) {
+    const view = segmentViews[index];
+    if (!view) return;
+    view.input.focus();
+    view.input.select();
+}
+
+function focusSegment(index, { instant = false } = {}) {
+    const view = segmentViews[index];
+    if (!view) return;
+    if (view.row.classList.contains('is-filtered-out')) {
+        anomaliesOnly.checked = false;
+        applyFilter();
+    }
+    const smooth = !instant && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    view.row.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
+    flash(view.row);
+    view.input.focus({ preventScroll: true });
+    view.input.select();
+}
+
+function nextAnomaly() {
+    const flagged = state.segments.filter(segment => segment.status !== 'ok');
+    if (!flagged.length) return;
+    state.anomalyCursor = (state.anomalyCursor + 1) % flagged.length;
+    focusSegment(flagged[state.anomalyCursor].index);
+}
+
+function selectRoute(routeKey) {
+    state.routeKey = MAIN_ROUTES[routeKey] ? routeKey : Object.keys(MAIN_ROUTES)[0];
+    routePicker.value = state.routeKey;
+    state.openPointIds.clear();
+    state.anomalyCursor = -1;
+    shell.setRouteKey(state.routeKey);
+    profileLink.href = `route-profile.html?route=${encodeURIComponent(state.routeKey)}`;
+    render();
+}
+
+// ---------- Initialisation ----------
+
+async function init() {
+    for (const [key, config] of Object.entries(MAIN_ROUTES)) {
+        const option = element('option', '', config.label);
+        option.value = key;
+        routePicker.appendChild(option);
+    }
+    routePicker.addEventListener('change', () => {
+        selectRoute(routePicker.value);
+        setStatus(statusEl, '');
+        window.scrollTo({ top: 0 });
+    });
+    voiePicker.addEventListener('change', () => {
+        const route = currentRoute();
+        if (!route) return;
+        commit(() => { route.voie = Number(voiePicker.value); }, { structural: true });
+        setStatus(statusEl, `Voie ${voiePicker.value} : les distances utilisent désormais les entrées de cette voie.`, 'success');
+    });
+    anomaliesOnly.addEventListener('change', applyFilter);
+    undoButton.addEventListener('click', undo);
+    document.getElementById('add-point-btn').addEventListener('click', () => {
+        const route = currentRoute();
+        if (route) insertPointAfter(route.points.length - 1);
+    });
+    document.getElementById('duplicate-route-btn').addEventListener('click', duplicateRoute);
+    document.getElementById('export-btn').addEventListener('click', exportJson);
+    document.addEventListener('keydown', event => {
+        const editing = event.target.closest?.('input, select, textarea');
+        if (!editing && (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+            event.preventDefault();
+            undo();
+        }
+    });
+    shell.onExternalDraftChange(() => showReloadNotice(
+        'Le brouillon a été modifié dans un autre onglet d’éditeur. Rechargez pour repartir de sa dernière version.'
+    ));
+
+    const loaded = await loadEditableMasterRoutes();
+    Object.assign(state, { data: loaded.data, fileData: loaded.fileData, storage: loaded.storage });
+    updateDraftBanner(loaded.draftSavedAt);
+    if (!loaded.storage) {
+        setStatus(statusEl, 'Stockage local indisponible : les modifications seront perdues en quittant la page, exportez avant.', 'warning');
+    }
+
+    // Lu avant selectRoute, qui retire « seg » de l'URL.
+    const segment = Number.parseInt(readQueryParam('seg') ?? '', 10);
+    selectRoute(readQueryParam('route'));
+    // Rendu synchrone : pas de requestAnimationFrame, suspendu dans un onglet ouvert en arrière-plan.
+    if (Number.isInteger(segment)) focusSegment(segment, { instant: true });
+}
+
+init().catch(error => setStatus(statusEl, `Erreur de chargement : ${error.message}`, 'error'));

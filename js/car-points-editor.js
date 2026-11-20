@@ -10,22 +10,28 @@ import {
     normalizeCarWaypointOverrides,
     saveCarWaypointOverrides
 } from './car-waypoint-overrides.js';
+import { guardUnsavedChanges, mountEditorShell, setStatus } from './editor-shell.js';
 
 const routeSelect = document.getElementById('car-editor-route');
 const listEl = document.getElementById('car-point-list');
 const statusEl = document.getElementById('car-editor-status');
 const importInput = document.getElementById('car-editor-import-file');
+const searchInput = document.getElementById('car-point-search');
+
+mountEditorShell({ active: 'car-map' });
 
 const BOTH_ROUTES_VALUE = 'BOTH_DIRECTIONS';
 const STRUCTURE_OVERLAP_TOLERANCE_M = 50;
 const MARKER_COLLISION_THRESHOLD_KM = 0.03;
 const MARKER_OFFSET_PX = 13;
 const DIRECTION_META = {
-    forward: { shortLabel: 'Mâcon → Combloux', color: '#b43650' },
-    reverse: { shortLabel: 'Combloux → Mâcon', color: '#2563b8' }
+    forward: { shortLabel: 'Mâcon → Combloux', color: '#b43650', css: 'dir-1' },
+    reverse: { shortLabel: 'Combloux → Mâcon', color: '#2563b8', css: 'dir-2' }
 };
 
 let overrides = loadCarWaypointOverrides();
+// Les déplacements ne sont lus par Car Tracker qu'après « Appliquer ».
+let appliedSignature = overridesSignature(overrides);
 let currentContexts = [];
 let waypointEntries = [];
 let entryById = new Map();
@@ -38,8 +44,15 @@ let activeEntryId = null;
 const datasetPromises = new Map();
 
 function showStatus(message, type = '') {
-    statusEl.textContent = message;
-    statusEl.className = type;
+    setStatus(statusEl, message, type);
+}
+
+function overridesSignature(value) {
+    return JSON.stringify(normalizeCarWaypointOverrides(value));
+}
+
+function hasUnappliedChanges() {
+    return overridesSignature(overrides) !== appliedSignature;
 }
 
 function directionForConfig(cfg) {
@@ -63,7 +76,7 @@ function markerIcon(entry) {
     const active = entry.id === activeEntryId ? ' active' : '';
     const glyph = entry.wp.type === 'tunnel' ? '🏔' : entry.wp.type === 'col' ? '▲' : entry.wp.type === 'viaduc' ? '⌢' : entry.wp.type === 'peage' ? '€' : entry.wp.type === 'aire' ? 'P' : '●';
     return L.divIcon({
-        className: `car-map-marker direction-${entry.direction}${modified}${active}`,
+        className: `map-marker ${DIRECTION_META[entry.direction].css}${modified}${active}`,
         html: `<span>${glyph}</span>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14]
@@ -326,7 +339,8 @@ async function moveWaypoint(entry, marker) {
 
     activeEntryId = entry.id;
     await loadRoute(routeSelect.value, false);
-    showStatus(`${wp.name} (${DIRECTION_META[entry.direction].shortLabel}) recalé. ${routeSummary()} Cliquez sur Appliquer pour l’utiliser dans Car Tracker.`, 'success');
+    showStatus(`${wp.name} (${DIRECTION_META[entry.direction].shortLabel}) recalé. ${routeSummary()} `
+        + 'Cliquez sur Appliquer pour l’utiliser dans Car Tracker.', 'warning');
 }
 
 function selectWaypoint(id, pan = true) {
@@ -362,25 +376,56 @@ function orderedWaypointEntries() {
 
 function renderList() {
     listEl.innerHTML = '';
+    const query = searchInput.value.trim().toLocaleLowerCase('fr');
     for (const entry of orderedWaypointEntries()) {
         const { wp } = entry;
+        if (query && !String(wp.name).toLocaleLowerCase('fr').includes(query)) continue;
         const button = document.createElement('button');
         const isModified = Boolean(overrides[wp.sourceKey]);
         const overlap = overlapByPairKey.get(entry.pairKey);
         button.type = 'button';
-        button.className = `car-point-item direction-${entry.direction}${entry.id === activeEntryId ? ' active' : ''}${isModified ? ' modified' : ''}`;
+        button.className = `point-item ${DIRECTION_META[entry.direction].css}${entry.id === activeEntryId ? ' active' : ''}`;
         const length = Number.isFinite(wp.lengthM)
             ? ` · ${Math.round(wp.lengthM).toLocaleString('fr-FR')} m`
             : '';
-        const overlapLabel = overlap
-            ? ` · ${overlap.withinTolerance ? '✓' : '⚠'} écart ${Math.round(overlap.deviationM)} m`
-            : '';
-        const directionBadge = isBothDirections()
-            ? `<span class="car-direction-badge">${DIRECTION_META[entry.direction].shortLabel}</span>`
-            : '';
-        button.innerHTML = `<strong>${wp.name}</strong>${directionBadge}<span class="car-point-meta">${wp.type}${length}${Number.isFinite(wp.pk) ? ` · PK ${wp.pk.toFixed(3)}` : ''}${overlapLabel}</span>`;
+
+        const title = document.createElement('strong');
+        title.textContent = wp.name;
+        button.appendChild(title);
+        if (isBothDirections()) {
+            const badge = document.createElement('span');
+            badge.className = 'point-item-badge';
+            badge.textContent = DIRECTION_META[entry.direction].shortLabel;
+            button.appendChild(badge);
+        }
+        const meta = document.createElement('span');
+        meta.className = 'point-item-meta';
+        meta.textContent = `${wp.type}${length}${Number.isFinite(wp.pk) ? ` · PK ${wp.pk.toFixed(3)}` : ''}`;
+        button.appendChild(meta);
+
+        const flags = document.createElement('span');
+        flags.className = 'point-item-flags';
+        const flag = (className, text) => {
+            const node = document.createElement('span');
+            node.className = `point-flag ${className}`;
+            node.textContent = text;
+            flags.appendChild(node);
+        };
+        if (isModified) flag('modified', 'modifié');
+        if (overlap) {
+            flag(overlap.withinTolerance ? 'ok' : 'mismatch',
+                `${overlap.withinTolerance ? '✓' : '⚠'} écart aller/retour ${Math.round(overlap.deviationM)} m`);
+        }
+        if (flags.children.length) button.appendChild(flags);
+
         button.addEventListener('click', () => selectWaypoint(entry.id));
         listEl.appendChild(button);
+    }
+    if (!listEl.children.length) {
+        const empty = document.createElement('p');
+        empty.className = 'map-hint';
+        empty.textContent = 'Aucun repère ne correspond au filtre.';
+        listEl.appendChild(empty);
     }
 }
 
@@ -398,7 +443,8 @@ async function importOverrides(file) {
     const parsed = JSON.parse(await file.text());
     const migrationCfg = currentContexts[0]?.cfg || Object.values(CAR_ROUTES)[0];
     overrides = migrateCarWaypointOverrides(parsed, migrationCfg);
-    saveCarWaypointOverrides(overrides);
+    overrides = saveCarWaypointOverrides(overrides);
+    appliedSignature = overridesSignature(overrides);
     await loadRoute(routeSelect.value, false);
     showStatus(`Corrections importées et appliquées. ${routeSummary()}`, 'success');
 }
@@ -427,8 +473,11 @@ async function init() {
     routeSelect.appendChild(bothOption);
 
     routeSelect.addEventListener('change', () => loadRoute(routeSelect.value).catch(error => showStatus(error.message, 'error')));
+    searchInput.addEventListener('input', renderList);
+    guardUnsavedChanges(hasUnappliedChanges);
     document.getElementById('car-editor-save').addEventListener('click', () => {
         overrides = saveCarWaypointOverrides(overrides);
+        appliedSignature = overridesSignature(overrides);
         showStatus(`Corrections appliquées. ${routeSummary()} Rechargez Car Tracker si la page est déjà ouverte.`, 'success');
     });
     document.getElementById('car-editor-export').addEventListener('click', downloadOverrides);
@@ -441,7 +490,8 @@ async function init() {
     document.getElementById('car-editor-reset').addEventListener('click', () => {
         if (!confirm('Supprimer toutes les corrections locales des points voiture ?')) return;
         overrides = {};
-        saveCarWaypointOverrides(overrides);
+        overrides = saveCarWaypointOverrides(overrides);
+        appliedSignature = overridesSignature(overrides);
         loadRoute(routeSelect.value, false).then(() => showStatus(`Corrections locales supprimées. ${routeSummary()}`, 'success'));
     });
 

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil de vitesse · Atelier Tallon</title>
+    <link rel="stylesheet" href="css/editor.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
+<body>
+    <div id="editor-shell"></div>
+
+    <main class="doc-main">
+        <section class="card toolbar" aria-label="Trajet affiché">
+            <label class="field">
+                <span>Trajet</span>
+                <select id="profile-route"></select>
+            </label>
+            <label class="toggle">
+                <input id="profile-compare" type="checkbox" checked>
+                Superposer le sens retour
+            </label>
+            <span class="toolbar-spacer"></span>
+            <a id="profile-edit" class="btn" href="master-editor.html">
+                <i class="fas fa-pen" aria-hidden="true"></i> Modifier les durées
+            </a>
+        </section>
+
+        <section class="card stats" id="profile-stats" aria-label="Synthèse"></section>
+
+        <section class="card chart-card" aria-labelledby="profile-chart-title">
+            <div class="chart-head">
+                <h2 class="chart-title" id="profile-chart-title">Vitesse moyenne théorique par segment</h2>
+                <div class="legend" id="profile-legend"></div>
+            </div>
+            <div class="chart-wrap" id="profile-chart">
+                <div class="chart-tooltip" id="profile-tooltip" hidden></div>
+            </div>
+        </section>
+
+        <div id="profile-status" class="editor-status" role="status"></div>
+
+        <section class="card table-card" aria-labelledby="profile-table-title">
+            <div class="table-head">
+                <h2 class="chart-title" id="profile-table-title">Segments</h2>
+                <div class="segmented" id="profile-table-direction" role="group" aria-label="Sens affiché"></div>
+            </div>
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="num">#</th>
+                            <th>Segment</th>
+                            <th class="num">Km</th>
+                            <th class="num">Distance</th>
+                            <th class="num">PK</th>
+                            <th class="num">Durée</th>
+                            <th class="num">Vitesse</th>
+                            <th>Statut</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="profile-rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script type="module" src="js/route-profile-page.js"></script>
+</body>
+</html>

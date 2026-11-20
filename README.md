@@ -47,8 +47,18 @@ pour l'historique complet.
   segment ne recule jamais), lissage de vitesse par médiane glissante,
   gestion des bifurcations à deux voies (coordonnées différentes selon le
   sens de circulation).
-- **Éditeur visuel de trajets** (`master-editor.html`) pour ajouter,
-  réordonner ou éditer les points d'un trajet sans toucher au JSON à la main.
+- **Atelier d'édition** : quatre pages reliées par une même barre de
+  navigation (trajets, profil de vitesse, carte rail, carte voiture). Les trois
+  pages rail partagent un brouillon local : une durée corrigée dans l'éditeur
+  apparaît aussitôt dans le profil et sur la carte, avant tout export.
+- **Éditeur de trajets** (`master-editor.html`) pour ajouter, insérer,
+  réordonner ou éditer les points d'un trajet et leurs durées (secondes ou
+  `m:ss`) sans toucher au JSON à la main. Chaque segment affiche sa distance
+  (moteur et PK) et sa vitesse moyenne ; les vitesses implausibles sont
+  signalées, les modifications s'annulent pas à pas.
+- **Profil de vitesse** (`route-profile.html`) : vitesse moyenne théorique
+  segment par segment, aller et retour superposés sur le même axe
+  kilométrique, avec un lien vers l'éditeur ouvert sur le segment à corriger.
 - **Éditeur cartographique rail** (`train-points-editor.html`) pour déplacer
   les points sur un fond OpenRailwayMap. Les bifurcations distinguent les
   coordonnées V1 (Paris → Province) et V2 (Province → Paris), avec une vue
@@ -135,11 +145,11 @@ index.html              Page du mode train (accueil + cockpit)
 car.html                 Page du mode voiture (accueil + cockpit, Mâcon ⇄ Combloux)
 car-points-editor.html   Carte de contrôle et correction des points voiture
 train-points-editor.html Carte de contrôle et correction des points rail
-master-editor.html       Éditeur visuel des trajets (data/masterRoutes.normalized.json)
+master-editor.html       Éditeur des trajets et durées (data/masterRoutes.normalized.json)
+route-profile.html       Profil de vitesse théorique, aller et retour superposés
 css/train.css            Mise en page commune aux deux modes (accueil, cockpit, carrousel)
 css/car.css              Thème bleu nuit et éléments routiers, par-dessus train.css
-css/styles.css           Styles des éditeurs (master, points rail, points voiture)
-css/train-points-editor.css Styles dédiés à l'éditeur cartographique rail
+css/editor.css           Socle visuel commun des quatre éditeurs (clair et sombre)
 sw.js                    Service worker : cache hors-ligne (stale-while-revalidate)
 manifest.webmanifest     Manifeste PWA du mode train (installation plein écran iPhone)
 car.webmanifest          Manifeste PWA du mode voiture
@@ -187,6 +197,10 @@ js/
   train-map-polyline.js   Reconstruction des trajets sur les corridors ferroviaires
   train-points-editor.js  Carte rail, repères déplaçables et vue des deux voies
   master-editor.js        Logique de master-editor.html
+  route-speed.js          Profil de vitesse théorique pur : distances, PK, plausibilité
+  master-routes-draft.js  Brouillon local de masterRoutes partagé par les éditeurs
+  editor-shell.js         Coquille commune des éditeurs : navigation, brouillon, état
+  route-profile-page.js   Page du profil de vitesse (graphique et tableau)
   fakeGeoSim.js           Simulateur GPS pour le développement (désactivé par défaut,
                           multiplicateur de vitesse + point de départ configurables)
 
@@ -246,7 +260,17 @@ Aucune dépendance à installer pour l'app elle-même :
 
 Ouvrir `master-editor.html` (même serveur), modifier les points d'un trajet,
 puis **Exporter JSON** pour récupérer le fichier mis à jour — les
-modifications ne sont jamais écrites automatiquement sur disque.
+modifications ne sont jamais écrites automatiquement sur disque. Entre-temps,
+elles vivent dans un brouillon local du navigateur, partagé avec le profil de
+vitesse et la carte rail ; il s'efface de lui-même dès que le fichier servi
+lui est identique, ou sur « Abandonner le brouillon ». L'application ne le lit
+jamais.
+
+`route-profile.html` superpose l'aller et le retour : une durée rangée sur le
+mauvais segment y apparaît comme un pic d'un côté et un creux de l'autre. Les
+vitesses moyennes hors de `ROUTE_SPEED_BOUNDS_KMH` (`js/train-config.js`) sont
+signalées partout, et `tests/dataIntegrity.test.js` refuse toute nouvelle
+anomalie de ce type dans le fichier versionné.
 
 Pour corriger uniquement leur placement géographique, ouvrir
 `train-points-editor.html`. Le fond OpenRailwayMap est superposé à

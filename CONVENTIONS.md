@@ -23,6 +23,7 @@
   - Commun aux deux modes de transport → `js/session-flow.js` (règles de session), `js/app-mode.js` / `js/app-shell.js` (changement de mode, aides DOM), `js/carousel-view.js`, `js/speed-profile-view.js`, `css/train.css`. Session voiture sans DOM → `js/car-session.js` ; rendu voiture → `js/car-ui.js` ; thème et éléments routiers → `css/car.css`.
   - Rendu / manipulation DOM du train → `js/ui.js` exclusivement. `app.js` ne touche le DOM que pour ses propres écouteurs d'événements (formulaire, bouton start, swipe).
   - Config de trajets partagée entre l'app et l'éditeur → `js/routes-config.js` (`MAIN_ROUTES`), jamais dupliquée localement dans `ui.js` ou `master-editor.js`.
+  - Éditeurs → coquille et navigation dans `js/editor-shell.js`, styles dans `css/editor.css` (jamais de `<style>` en ligne dans une page d'éditeur), brouillon partagé de masterRoutes dans `js/master-routes-draft.js`, calcul de vitesse/plausibilité d'un trajet dans `js/route-speed.js` (pur, testé).
   - Utilitaires génériques sans dépendance métier (formatage, sélecteurs DOM courts) → `js/utils.js`.
   - Simulation/outillage de dev → fichier dédié explicitement toggé (`js/fakeGeoSim.js`, `ENABLE_FAKE_GPS`), jamais mélangé au code de prod.
   - Code natif iOS → `ios/Tallon/*.swift`, limité au chargement des pages et au transport réseau ; toute logique (analyse, bascule de source) reste en JS testable par Vitest.

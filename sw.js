@@ -4,7 +4,7 @@
 // immédiatement (zéro latence même sans réseau), puis rafraîchie en arrière-plan
 // pour la prochaine visite. Incrémenter CACHE_VERSION pour forcer une purge.
 
-const CACHE_VERSION = 'tallon-v33';
+const CACHE_VERSION = 'tallon-v34';
 
 // Coquille applicative pré-cachée à l'installation.
 const PRECACHE_URLS = [
@@ -13,6 +13,8 @@ const PRECACHE_URLS = [
     './manifest.webmanifest',
     './car.webmanifest',
     './car.html',
+    './master-editor.html',
+    './route-profile.html',
     './car-points-editor.html',
     './train-points-editor.html',
     './assets/tunnel.png',
@@ -22,10 +24,9 @@ const PRECACHE_URLS = [
     './assets/icons/car-180.png',
     './assets/icons/car-192.png',
     './assets/icons/car-512.png',
-    './css/styles.css',
+    './css/editor.css',
     './css/train.css',
     './css/car.css',
-    './css/train-points-editor.css',
     './js/app.js',
     './js/app-mode.js',
     './js/app-shell.js',
@@ -62,6 +63,11 @@ const PRECACHE_URLS = [
     './js/train-structure-endpoints.js',
     './js/train-points-editor-config.js',
     './js/train-points-editor.js',
+    './js/editor-shell.js',
+    './js/master-editor.js',
+    './js/master-routes-draft.js',
+    './js/route-profile-page.js',
+    './js/route-speed.js',
     './data/masterRoutes.normalized.json',
     './data/servicePatterns.json',
     // Datasets PK/PR : descripteurs + CSV générés dans data/csv/ (hors-ligne

@@ -23,6 +23,13 @@ export const POSITION_WINDOW_SIZE = 10;
 
 export const MAX_TRAIN_SPEED_KMH = 350;
 
+// Plausibilité des durées théoriques (éditeurs, profil de vitesse, test
+// d'intégrité) : vitesse moyenne d'un segment, distance à vol d'oiseau entre
+// les coordonnées propres à la voie, celle que mesure le moteur. Au-dessus
+// de la vitesse de ligne (300 km/h + marge), ou sous le pas d'une approche de
+// gare, la durée est presque toujours rangée sur le mauvais segment.
+export const ROUTE_SPEED_BOUNDS_KMH = { min: 30, max: 320 };
+
 // Sans fix depuis ce délai, le signal est considéré perdu : la vitesse est
 // marquée non fiable. Au-delà de la borne haute, on cesse d'alimenter
 // l'historique (app suspendue par l'OS : rien d'utile à tracer).

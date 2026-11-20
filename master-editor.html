@@ -3,49 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Routes Editor</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>Trajets · Atelier Tallon</title>
+    <link rel="stylesheet" href="css/editor.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 <body>
-    <div class="container editor-container">
-        <h1>Master Routes Editor</h1>
+    <div id="editor-shell"></div>
 
-        <div class="form-row">
-            <label for="route-picker"><i class="fas fa-route"></i> Master route :</label>
-            <select id="route-picker"></select>
-        </div>
+    <main class="doc-main">
+        <section class="card toolbar" aria-label="Trajet édité">
+            <label class="field">
+                <span>Trajet</span>
+                <select id="route-picker"></select>
+            </label>
+            <label class="field narrow">
+                <span>Voie de circulation</span>
+                <select id="voie-picker">
+                    <option value="1">Voie 1 · Paris → Province</option>
+                    <option value="2">Voie 2 · Province → Paris</option>
+                </select>
+            </label>
+            <label class="toggle">
+                <input id="anomalies-only" type="checkbox">
+                Anomalies seulement
+            </label>
+            <span class="toolbar-spacer"></span>
+            <div class="toolbar-actions">
+                <button id="undo-btn" class="btn ghost" type="button" disabled title="Annuler (⌘Z / Ctrl+Z)">
+                    <i class="fas fa-undo" aria-hidden="true"></i> Annuler
+                </button>
+                <button id="add-point-btn" class="btn" type="button">
+                    <i class="fas fa-plus" aria-hidden="true"></i> Point en fin
+                </button>
+                <button id="duplicate-route-btn" class="btn" type="button">
+                    <i class="far fa-copy" aria-hidden="true"></i> Dupliquer
+                </button>
+                <button id="export-btn" class="btn primary" type="button">
+                    <i class="fas fa-file-export" aria-hidden="true"></i> Exporter JSON
+                </button>
+            </div>
+        </section>
 
-        <div class="editor-toolbar">
-            <button id="add-point-btn" class="btn">+ Ajouter un point</button>
-            <button id="duplicate-route-btn" class="btn secondary">Dupliquer la route</button>
-            <button id="export-btn" class="btn primary">Exporter JSON</button>
-            <span id="dirty-indicator" class="dirty-indicator">Modifications non sauvegardées</span>
-        </div>
+        <section class="card stats" id="route-stats" aria-label="Synthèse du trajet"></section>
 
-        <aside class="editor-summary">
-            <h3>Résumé</h3>
-            <ul>
-                <li>
-                    <strong>Voie :</strong>
-                    <select id="voie-picker">
-                        <option value="1">Voie 1 (Paris → Province)</option>
-                        <option value="2">Voie 2 (Province → Paris)</option>
-                    </select>
-                </li>
-                <li><strong>Points :</strong> <span id="summary-points">0</span></li>
-                <li><strong>Durée totale :</strong> <span id="summary-duration">0 s</span></li>
-                <li><strong>Distance totale :</strong> <span id="summary-distance">0 km</span></li>
-            </ul>
-            <p class=”hint”>Les modifications sont locales. Utilisez “Exporter JSON” pour récupérer le fichier mis à jour.</p>
+        <section class="card speed-strip" aria-label="Vitesse moyenne par segment">
+            <div class="speed-strip-head">
+                <span class="speed-strip-title">Vitesse moyenne par segment</span>
+                <span class="legend">
+                    <span>largeur ∝ distance · hauteur ∝ vitesse</span>
+                    <a id="profile-link" href="route-profile.html">Profil détaillé →</a>
+                </span>
+            </div>
+            <div id="speed-bars" class="speed-bars"></div>
+        </section>
 
-        </aside>
+        <div id="editor-status" class="editor-status" role="status"></div>
 
-        <div class="editor-list-wrapper" id="points-list"></div>
+        <ol id="points-list" class="route-list" aria-label="Points et segments du trajet"></ol>
+    </main>
 
-        <div id="editor-messages" class="editor-messages"></div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js" defer></script>
     <script type="module" src="js/master-editor.js"></script>
 </body>
 </html>

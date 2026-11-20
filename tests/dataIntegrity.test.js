@@ -3,6 +3,8 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { MAIN_ROUTES } from '../js/routes-config.js';
 import { CAR_ROUTES } from '../js/car-config.js';
 import { reverseRouteKey, routeEndpoints } from '../js/car-session.js';
+import { buildRouteSegments } from '../js/route-speed.js';
+import { ROUTE_SPEED_BOUNDS_KMH } from '../js/train-config.js';
 
 // Cohérence référentielle des données versionnées : ces fichiers sont édités
 // à la main ou par export, et une référence orpheline ne casse l'app qu'à
@@ -21,7 +23,7 @@ function routePointIds(masterRouteId) {
 // Écarts connus des données, à corriger sur demande explicite (jamais en
 // silence) : « trajet|point » absent du trajet. Le test échoue quand l'écart
 // disparaît, pour forcer le retrait de l'entrée.
-const KNOWN_ANOMALIES = new Set(['MRS_PAR_NORD|VALENCE_TGV']);
+const KNOWN_ANOMALIES = new Set([]);
 
 // Les arrêts doivent exister sur le trajet et s'y succéder dans un sens ou
 // dans l'autre : les patterns de retour réutilisent le trajet aller à rebours.
@@ -55,6 +57,38 @@ describe('anomalies connues', () => {
             const [routeId, pointId] = entry.split('|');
             expect(routePointIds(routeId).includes(pointId), `${entry} est corrigée : retirer l’entrée`).toBe(false);
         }
+    });
+});
+
+// Durées théoriques physiquement impossibles (au-delà de la vitesse de ligne)
+// ou anormalement longues : presque toujours une durée rangée sur le mauvais
+// segment. Elles faussent le retard affiché de plusieurs minutes pendant la
+// traversée, même quand le total du trajet est juste. Écarts connus,
+// « trajet|départ|arrivée », à corriger sur demande explicite.
+const KNOWN_SPEED_ANOMALIES = new Set([]);
+
+describe('masterRoutes : vitesses moyennes plausibles', () => {
+    const { min, max } = ROUTE_SPEED_BOUNDS_KMH;
+    const anomaliesOf = route => buildRouteSegments(master.points, route)
+        .filter(segment => segment.status !== 'ok')
+        .map(segment => ({
+            key: `${route.id}|${segment.fromId}|${segment.toId}`,
+            label: `${segment.fromName} → ${segment.toName} : ${segment.durationS} s pour `
+                + `${segment.distanceKm.toFixed(2)} km (${Math.round(segment.speedKmh ?? 0)} km/h)`
+        }));
+
+    it.each(master.trajets.map(route => [route.id, route]))(
+        `%s : chaque segment entre ${min} et ${max} km/h`,
+        (_id, route) => {
+            const unexpected = anomaliesOf(route).filter(anomaly => !KNOWN_SPEED_ANOMALIES.has(anomaly.key));
+            expect(unexpected.map(anomaly => anomaly.label)).toEqual([]);
+        }
+    );
+
+    it('les écarts connus sont toujours d’actualité', () => {
+        const current = new Set(master.trajets.flatMap(route => anomaliesOf(route).map(anomaly => anomaly.key)));
+        const fixed = [...KNOWN_SPEED_ANOMALIES].filter(key => !current.has(key));
+        expect(fixed, 'corrigés : retirer de KNOWN_SPEED_ANOMALIES').toEqual([]);
     });
 });
 
@@ -125,7 +159,10 @@ describe('service worker', () => {
     // Le conteneur iOS n'embarque que le précache (ios/copy-web.mjs) et n'a
     // pas de réseau de repli : un module importé mais non précaché casserait
     // la page — et donc le passage d'un mode à l'autre — une fois embarquée.
-    it.each(['index.html', 'car.html'])('%s : page, styles et modules tous précachés', page => {
+    it.each([
+        'index.html', 'car.html', 'master-editor.html', 'route-profile.html',
+        'train-points-editor.html', 'car-points-editor.html'
+    ])('%s : page, styles et modules tous précachés', page => {
         const source = readFileSync('sw.js', 'utf8');
         const block = source.match(/const PRECACHE_URLS = \[([\s\S]*?)\n\];/)[1];
         const precached = new Set([...block.matchAll(/^\s*'\.\/([^']*)'/gm)].map(match => match[1]));
