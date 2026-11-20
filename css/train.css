@@ -1711,3 +1711,51 @@ dialog .profile-readout {
         padding-bottom:calc(var(--sab) + 8px);
     }
 }
+
+/* Réglages : simple carré ⚙ dans une marge gauche dédiée, hors du tachymètre et sans hauteur propre. */
+.instruments {
+    grid-template:"speed arrival" auto/auto minmax(0,1fr);
+    padding-left:calc(var(--sal) + 50px);
+}
+.instruments .settings-button {
+    position:absolute;
+    left:calc(var(--sal) + 10px);
+    top:calc(var(--sat) + 12px);
+    width:32px;
+    height:32px;
+    min-height:0;
+    padding:0;
+    border-radius:8px;
+    background:#ffffff12;
+    color:#ffffffa6;
+    justify-self:auto;
+    align-self:auto;
+}
+.instruments .settings-button>span:first-child {
+    font-size:18px;
+    margin:0;
+}
+.instruments .settings-button .settings-label {
+    display:none;
+}
+@media (orientation:landscape) {
+    .instruments {
+        grid-template:"speed" auto "arrival" auto/minmax(0,1fr);
+        padding-left:calc(var(--sal) + 16px);
+        padding-top:calc(var(--sat) + 18px);
+    }
+    .instruments .settings-button {
+        top:calc(var(--sat) + 14px);
+    }
+}
+@media (orientation:landscape) and (min-width:1000px) and (min-height:560px) {
+    .instruments {
+        grid-template:"speed arrival" auto/auto minmax(0,1fr);
+        padding-left:calc(var(--sal) + 60px);
+        padding-top:calc(var(--sat) + 20px);
+    }
+    .instruments .settings-button {
+        top:calc(var(--sat) + 20px);
+        left:calc(var(--sal) + 16px);
+    }
+}

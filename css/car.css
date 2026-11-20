@@ -145,6 +145,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
     gap:4px 8px;
 }
 
+@media (orientation:landscape) {
+    .sector .arrival-row {
+        justify-content:center;
+    }
+}
+
 .sector .arrival-row>span:last-child:not(:first-child) {
     font-size:13px;
     color:#c9d1e2;
