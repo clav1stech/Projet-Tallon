@@ -2,7 +2,7 @@ import { STATE } from './state.js';
 import { MAIN_ROUTES } from './routes-config.js';
 import { buildCockpitModel, buildCarouselModel, buildSpeedProfile } from './tracking-session.js';
 import { computeSegmentRatio } from './functions.js';
-import { formatTime } from './utils.js';
+import { alignDelayForDisplay, formatTime } from './utils.js';
 import { formatPk } from './linearref.js';
 import { el, escapeHtml, kmText, renderHomeActionButtons, setText, showInfo } from './app-shell.js';
 import { createCarouselView } from './carousel-view.js';
@@ -19,6 +19,24 @@ const delayText = ms => {
     const seconds = Math.round(Math.abs(ms) / 1000);
     return `${ms < 0 ? '−' : '+'}${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, '0')} s`;
 };
+
+/**
+ * Résultat affiché à côté de l'horaire théorique d'un point de la timeline.
+ * Mêmes seuils et même arrondi que la pilule et l'ETA (`alignDelayForDisplay`) :
+ * l'heure affichée vaut toujours théorique + écart annoncé, à la minute près.
+ * Un point futur au-delà du prochain n'affiche rien tant que le train est à l'heure.
+ */
+function pointOutcome(point, isNext) {
+    const delayMs = point.observedTs != null ? alignDelayForDisplay(point.delayMs)
+        : point.estimatedTs != null ? point.estimatedTs - point.theoreticalTs : null;
+    if (delayMs == null) return { text: '', tone: '' };
+    if (delayMs === 0) return point.observedTs != null || isNext ? { text: 'à l’heure', tone: 'ok' } : { text: '', tone: '' };
+    const minutes = Math.round(Math.abs(delayMs) / 60_000);
+    return {
+        text: `${clock(point.theoreticalTs + delayMs)} (${delayMs > 0 ? '+' : '−'}${minutes} min)`,
+        tone: delayMs > 0 ? 'late' : 'early'
+    };
+}
 
 /** Les deux sens d'une même liaison viennent de MAIN_ROUTES, sans catalogue parallèle. */
 export function populateRouteChoices(selectedKey = '') {
@@ -211,16 +229,12 @@ function renderCarousel(model, nowTs, relayout) {
             theory.title = `Horaire théorique : ${dateTime(point.theoreticalTs)}`;
         }
         const result = node.querySelector('.point-result');
-        let text = '';
-        if (point.observedTs != null) text = `Observé ${clock(point.observedTs)} · ${delayText(point.delayMs)}`;
-        else if (point.estimatedTs != null) text = `Prévu ≈ ${clock(point.estimatedTs)}`;
-        else if (point.index < model.progress.currentIdx) text = 'Passage non observé';
-        else text = 'Théorique';
+        const { text, tone } = pointOutcome(point, next);
         if (result.textContent !== text) result.textContent = text;
-        const resultClass = `point-result${point.observedTs != null ? point.delayMs > 0 ? ' late' : ' observed' : ''}`;
+        const resultClass = `point-result${tone ? ` ${tone}` : ''}`;
         if (result.className !== resultClass) result.className = resultClass;
         const detail = node.querySelector('.point-detail');
-        const info = next && point.distanceKm != null ? `${kmText(point.distanceKm)} km${point.remainingSeconds != null ? ` · ${duration(point.remainingSeconds)}` : ''}${point.isStop ? ' · arrêt commercial' : ''}` : active && STATE.trackingSnapshot ? model.phase === 'arrived' ? 'Voyage arrivé' : 'Dernier repère · position sur le segment' : point.isStop ? 'Arrêt commercial' : '';
+        const info = next && point.distanceKm != null ? `${kmText(point.distanceKm)} km${point.remainingSeconds != null ? ` · ${duration(point.remainingSeconds)}` : ''}${point.isStop ? ' · arrêt commercial' : ''}` : active && model.phase === 'arrived' ? 'Voyage arrivé' : point.isStop ? 'Arrêt commercial' : '';
         if (detail.textContent !== info) detail.textContent = info;
     });
     activeIndex = model.progress.currentIdx;

@@ -1102,7 +1102,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,[tabindex="0"]:focus-vi
     font-size:18px;
 }
 
-.point-meta .observed {
+.point-meta .point-result {
+    font-weight:600;
+}
+
+.point-meta .ok,
+.point-meta .early {
     color:var(--ok);
 }
 
