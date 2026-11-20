@@ -370,7 +370,7 @@
       "lon_V2": 4.8749638
     },
     "BIF_MONTANAY": {
-      "name": "Bifurcation V.1 de Montanay",
+      "name": "Bifurcation de Montanay",
       "lat": 45.8936,
       "lon": 4.87707,
       "type": "bifurcation",
@@ -429,7 +429,7 @@
       "longueur": null
     },
     "BIF_DE_GRENAY_NORD": {
-      "name": "Bif. de Grenay-Nord",
+      "name": "Bifurcation de Grenay-Nord",
       "lat": 45.66017,
       "lon": 5.07287,
       "type": "bifurcation",
@@ -536,7 +536,7 @@
       "lon_V2": 4.7315735
     },
     "BIF_VERS_LE_RACC_DE_BOLLENE": {
-      "name": "Bif. vers le racc. de Bollène",
+      "name": "Bifurcation vers le racc. de Bollène",
       "lat": 44.30675,
       "lon": 4.7012,
       "type": "bifurcation",
@@ -561,7 +561,7 @@
       "longueur": null
     },
     "BIF_D_AVIGNON_NORD": {
-      "name": "Bif. d'Avignon-Nord",
+      "name": "Bifurcation d'Avignon-Nord",
       "lat": 43.97382,
       "lon": 4.73681,
       "type": "bifurcation",
@@ -657,7 +657,7 @@
       "lon_V2": 5.3397369
     },
     "BIF_DES_TUILERIES": {
-      "name": "Bif. des Tuileries",
+      "name": "Bifurcation des Tuileries",
       "lat": 43.35441,
       "lon": 5.35259,
       "type": "bifurcation",

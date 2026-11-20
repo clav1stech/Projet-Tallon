@@ -55,6 +55,12 @@ export const DELTA_MAX_MINUTES = 30;
 export const DELTA_REPEAT_DELAY_MS = 420;
 export const DELTA_REPEAT_INTERVAL_MS = 90;
 
+// Abréviations des noms de points : les données portent toujours la forme
+// longue. La courte n'est affichée que si elle fait tenir sur une ligne un nom
+// qui, au format « prochain point » du carrousel, en prendrait deux ; le choix
+// vaut alors pour tous les affichages de ce nom et suit la taille de l'écran.
+export const POINT_NAME_ABBREVIATIONS = [{ prefix: 'Bifurcation ', short: 'Bif. ' }];
+
 // Rendu : animations du carousel et notifications, sans effet sur l'acquisition.
 // Réglages de présentation communs aux deux cockpits : car-ui.js les lit aussi.
 export const CAROUSEL_ANIMATION_MS = 500;

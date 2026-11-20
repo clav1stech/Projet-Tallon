@@ -7,6 +7,7 @@ import { formatPk } from './linearref.js';
 import { el, escapeHtml, kmText, renderHomeActionButtons, setText, showInfo } from './app-shell.js';
 import { createCarouselView } from './carousel-view.js';
 import { createSpeedProfileView } from './speed-profile-view.js';
+import { buildPointLabels } from './point-labels.js';
 import { CAROUSEL_ANIMATION_MS, CAROUSEL_HERO_RATIO, DELTA_MAX_MINUTES, DELTA_MIN_MINUTES, INFO_DISPLAY_MS, MAX_TRAIN_SPEED_KMH, PROFILE_MAX_COLUMNS, PROFILE_RECENT_WINDOW_MS } from './train-config.js';
 
 const clock = ts => Number.isFinite(ts) ? formatTime(new Date(ts)) : '––:––';
@@ -202,6 +203,41 @@ function layoutCarousel(animate = false) {
     }, animate);
 }
 
+// Libellés affichés (forme longue ou abrégée), décidés pour la géométrie
+// courante du carrousel : recalculés à chaque changement de trajet ou de taille.
+let pointLabels = new Map();
+let pointLabelsKey = '';
+const pointLabel = name => pointLabels.get(name) || name;
+
+/**
+ * Mesure chaque nom au format « prochain point », dans le carrousel lui-même
+ * (mêmes unités de conteneur, mêmes marges), sur une ligne témoin invisible.
+ * @returns {boolean} vrai si les libellés ont été recalculés
+ */
+function refreshPointLabels(container) {
+    const carousel = container.parentElement;
+    const key = `${STATE.planRevision}|${carousel.clientWidth}x${carousel.clientHeight}`;
+    if (!carousel.clientWidth || key === pointLabelsKey) return false;
+    const probe = document.createElement('article');
+    probe.className = 'train-point next';
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = 'position:absolute;top:0;left:0;right:0;visibility:hidden;pointer-events:none';
+    const label = document.createElement('div');
+    label.className = 'point-name';
+    probe.appendChild(label);
+    container.appendChild(probe);
+    const style = getComputedStyle(label);
+    const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2;
+    const fitsOnOneLine = text => {
+        label.textContent = text;
+        return label.getBoundingClientRect().height < lineHeight * 1.5;
+    };
+    pointLabels = buildPointLabels(STATE.currentRoute.map(point => point.name), fitsOnOneLine);
+    probe.remove();
+    pointLabelsKey = key;
+    return true;
+}
+
 function renderCarousel(model, nowTs, relayout) {
     const container = el('train-points');
     const changed = routeRevision !== STATE.planRevision;
@@ -212,6 +248,17 @@ function renderCarousel(model, nowTs, relayout) {
         el('profile-readout').hidden = true;
         setText('details-readout', PROFILE_HELP);
         container.innerHTML = STATE.currentRoute.map((point, index) => `<article class="train-point${point.isStop ? ' stop' : ''}" data-index="${index}"><i class="point-dot" aria-hidden="true"></i><div class="point-name">${escapeHtml(point.name)}</div><div class="point-meta"><span class="theory"></span><span class="point-result"></span></div><div class="point-detail"></div></article>`).join('') + '<i class="train-cursor" aria-hidden="true" hidden></i>';
+    }
+    if (refreshPointLabels(container) || changed) {
+        STATE.currentRoute.forEach((point, index) => {
+            const label = container.children[index]?.querySelector('.point-name');
+            const text = pointLabel(point.name);
+            if (!label || label.textContent === text) return;
+            label.textContent = text;
+            // Le nom complet reste lisible au survol et par les lecteurs d'écran.
+            if (text !== point.name) label.title = point.name;
+            else label.removeAttribute('title');
+        });
     }
     const points = buildCarouselModel(STATE, model, nowTs);
     points.forEach(point => {
@@ -311,7 +358,7 @@ export function renderTripDetails() {
     const key = `${STATE.planRevision}|${currentProfile.passages.length}`;
     if (key === lastPassageKey) return;
     lastPassageKey = key;
-    el('passage-log').innerHTML = currentProfile.passages.length ? currentProfile.passages.map(passage => `<tr><th scope="row">${escapeHtml(passage.name)}${passage.isStop ? ' · arrêt' : ''}</th><td>${dateTime(passage.theoreticalTs)}</td><td>${dateTime(passage.ts)}</td><td>${delayText(passage.delayMs)}</td></tr>`).join('') : '<tr><td colspan="4">Aucun passage observé pour le moment.</td></tr>';
+    el('passage-log').innerHTML = currentProfile.passages.length ? currentProfile.passages.map(passage => `<tr><th scope="row">${escapeHtml(pointLabel(passage.name))}${passage.isStop ? ' · arrêt' : ''}</th><td>${dateTime(passage.theoreticalTs)}</td><td>${dateTime(passage.ts)}</td><td>${delayText(passage.delayMs)}</td></tr>`).join('') : '<tr><td colspan="4">Aucun passage observé pour le moment.</td></tr>';
 }
 
 export function inspectSpeedProfile(canvas, event) {

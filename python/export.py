@@ -58,6 +58,7 @@ MODULE_SUMMARY = {
     'js/utils.js': "Utilitaires génériques sans dépendance métier.",
     'js/fakeGeoSim.js': "Simulateur GPS de dev (désactivé par défaut, ENABLE_FAKE_GPS).",
     'js/master-editor.js': "Logique de l'éditeur visuel de masterRoutes.normalized.json.",
+    'js/point-labels.js': "Choix pur entre nom complet et abrégé d'un point selon la place au format « prochain point ».",
     'js/route-speed.js': "Calcul pur du profil de vitesse théorique et de sa plausibilité (éditeurs, test).",
     'js/master-routes-draft.js': "Brouillon local de masterRoutes partagé par les éditeurs (jamais lu par l'app).",
     'js/editor-shell.js': "Coquille commune des éditeurs : navigation, bandeau de brouillon, état.",

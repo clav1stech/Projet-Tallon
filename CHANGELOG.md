@@ -2,6 +2,19 @@
 
 ## Non publié
 
+### Noms des bifurcations
+
+- Les données écrivent toujours « Bifurcation » en toutes lettres (Grenay-Nord,
+  Bollène, Avignon-Nord, Tuileries étaient abrégées ; « V.1 » est retiré de
+  Montanay). Le test d'intégrité refuse désormais toute forme abrégée.
+- L'app abrège en « Bif. » selon la place réelle : un nom n'est abrégé que s'il
+  prendrait deux lignes au format « prochain point » du carrousel et que
+  l'abréviation le fait tenir sur une seule. Le choix vaut pour tous ses
+  affichages (carrousel, journal des passages), même là où la forme longue
+  tiendrait, et il est recalculé à chaque changement de taille ou
+  d'orientation. Le nom complet reste au survol. Règle pure dans
+  `js/point-labels.js`, abréviations dans `POINT_NAME_ABBREVIATIONS`.
+
 ### Durées Paris ⇄ Mâcon / Lyon-Part-Dieu / Marseille
 
 - Les totaux des trajets étaient plausibles, mais le temps était mal réparti

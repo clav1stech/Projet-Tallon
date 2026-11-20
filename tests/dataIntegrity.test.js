@@ -4,7 +4,7 @@ import { MAIN_ROUTES } from '../js/routes-config.js';
 import { CAR_ROUTES } from '../js/car-config.js';
 import { reverseRouteKey, routeEndpoints } from '../js/car-session.js';
 import { buildRouteSegments } from '../js/route-speed.js';
-import { ROUTE_SPEED_BOUNDS_KMH } from '../js/train-config.js';
+import { POINT_NAME_ABBREVIATIONS, ROUTE_SPEED_BOUNDS_KMH } from '../js/train-config.js';
 
 // Cohérence référentielle des données versionnées : ces fichiers sont édités
 // à la main ou par export, et une référence orpheline ne casse l'app qu'à
@@ -48,6 +48,18 @@ describe('masterRoutes : cohérence interne', () => {
             const ids = route.points.map(point => point.id);
             expect(new Set(ids).size, `doublon dans ${route.id}`).toBe(ids.length);
         }
+    });
+});
+
+describe('masterRoutes : noms en toutes lettres', () => {
+    // L'abréviation est une décision d'affichage, prise selon la place à
+    // l'écran (js/point-labels.js) : une forme courte dans les données
+    // l'imposerait partout, même là où le nom complet tient.
+    it('aucun nom ne commence par une forme abrégée', () => {
+        const abbreviated = Object.entries(master.points)
+            .filter(([, point]) => POINT_NAME_ABBREVIATIONS.some(rule => point.name.startsWith(rule.short)))
+            .map(([id, point]) => `${id} : ${point.name}`);
+        expect(abbreviated).toEqual([]);
     });
 });
 
