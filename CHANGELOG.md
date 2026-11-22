@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## v3.2.0 - 2026-11-22
 
 ### Noms des bifurcations
 
