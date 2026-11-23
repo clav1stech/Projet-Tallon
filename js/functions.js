@@ -433,7 +433,7 @@ export function computeSegmentIndexAndDistance(route, lat, lon, lastSegmentIndex
 /**
  * Calcule la longueur d'un segment en km
  */
-function getSegmentLength(pStart, pEnd) {
+export function getSegmentLength(pStart, pEnd) {
     let length = Number(pStart.segmentLengthToNext || 0);
     if (!length || length <= 0) {
         length = haversineDistance(pStart.lat, pStart.lon, pEnd.lat, pEnd.lon);

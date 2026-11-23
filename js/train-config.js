@@ -17,6 +17,10 @@ export const SNCF_TIMEOUT_MS = 3000;
 export const SNCF_STALE_MS = 10_000;
 // En repli GPS, intervalle entre deux tentatives de retour au WiFi SNCF.
 export const SNCF_RETRY_MS = 15_000;
+// Retard de la position servie par le routeur sur la position réelle du
+// train : l'échantillon est avancé le long du trajet de la distance parcourue
+// pendant ce délai à la vitesse mesurée.
+export const SNCF_POSITION_LAG_MS = 2000;
 
 // Fenêtre de positions servant à la vitesse médiane (≈ 10 s à 1 fix/s).
 export const POSITION_WINDOW_SIZE = 10;

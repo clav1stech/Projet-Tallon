@@ -113,6 +113,39 @@ describe('accrochage au trajet', () => {
     });
 });
 
+describe('compensation du retard de la position WiFi SNCF', () => {
+    const SNCF = { locationMethod: 'sncf' };
+
+    it('avance la position mesurée de la distance parcourue pendant le retard', () => {
+        const route = southboundRoute();
+        const ts = DEP + 60_000;
+        const measured = startedState(route);
+        ingestFix(measured, fixAt(route, 1, 0.5, ts), ts, OPTS);
+        const sncf = startedState(route);
+        const { sample, snapshot } = ingestFix(sncf, fixAt(route, 1, 0.5, ts, { speed: 180 }), ts, SNCF);
+        expect(sample.leadKm).toBeCloseTo(0.1, 9);
+        expect(snapshot.segmentIndex).toBe(1);
+        expect(snapshot.routeKm - measured.trackingSnapshot.routeKm).toBeCloseTo(0.1, 3);
+        expect(snapshot.currentDelayMs).toBeLessThan(measured.trackingSnapshot.currentDelayMs);
+    });
+
+    it('franchit le point suivant quand l’avance dépasse la fin du segment', () => {
+        const route = southboundRoute();
+        const state = startedState(route);
+        const ts = DEP + 60_000;
+        const { snapshot } = ingestFix(state, fixAt(route, 1, 0.9999, ts, { speed: 300 }), ts, SNCF);
+        expect(snapshot.segmentIndex).toBe(2);
+        expect(state.passageTimes[route[2].id]).toBe(ts);
+    });
+
+    it('ne s’applique pas au GPS du téléphone', () => {
+        const route = southboundRoute();
+        const state = startedState(route);
+        feed(state, fixesAlongRoute(route, DEP, { toSeconds: 60 }));
+        expect(state.session.samples.every(s => s.leadKm === 0)).toBe(true);
+    });
+});
+
 describe('rejeu', () => {
     it('redonne exactement l’état dérivé obtenu en direct', () => {
         const route = southboundRoute();

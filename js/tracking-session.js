@@ -20,6 +20,7 @@ import {
     computeCurrentDelay,
     computeSegmentIndexAndDistance,
     findNearestSegmentIndex,
+    getSegmentLength,
     projectPositionOnRouteSegment
 } from './functions.js';
 import { evaluateTeleport, filterSpeedSpike, medianStepSpeed, noiseFloorKmh, shouldAcceptAccuracy } from './tracking.js';
@@ -30,7 +31,8 @@ import {
     POSITION_WINDOW_SIZE,
     SESSION_MAX_SAMPLES,
     SIGNAL_LOSS_MAX_MS,
-    SIGNAL_LOSS_MIN_MS
+    SIGNAL_LOSS_MIN_MS,
+    SNCF_POSITION_LAG_MS
 } from './train-config.js';
 
 // ───────────────────────── Cycle de vie ─────────────────────────
@@ -82,6 +84,25 @@ export function endSession(state) {
 function pushSample(session, sample) {
     session.samples.push(sample);
     if (session.samples.length > SESSION_MAX_SAMPLES) session.samples.shift();
+}
+
+/**
+ * Avance une position projetée de `leadKm` le long du trajet, en franchissant
+ * au besoin les points suivants ; bornée au terminus.
+ */
+function advanceAlongRoute(route, segmentIndex, distanceFromSegmentStart, distanceToNextPointKm, leadKm) {
+    let idx = segmentIndex;
+    let fromStart = distanceFromSegmentStart;
+    let toNext = distanceToNextPointKm;
+    let remaining = leadKm;
+    while (remaining > toNext && idx < route.length - 2) {
+        remaining -= toNext;
+        idx += 1;
+        fromStart = 0;
+        toNext = getSegmentLength(route[idx], route[idx + 1]) || 0;
+    }
+    const step = Math.min(remaining, toNext);
+    return { segmentIndex: idx, distanceFromSegmentStart: fromStart + step, distanceToNextPointKm: toNext - step };
 }
 
 function lastSampleSpeed(session) {
@@ -168,6 +189,9 @@ export function acceptFix(state, position, nowTs = Date.now(), opts = {}) {
         accuracyM: Number.isFinite(accuracyMeters) && accuracyMeters > 0 ? accuracyMeters : null,
         speedReliable: hasDirectSpeed || (opts.locationMethod === 'geo' && session.lastPositions.length >= 2),
         reseeded: verdict.reseeded,
+        // Avance le long du trajet compensant le retard de la position WiFi
+        // SNCF ; portée par l'échantillon pour un rejeu à l'identique.
+        leadKm: opts.locationMethod === 'sncf' ? speed * SNCF_POSITION_LAG_MS / 3_600_000 : 0,
         routeKm: null
     };
     pushSample(session, sample);
@@ -228,6 +252,14 @@ export function advanceOnRoute(state, sample, opts = {}) {
         const projection = projectPositionOnRouteSegment(route, segmentIndex, lat, lon);
         distanceFromSegmentStart = projection.distanceFromSegmentStart;
         distanceToNextPointKm = projection.distanceToNextPointKm;
+    }
+
+    // Position réelle estimée à l'instant de l'échantillon : la position
+    // mesurée avancée de la distance parcourue pendant le retard de la source.
+    if (sample.leadKm > 0) {
+        ({ segmentIndex, distanceFromSegmentStart, distanceToNextPointKm } = advanceAlongRoute(
+            route, segmentIndex, distanceFromSegmentStart, distanceToNextPointKm, sample.leadKm
+        ));
     }
 
     const theoreticalTs = (idx) => state.departureTimestamp + plan.offsetsSeconds[idx] * 1000;
