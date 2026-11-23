@@ -43,6 +43,10 @@ class LineProfile:
 
     def project_pk(self, lat, lon):
         """PK du point de la ligne le plus proche de (lat, lon), interpolé entre deux repères."""
+        return self.project(lat, lon)[0]
+
+    def project(self, lat, lon):
+        """(PK projeté, distance en km entre (lat, lon) et la ligne)."""
         scale = math.cos(math.radians(lat))
 
         def plane(i):
@@ -61,7 +65,7 @@ class LineProfile:
             distance = (ax + ratio * dx) ** 2 + (ay + ratio * dy) ** 2
             if distance < best_distance:
                 best_pk, best_distance = self.pks[a] + ratio * (self.pks[b] - self.pks[a]), distance
-        return best_pk
+        return best_pk, best_distance ** 0.5 * 111.2
 
     def _index(self, pk):
         return min(max(bisect.bisect_right(self.pks, pk) - 1, 0), len(self.pks) - 1)

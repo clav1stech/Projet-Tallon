@@ -1,22 +1,27 @@
-"""Recalage des durées LGV Paris ⇄ Mâcon-Loché sur les horaires commerciaux.
+"""Recalage des durées Paris ⇄ Mâcon-Loché sur les horaires commerciaux.
 
 Usage :
     python3 python/calibrate_lgv_durations.py            # simulation (aucune écriture)
     python3 python/calibrate_lgv_durations.py --apply    # sauvegarde datée puis écriture
 
 Méthode :
-- la portion Paris-Gare-de-Lyon ⇄ bifurcation de Moisenay n'est jamais modifiée ;
-- sur la LGV (ligne 752000, longueurs tirées des PK où se projettent les
-  coordonnées des points, non des distances à vol d'oiseau), une marche tendue est simulée sur le profil de ligne extrait de
+- le corridor Paris-Gare-de-Lyon → Créteil (830000) → Moisenay (752100) →
+  Mâcon-Loché (LGV 752000) est repéré en PK : chaque point est placé au PK où
+  se projettent ses coordonnées de voie, comme le suit le moteur ; les longueurs
+  sont des différences de PK, non des distances à vol d'oiseau ;
+- une marche tendue y est simulée sur le profil de ligne extrait de
   data/csv/rail_pk.csv (line_profile.py) : vitesses limites nominales et
   déclivités, moyennées sur la longueur du train ; rame type TGV Duplex
   (puissance, effort au démarrage, résistance à l'avancement de type Davis),
-  freinage de service, aiguillages de Mâcon-Loché à 160 km/h ; une hausse de
-  limite ne s'applique qu'une fois la queue du train dégagée ;
+  freinage de service ; une hausse de limite ne s'applique qu'une fois la queue
+  du train dégagée ; sorties et entrées de gare aux vitesses de STATION_ZONES ;
 - la différence entre l'horaire commercial et la marche tendue est la marge de
   régularité ; elle est répartie au prorata du temps de marche tendue de chaque
   segment (marge en pourcentage du temps, et non de la distance), de sorte que
-  démarrage, freinage et rampes reçoivent une part conforme à leur durée.
+  démarrage, freinage et rampes reçoivent une part conforme à leur durée ;
+- seule l'étendue CALIBRATED_SPANS est recalée. L'approche de Paris au retour
+  (Moisenay → Paris) en est exclue : elle porte la marge d'arrivée au terminus,
+  supérieure à celle de la ligne, et le reste de la marge ne s'y répartit pas.
 
 Chaque trajet porte les durées actuelles attendues : si les données ont changé
 depuis l'analyse, le script refuse d'écrire. Des durées déjà recalées sont
@@ -35,9 +40,12 @@ from datetime import date
 from fix_route_durations import BACKUP_DIR, DATA_FILE, ROOT, write_atomic
 from line_profile import load_line_profile
 
-LGV_LINE = '752000'
-JUNCTION = 'BIF_DE_MOISENAY'
-STATION = 'MACON_LOCHE'
+# Corridor dans le sens Paris → Mâcon : (ligne, point de début, point de fin).
+CORRIDOR = [
+    ('830000', 'PARIS_LYON', 'BIF_DE_CRETEIL'),
+    ('752100', 'BIF_DE_CRETEIL', 'BIF_DE_MOISENAY'),
+    ('752000', 'BIF_DE_MOISENAY', 'MACON_LOCHE'),
+]
 
 # Horaires commerciaux sans arrêt intermédiaire (gare à gare, en secondes).
 REFERENCE_TOTALS_S = {
@@ -45,19 +53,33 @@ REFERENCE_TOTALS_S = {
     'MAC_PAR_NORD': 96 * 60,  # 7 h 38 → 9 h 14
 }
 
-# Durées actuelles de Moisenay à Mâcon-Loché, dans l'ordre du trajet.
-EXPECTED_LGV_DURATIONS_S = {
-    'PAR_MAC_SUD': [359, 90, 315, 290, 314, 20, 310, 286, 341, 235, 93, 261,
-                    297, 86, 308, 294, 314, 119, 289],
-    'MAC_PAR_NORD': [304, 117, 309, 287, 305, 84, 290, 256, 93, 229, 320, 295,
-                     293, 29, 311, 278, 308, 88, 348],
+# Étendue recalée (premier et dernier point, dans l'ordre du trajet).
+CALIBRATED_SPANS = {
+    'PAR_MAC_SUD': ('PARIS_LYON', 'MACON_LOCHE'),
+    'MAC_PAR_NORD': ('MACON_LOCHE', 'BIF_DE_MOISENAY'),
 }
 
-# Vitesse au passage de Moisenay : limite de la ligne 752100 côté Paris. Le
-# 160 km/h que rail_pk.csv porte sur la 752000 jusqu'au PK 18,5 vise la
-# branche d'Interconnexion, non le tronc venant de Paris.
+# Durées actuelles sur l'étendue recalée, dans l'ordre du trajet.
+EXPECTED_DURATIONS_S = {
+    'PAR_MAC_SUD': [350, 112, 82, 230, 70, 175, 357, 91, 314, 289, 316, 20, 310,
+                    306, 320, 236, 93, 260, 301, 83, 307, 293, 315, 120, 290],
+    'MAC_PAR_NORD': [298, 124, 310, 286, 299, 87, 293, 253, 96, 228, 341, 275,
+                     282, 38, 315, 277, 307, 86, 349],
+}
+
+# Le 160 km/h que rail_pk.csv porte sur la 752000 jusqu'au PK 18,5 vise la
+# branche d'Interconnexion, non le tronc venant de Paris : celui-ci garde la
+# limite de la 752100 (270 km/h) à la jonction de Moisenay.
+JUNCTION_LIMIT = {'line': '752000', 'below_pk': 18.5, 'speed_kmh': 270}
+# Vitesse de passage à Moisenay quand l'étendue recalée s'y arrête.
 JUNCTION_SPEED_KMH = 270
-JUNCTION_ZONE_END_PK = 18.5
+
+# Gorge de gare et aiguillages d'accès : vitesse plafond sur une distance (km)
+# autour du point d'arrêt.
+STATION_ZONES = {
+    'PARIS_LYON': {'speed_kmh': 60, 'length_km': 1.0},
+    'MACON_LOCHE': {'speed_kmh': 160, 'length_km': 1.6},
+}
 
 TRAIN = {
     'mass_kg': 450_000,          # rame chargée
@@ -68,27 +90,73 @@ TRAIN = {
     'davis_kn': (2.7, 0.032, 0.00055),  # A + B·V + C·V², V en km/h
     'service_braking_ms2': 0.45,
 }
-STATION_TURNOUT = {'speed_kmh': 160, 'length_km': 1.6}
 GRAVITY_MS2 = 9.81
+# Écart toléré entre un point et la ligne du corridor sur laquelle il se projette.
+MAX_PROJECTION_KM = 0.3
 STEP_M = 5.0
 
 
-def lgv_pk_km(profile, point, voie):
-    """PK de la position du point sur la LGV, projetée depuis ses coordonnées de voie.
-
-    Le moteur suit les coordonnées (règle de buildEffectiveRoute) : les champs PK
-    des bifurcations, parfois intervertis entre voies, ne font pas foi.
-    """
+def point_coordinates(point, voie):
+    """Coordonnées propres à la voie si renseignées (règle de buildEffectiveRoute)."""
     lat, lon = point.get(f'lat_V{voie}'), point.get(f'lon_V{voie}')
-    if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
-        lat, lon = point['lat'], point['lon']
-    return profile.project_pk(lat, lon)
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+        return lat, lon
+    return point['lat'], point['lon']
 
 
-def lgv_slice(route):
-    ids = [point['id'] for point in route['points']]
-    a, b = ids.index(JUNCTION), ids.index(STATION)
-    return (a, b) if a < b else (b, a)
+class Corridor:
+    """Abscisse continue (km depuis Paris) sur une suite de lignes repérées en PK."""
+
+    def __init__(self, data, voie):
+        points = data['points']
+        self.profiles = {line: load_line_profile(line) for line, _, _ in CORRIDOR}
+        self.pieces = []      # (ligne, abscisse de début, PK de début, sens, longueur)
+        self.positions = {}
+        offset = 0.0
+        for line, start_id, end_id in CORRIDOR:
+            profile = self.profiles[line]
+            pk_start = profile.project_pk(*point_coordinates(points[start_id], voie))
+            pk_end = profile.project_pk(*point_coordinates(points[end_id], voie))
+            direction = 1 if pk_end >= pk_start else -1
+            self.pieces.append((line, offset, pk_start, direction, abs(pk_end - pk_start)))
+            self.positions.setdefault(start_id, offset)
+            offset += abs(pk_end - pk_start)
+            self.positions[end_id] = offset
+        self.length = offset
+
+    def locate(self, x):
+        for line, offset, pk_start, direction, length in self.pieces:
+            if x <= offset + length:
+                return line, pk_start + direction * (x - offset), direction
+        line, offset, pk_start, direction, length = self.pieces[-1]
+        return line, pk_start + direction * length, direction
+
+    def position(self, point_id, point, voie):
+        if point_id in self.positions:
+            return self.positions[point_id]
+        best = None
+        for line, offset, pk_start, direction, length in self.pieces:
+            pk, distance = self.profiles[line].project(*point_coordinates(point, voie))
+            along = min(max((pk - pk_start) * direction, 0.0), length)
+            if best is None or distance < best[0]:
+                best = (distance, offset + along)
+        if best[0] > MAX_PROJECTION_KM:
+            raise ValueError(f'{point_id} à {best[0]:.2f} km du corridor')
+        return best[1]
+
+    def speed_limit_ms(self, x):
+        for point_id, zone in STATION_ZONES.items():
+            if point_id in self.positions and abs(self.positions[point_id] - x) <= zone['length_km']:
+                return zone['speed_kmh'] / 3.6
+        line, pk, _ = self.locate(x)
+        if line == JUNCTION_LIMIT['line'] and pk < JUNCTION_LIMIT['below_pk']:
+            return JUNCTION_LIMIT['speed_kmh'] / 3.6
+        return self.profiles[line].speed_limit_kmh(pk) / 3.6
+
+    def gradient_permil(self, x):
+        """Déclivité au point x dans le sens Paris → Mâcon (positive en montée)."""
+        line, pk, direction = self.locate(x)
+        return self.profiles[line].gradient_permil(pk - direction * STEP_M / 1000, pk)
 
 
 def davis_resistance_n(speed_ms):
@@ -145,45 +213,37 @@ def round_preserving_total(values, total):
     return floors
 
 
+def boundary_speed_ms(point_id):
+    return 0.0 if point_id in STATION_ZONES else JUNCTION_SPEED_KMH / 3.6
+
+
 def calibrate(data, route_id):
     route = next(route for route in data['trajets'] if route['id'] == route_id)
     voie = route['voie']
-    points = data['points']
-    first, last = lgv_slice(route)
     seq = route['points']
-    lgv = seq[first:last + 1]
-    profile = load_line_profile(LGV_LINE)
-    pks = [lgv_pk_km(profile, points[p['id']], voie) for p in lgv]
-    distances = [abs(b - a) for a, b in zip(pks, pks[1:])]
-    station_pk = pks[-1] if lgv[-1]['id'] == STATION else pks[0]
-    towards_station = pks[-1] > pks[0]
-    origin = pks[0]
-    direction = 1 if towards_station else -1
-
-    def pk_at(km_travelled):
-        return origin + direction * km_travelled
+    ids = [point['id'] for point in seq]
+    first_id, last_id = CALIBRATED_SPANS[route_id]
+    first, last = ids.index(first_id), ids.index(last_id)
+    span = seq[first:last + 1]
+    corridor = Corridor(data, voie)
+    xs = [corridor.position(p['id'], data['points'][p['id']], voie) for p in span]
+    distances = [abs(b - a) for a, b in zip(xs, xs[1:])]
+    direction = 1 if xs[-1] > xs[0] else -1
+    origin = xs[0]
 
     def limit_at(km_travelled):
-        pk = pk_at(km_travelled)
-        if abs(station_pk - pk) <= STATION_TURNOUT['length_km']:
-            return STATION_TURNOUT['speed_kmh'] / 3.6
-        if pk < JUNCTION_ZONE_END_PK:
-            return JUNCTION_SPEED_KMH / 3.6
-        return profile.speed_limit_kmh(pk) / 3.6
+        return corridor.speed_limit_ms(origin + direction * km_travelled)
 
     def gradient_at(km_travelled):
-        pk = pk_at(km_travelled)
-        return profile.gradient_permil(pk - direction * STEP_M / 1000, pk)
+        return direction * corridor.gradient_permil(origin + direction * km_travelled)
 
-    junction_ms = JUNCTION_SPEED_KMH / 3.6
-    start, end = (junction_ms, 0.0) if towards_station else (0.0, junction_ms)
-    tight = tight_run_times(distances, limit_at, gradient_at, start, end)
-
+    tight = tight_run_times(distances, limit_at, gradient_at,
+                            boundary_speed_ms(first_id), boundary_speed_ms(last_id))
     fixed = sum(p['durationToNext'] or 0 for i, p in enumerate(seq[:-1]) if not first <= i < last)
     target = REFERENCE_TOTALS_S[route_id] - fixed
     scale = target / sum(tight)
     durations = round_preserving_total([t * scale for t in tight], target)
-    segments = [(a['id'], b['id'], km, t) for a, b, km, t in zip(lgv, lgv[1:], distances, tight)]
+    segments = [(a['id'], b['id'], km, t) for a, b, km, t in zip(span, span[1:], distances, tight)]
     return route, first, durations, segments, scale - 1
 
 
@@ -194,7 +254,7 @@ def main():
 
     data = json.loads(DATA_FILE.read_text(encoding='utf-8'))
     changed, errors = 0, []
-    for route_id, expected in EXPECTED_LGV_DURATIONS_S.items():
+    for route_id, expected in EXPECTED_DURATIONS_S.items():
         route, first, durations, segments, margin = calibrate(data, route_id)
         current = [p['durationToNext'] for p in route['points'][first:first + len(durations)]]
         if current == durations:

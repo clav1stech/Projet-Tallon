@@ -1448,103 +1448,103 @@
       "points": [
         {
           "id": "PARIS_LYON",
-          "durationToNext": 350
+          "durationToNext": 370
         },
         {
           "id": "BIF_DE_CRETEIL",
-          "durationToNext": 112
+          "durationToNext": 109
         },
         {
           "id": "TUNNEL_DE_LIMEIL_BREVANNES",
-          "durationToNext": 82
+          "durationToNext": 87
         },
         {
           "id": "TRANCHEE_COUVERTE_DE_VILLECRESNE",
-          "durationToNext": 230
+          "durationToNext": 304
         },
         {
           "id": "BIF_DE_CHEVRY_COSSIGNY",
-          "durationToNext": 70
+          "durationToNext": 89
         },
         {
           "id": "BIF_DE_SOLERS",
-          "durationToNext": 175
+          "durationToNext": 191
         },
         {
           "id": "BIF_DE_MOISENAY",
-          "durationToNext": 357
+          "durationToNext": 347
         },
         {
           "id": "VIADUC_DE_MONTEREAU",
-          "durationToNext": 91
+          "durationToNext": 88
         },
         {
           "id": "PRS_DE_MAROLLES",
-          "durationToNext": 314
-        },
-        {
-          "id": "PASSAGE_SOUS_L_A19",
-          "durationToNext": 289
-        },
-        {
-          "id": "PRS_DE_VAUMORT",
-          "durationToNext": 316
-        },
-        {
-          "id": "VIADUC_SUR_LE_CANAL_DE_BOURGOGNE",
-          "durationToNext": 20
-        },
-        {
-          "id": "BIF_DE_VERGIGNY",
-          "durationToNext": 310
-        },
-        {
-          "id": "PRS_TONNERRE",
           "durationToNext": 306
         },
         {
-          "id": "BIF_DE_PASILLY",
-          "durationToNext": 320
+          "id": "PASSAGE_SOUS_L_A19",
+          "durationToNext": 280
         },
         {
-          "id": "VIADUC_D_EPOISSES",
-          "durationToNext": 236
-        },
-        {
-          "id": "PRS_DE_LACOUR_D_ARCENAY",
-          "durationToNext": 93
-        },
-        {
-          "id": "VIADUC_DE_SAULIEU",
-          "durationToNext": 260
-        },
-        {
-          "id": "PRS_DE_VIANGES",
-          "durationToNext": 301
-        },
-        {
-          "id": "PRS_DE_SULLY",
-          "durationToNext": 83
-        },
-        {
-          "id": "VIADUC_DE_LA_DIGOINE_DREE",
+          "id": "PRS_DE_VAUMORT",
           "durationToNext": 307
         },
         {
+          "id": "VIADUC_SUR_LE_CANAL_DE_BOURGOGNE",
+          "durationToNext": 19
+        },
+        {
+          "id": "BIF_DE_VERGIGNY",
+          "durationToNext": 301
+        },
+        {
+          "id": "PRS_TONNERRE",
+          "durationToNext": 298
+        },
+        {
+          "id": "BIF_DE_PASILLY",
+          "durationToNext": 311
+        },
+        {
+          "id": "VIADUC_D_EPOISSES",
+          "durationToNext": 229
+        },
+        {
+          "id": "PRS_DE_LACOUR_D_ARCENAY",
+          "durationToNext": 91
+        },
+        {
+          "id": "VIADUC_DE_SAULIEU",
+          "durationToNext": 253
+        },
+        {
+          "id": "PRS_DE_VIANGES",
+          "durationToNext": 292
+        },
+        {
+          "id": "PRS_DE_SULLY",
+          "durationToNext": 81
+        },
+        {
+          "id": "VIADUC_DE_LA_DIGOINE_DREE",
+          "durationToNext": 298
+        },
+        {
           "id": "CREUSOT_TGV",
-          "durationToNext": 293
+          "durationToNext": 285
         },
         {
           "id": "PRS_DE_VAUX_EN_PRE",
-          "durationToNext": 315
+          "durationToNext": 307
         },
         {
           "id": "PRS_DE_CLUNY",
-          "durationToNext": 120
+          "durationToNext": 116
         },
         {
           "id": "VIADUC_DE_LA_ROCHE",
-          "durationToNext": 290
+          "durationToNext": 281
         },
         {
           "id": "MACON_LOCHE",

@@ -11,15 +11,18 @@
   LGV : vitesses limites nominales (300 km/h de Moisenay au PK 205,6 et du
   PK 227 au PK 256, 270 km/h ailleurs, dont l'approche de Mâcon) et
   déclivités (jusqu'à 35 ‰).
-- `python/calibrate_lgv_durations.py` simule sur ce profil la marche tendue
-  d'une rame Duplex (rampes, démarrage et freinage à Mâcon-Loché) puis
-  répartit la marge de régularité au prorata du temps de marche (14,0 % à
-  l'aller, 11,6 % au retour). Chaque point est repéré au PK où se projettent
-  ses coordonnées de voie, comme le moteur de suivi. Le temps ajouté se
-  concentre sur les rampes du Morvan (Saulieu → Sully) et la section sud à
-  270 km/h (Digoine → Cluny, +17 à +31 s par segment) ; le freinage final à
-  Mâcon perd 50 s à l'aller (340 → 290 s pour 12,8 km). Paris ⇄ Moisenay est
-  inchangé. Totaux : 1 h 34 et 1 h 36.
+- `python/calibrate_lgv_durations.py` simule sur ce profil (lignes 830000,
+  752100 et 752000) la marche tendue d'une rame Duplex (rampes, sortie de
+  Paris-Gare-de-Lyon, démarrage et freinage à Mâcon-Loché) puis répartit la
+  marge de régularité au prorata du temps de marche. Chaque point est repéré
+  au PK où se projettent ses coordonnées de voie, comme le moteur de suivi.
+- Paris → Mâcon (marge 10,8 %) : Paris → Moisenay était à la marche tendue
+  (16 min 59 s, Villecresnes → Chevry-Cossigny plus rapide que physiquement
+  possible) ; il passe à 19 min 10 s. Le temps ajouté sur la LGV va aux
+  rampes du Morvan et à la section sud à 270 km/h.
+- Mâcon → Paris (marge 11,6 % de Mâcon à Moisenay) : même répartition ;
+  l'approche de Paris (20 min 16 s) garde sa marge d'arrivée au terminus.
+- Totaux : 1 h 34 et 1 h 36.
 
 ## v3.2.0 - 2026-11-22
 
