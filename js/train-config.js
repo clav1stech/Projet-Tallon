@@ -27,6 +27,14 @@ export const POSITION_WINDOW_SIZE = 10;
 
 export const MAX_TRAIN_SPEED_KMH = 350;
 
+// Avance plausible le long du trajet entre deux positions retenues : budget de
+// distance alimenté à la vitesse mesurée majorée (ratio × v + marge), plafonnée
+// à MAX_TRAIN_SPEED_KMH, et à ce plafond quand la vitesse n'est pas fiable ou
+// sur un intervalle sans échantillon plus long que gapMs (app suspendue). Une
+// position au-delà du budget (+ toleranceKm : bruit de projection, coordonnées
+// de voie des ouvrages) est hors trajet : ni franchissement ni retard.
+export const ROUTE_JUMP_GUARD = { toleranceKm: 2, speedRatio: 1.25, speedMarginKmh: 30, gapMs: 10_000 };
+
 // Plausibilité des durées théoriques (éditeurs, profil de vitesse, test
 // d'intégrité) : vitesse moyenne d'un segment, distance à vol d'oiseau entre
 // les coordonnées propres à la voie, celle que mesure le moteur. Au-dessus

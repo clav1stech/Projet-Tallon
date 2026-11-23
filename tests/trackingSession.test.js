@@ -146,6 +146,64 @@ describe('compensation du retard de la position WiFi SNCF', () => {
     });
 });
 
+describe('positions aberrantes persistantes', () => {
+    // Routeur WiFi en tunnel : une série de positions impossibles finit par
+    // être acceptée par l'anti-téléportation (ré-ancrage), sans pour autant
+    // faire franchir de point au train.
+    const glitch = (route, pointIdx, fromTs, count) => Array.from({ length: count }, (_, k) => {
+        const ts = fromTs + k * 1000;
+        const { lat, lon } = route[pointIdx];
+        return { ts, position: { coords: { latitude: lat, longitude: lon, accuracy: 10 }, timestamp: ts } };
+    });
+
+    it('ne franchit ni le terminus ni aucun point, puis reprend au passage réel', () => {
+        const route = southboundRoute();
+        const state = startedState(route);
+        const before = fixesAlongRoute(route, DEP, { toSeconds: 300, stepSeconds: 1 });
+        const bogus = glitch(route, route.length - 1, DEP + 301_000, 8);
+        const after = fixesAlongRoute(route, DEP, { fromSeconds: 309, stepSeconds: 1 });
+        feed(state, before);
+        feed(state, bogus);
+        expect(Object.keys(state.passageTimes)).toEqual(['P1', 'P2']);
+        expect(buildCockpitModel(state, DEP + 309_000).phase).toBe('running');
+
+        feed(state, after);
+        const order = state.passedPointMarkers.map(marker => marker.pointId);
+        expect(order).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7']);
+        const ts = order.map(id => state.passageTimes[id]);
+        expect(ts).toEqual([...ts].sort((a, b) => a - b));
+        // Passage réel au terminus, à l'heure : aucun retard fictif figé.
+        expect(state.passageTimes.P8).toBeGreaterThan(DEP + 950_000);
+        expect(Math.abs(state.passedPoints.P8)).toBeLessThan(10_000);
+    });
+
+    it('accepte une vraie avance après une suspension de l’app', () => {
+        const route = southboundRoute();
+        const state = startedState(route);
+        feed(state, fixesAlongRoute(route, DEP, { toSeconds: 120, stepSeconds: 1 }));
+        feed(state, fixesAlongRoute(route, DEP, { fromSeconds: 720, toSeconds: 730, stepSeconds: 1 }));
+        expect(state.passageTimes).toHaveProperty('P5');
+        expect(state.trackingSnapshot.segmentIndex).toBe(6);
+    });
+
+    it('rejette la position (0, 0) d’un récepteur sans fix', () => {
+        const state = startedState();
+        const zero = { coords: { latitude: 0, longitude: 0, accuracy: 10 }, timestamp: DEP };
+        expect(acceptFix(state, zero, DEP, OPTS)).toEqual({ accepted: false, reason: 'invalid' });
+    });
+
+    it('rejoue la séquence à l’identique', () => {
+        const route = southboundRoute();
+        const state = startedState(route);
+        feed(state, fixesAlongRoute(route, DEP, { toSeconds: 300, stepSeconds: 1 }));
+        feed(state, glitch(route, route.length - 1, DEP + 301_000, 8));
+        feed(state, fixesAlongRoute(route, DEP, { fromSeconds: 309, stepSeconds: 1 }));
+        const live = structuredClone({ passageTimes: state.passageTimes, passedPoints: state.passedPoints });
+        replaySession(state);
+        expect({ passageTimes: state.passageTimes, passedPoints: state.passedPoints }).toEqual(live);
+    });
+});
+
 describe('rejeu', () => {
     it('redonne exactement l’état dérivé obtenu en direct', () => {
         const route = southboundRoute();

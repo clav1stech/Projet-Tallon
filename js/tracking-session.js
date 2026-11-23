@@ -29,6 +29,7 @@ import {
     ARRIVAL_SNAP_KM,
     MAX_TRAIN_SPEED_KMH,
     POSITION_WINDOW_SIZE,
+    ROUTE_JUMP_GUARD,
     SESSION_MAX_SAMPLES,
     SIGNAL_LOSS_MAX_MS,
     SIGNAL_LOSS_MIN_MS,
@@ -40,6 +41,8 @@ import {
 /** Remet à zéro les seuls résultats dérivés ; les acquisitions sont intactes. */
 export function resetDerivedTracking(state) {
     state.lastSegmentIndex = null;
+    state.lastRouteFix = null;
+    state.routeJumpBudgetKm = 0;
     state.passageTimes = {};
     state.passedPoints = {};
     state.passedPointMarkers = [];
@@ -130,6 +133,8 @@ export function acceptFix(state, position, nowTs = Date.now(), opts = {}) {
     const lat = position?.coords?.latitude;
     const lon = position?.coords?.longitude;
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return { accepted: false, reason: 'invalid' };
+    // (0, 0) : position par défaut d'un récepteur sans fix, jamais un train.
+    if (lat === 0 && lon === 0) return { accepted: false, reason: 'invalid' };
 
     session.lastGpsUpdateMs = nowTs;
     const accuracyMeters = Number(position.coords.accuracy);
@@ -215,6 +220,22 @@ export function recordSignalLossTick(state, nowTs = Date.now()) {
 // ───────────────────────── Accrochage au trajet ─────────────────────────
 
 /**
+ * Budget de distance le long du trajet depuis la dernière position retenue,
+ * augmenté de l'intervalle écoulé jusqu'à `sample`. Sans dernière position,
+ * aucune borne (premier accrochage).
+ */
+function routeJumpBudgetKm(state, sample) {
+    const last = state.lastRouteFix;
+    if (!last) return Infinity;
+    const dtMs = Math.max(0, sample.ts - last.ts);
+    const measured = sample.speedReliable && Number.isFinite(sample.v) && Number.isFinite(last.v)
+        ? Math.max(sample.v, last.v) * ROUTE_JUMP_GUARD.speedRatio + ROUTE_JUMP_GUARD.speedMarginKmh
+        : MAX_TRAIN_SPEED_KMH;
+    const rateKmh = dtMs > ROUTE_JUMP_GUARD.gapMs ? MAX_TRAIN_SPEED_KMH : Math.min(measured, MAX_TRAIN_SPEED_KMH);
+    return state.routeJumpBudgetKm + rateKmh * dtMs / 3_600_000;
+}
+
+/**
  * Applique un échantillon de position au trajet appliqué et met à jour les
  * résultats dérivés. Les instants utilisés sont ceux de l'échantillon, jamais
  * l'horloge : la fonction donne le même résultat en direct et au rejeu.
@@ -232,23 +253,26 @@ export function advanceOnRoute(state, sample, opts = {}) {
     const { lat, lon, ts } = sample;
     sample.routeKm = null;
 
-    // Premier fix ou ré-ancrage : accrochage par projection sur tout le trajet
-    // (le voyageur peut démarrer le suivi en cours de route).
-    if (sample.reseeded) state.lastSegmentIndex = null;
-    if (state.lastSegmentIndex === null) {
-        state.lastSegmentIndex = findNearestSegmentIndex(route, lat, lon);
-    }
+    // Premier fix ou ré-ancrage : recherche par projection sur tout le trajet
+    // (le voyageur peut démarrer le suivi en cours de route ; l'app a pu être
+    // suspendue). Un ré-ancrage ne lève ni le garde-fou unidirectionnel ni la
+    // borne de saut : une position aberrante persistante (routeur WiFi en
+    // tunnel) ne doit franchir aucun point.
+    const previousIndex = state.lastSegmentIndex;
+    const searchFrom = previousIndex === null || sample.reseeded
+        ? findNearestSegmentIndex(route, lat, lon)
+        : previousIndex;
 
     let { segmentIndex, distanceFromSegmentStart, distanceToNextPointKm } = computeSegmentIndexAndDistance(
-        route, lat, lon, state.lastSegmentIndex, sample.accuracyM, state.direction
+        route, lat, lon, searchFrom, sample.accuracyM, state.direction
     );
     if (segmentIndex === null || segmentIndex < 0) return null;
 
     // Garde-fou unidirectionnel : l'index de segment ne recule jamais. Les
     // distances sont reprojetées sur le segment retenu, sinon le retard
     // utiliserait une distance mesurée sur un autre segment.
-    if (segmentIndex < state.lastSegmentIndex) {
-        segmentIndex = state.lastSegmentIndex;
+    if (previousIndex !== null && segmentIndex < previousIndex) {
+        segmentIndex = previousIndex;
         const projection = projectPositionOnRouteSegment(route, segmentIndex, lat, lon);
         distanceFromSegmentStart = projection.distanceFromSegmentStart;
         distanceToNextPointKm = projection.distanceToNextPointKm;
@@ -261,6 +285,23 @@ export function advanceOnRoute(state, sample, opts = {}) {
             route, segmentIndex, distanceFromSegmentStart, distanceToNextPointKm, sample.leadKm
         ));
     }
+
+    // Saut le long du trajet hors de portée du train depuis la dernière
+    // position retenue : hors trajet, l'état dérivé est conservé. Le budget
+    // croît avec le temps, une vraie avance finit donc toujours par passer.
+    const routeKm = plan.cumKm[segmentIndex] + distanceFromSegmentStart;
+    const budgetKm = routeJumpBudgetKm(state, sample);
+    const lastRouteKm = state.lastRouteFix ? state.lastRouteFix.routeKm : routeKm;
+    if (routeKm - lastRouteKm > budgetKm + ROUTE_JUMP_GUARD.toleranceKm) {
+        if (state.lastRouteFix) {
+            state.routeJumpBudgetKm = budgetKm;
+            state.lastRouteFix = { ...state.lastRouteFix, ts: sample.ts };
+        }
+        return null;
+    }
+    state.lastRouteFix = { ts: sample.ts, routeKm: Math.max(routeKm, lastRouteKm), v: sample.v };
+    state.routeJumpBudgetKm = 0;
+    if (state.lastSegmentIndex === null) state.lastSegmentIndex = searchFrom;
 
     const theoreticalTs = (idx) => state.departureTimestamp + plan.offsetsSeconds[idx] * 1000;
     const recordPassage = (idx, withMarker) => {
@@ -295,7 +336,7 @@ export function advanceOnRoute(state, sample, opts = {}) {
     state.currentDelay = currentDelayMs;
 
     const anchor = route[displayIdx];
-    sample.routeKm = plan.cumKm[segmentIndex] + distanceFromSegmentStart;
+    sample.routeKm = routeKm;
 
     state.trackingSnapshot = {
         ts,

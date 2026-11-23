@@ -83,6 +83,10 @@ export const STATE = {
 
     // Dérivés du suivi (acquisitions × trajet appliqué).
     lastSegmentIndex: null,
+    // Dernière position retenue sur le trajet { ts, routeKm, v } et budget de
+    // distance accumulé depuis (garde-fou de saut le long du trajet).
+    lastRouteFix: null,
+    routeJumpBudgetKm: 0,
     passageTimes: {},        // { [pointId]: timestamp de franchissement constaté }
     passedPoints: {},        // { [pointId]: écart en ms à l'horaire appliqué }
     passedPointMarkers: [],  // [{ pointId, name, ts }] dans l'ordre de franchissement

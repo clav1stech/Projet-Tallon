@@ -2,6 +2,23 @@
 
 ## Non publié
 
+### Suivi : positions aberrantes du WiFi SNCF
+
+- Dans le tunnel de Limeil-Brévannes (Mâcon → Paris), le routeur a servi des
+  positions aberrantes. Après trois rejets, l'anti-téléportation les acceptait
+  par « ré-ancrage » : le suivi cherchait alors le segment le plus proche sur
+  tout le trajet, marquait comme franchis tous les points jusqu'au terminus,
+  déclarait l'arrivée et figeait le retard (+13 min affichés pour +25 min
+  réels). Au retour des vraies positions, un second ré-ancrage faisait reculer
+  le suivi (Limeil enregistré après Créteil).
+- Un ré-ancrage ne lève plus le garde-fou unidirectionnel, et toute avance le
+  long du trajet est bornée par la distance que le train a pu parcourir depuis
+  la dernière position retenue (vitesse mesurée majorée, plafonnée à
+  350 km/h ; `ROUTE_JUMP_GUARD` dans `js/train-config.js`). Une position hors
+  de portée est traitée comme hors trajet ; une vraie avance après suspension
+  de l'app reste acceptée, le budget croissant avec le temps.
+- La position (0, 0) d'un récepteur sans fix est rejetée comme invalide.
+
 ### Durées Paris ⇄ Mâcon recalées sur les horaires commerciaux
 
 - Depuis la correction de la v3.2.0, les deux trajets directs étaient courts

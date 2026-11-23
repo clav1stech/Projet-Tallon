@@ -59,6 +59,7 @@ Dans les trois cas, utiliser uniquement les fichiers liés au travail en cours, 
 2. Modifier le code.
 3. Revérifier APRÈS : 100% identique attendu, mêmes données, mêmes conditions figées (heure, seed, etc.), sauf changement de comportement volontaire justifié explicitement dans le message de commit/PR.
 4. Le moteur de tracking (`computeSegmentIndexAndDistance`, `computeCurrentDelay`, `buildEffectiveRoute` dans `js/functions.js`) est le cœur critique de l'app : toute modification y touchant doit être vérifiée manuellement (ou via `js/fakeGeoSim.js`, la simulation GPS de dev) avant merge, garde-fou unidirectionnel et anti-téléportation compris.
+5. Un ré-ancrage (anti-téléportation après rejets répétés) ne lève jamais le garde-fou unidirectionnel ni la borne de saut le long du trajet (`ROUTE_JUMP_GUARD`, `advanceOnRoute`) : une position aberrante persistante (routeur WiFi en tunnel) ne doit franchir aucun point ni déclarer l'arrivée.
 
 ## Écriture de données
 - Écriture atomique obligatoire : écrire dans un fichier temporaire puis renommer/remplacer, jamais d'écriture directe qui laisserait un état partiel sur le disque.
