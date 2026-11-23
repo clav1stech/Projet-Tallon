@@ -28,6 +28,7 @@
 - Ne jamais committer sans demande explicite de l'utilisateur.
 - Ne jamais pousser (`git push`) ni agir sur le dépôt distant (tags, releases, suppression de branches distantes) sans demande explicite. Les commandes autonomes `CP`, `TR` et `CPTR` définies ci-dessous constituent cette demande explicite pour toutes les opérations qu'elles désignent.
 - Fichiers générés, environnements virtuels, caches, exports, données lourdes (`data/raw/`), `node_modules/` : toujours gitignorés, jamais versionnés.
+- Nom de branche explicite, en français et en kebab-case, préfixé par la nature du travail (`fix/`, `feat/`, `refactor/`, `docs/`) : jamais de nom généré automatiquement (ex: `claude/<adjectif>-<nom>-<hash>`), à renommer dès la création.
 - Travail en branche vs main : main pour un changement ponctuel à risque quasi nul et immédiatement déployable ; une branche dédiée pour un chantier structurant multi-commits.
 - Une branche de test/expérimentation (feature non stabilisée, en cours de validation) ne s'intègre au versionnage semver de `main` qu'après validation explicite de l'utilisateur — jamais par anticipation, même si le contenu semble prêt. Voir la mémoire du projet pour l'état courant des branches en cours et lesquelles sont concernées.
 
