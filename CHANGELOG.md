@@ -1,6 +1,14 @@
 # Changelog
 
-## Non publié
+## v3.2.1 - 2026-11-23
+
+### Suivi : retard de la position WiFi SNCF
+
+- La position servie par le routeur WiFi SNCF retarde d'environ 2 s sur la
+  position réelle du train (mesuré au viaduc d'Époisses). Chaque échantillon
+  WiFi est avancé le long du trajet de la distance parcourue pendant ce délai
+  à la vitesse mesurée (`SNCF_POSITION_LAG_MS` dans `js/train-config.js`) ;
+  les coordonnées mesurées ne sont pas modifiées et le rejeu reste identique.
 
 ### Suivi : positions aberrantes du WiFi SNCF
 
