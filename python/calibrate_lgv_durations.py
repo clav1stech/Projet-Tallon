@@ -6,17 +6,17 @@ Usage :
 
 Méthode :
 - la portion Paris-Gare-de-Lyon ⇄ bifurcation de Moisenay n'est jamais modifiée ;
-- sur la LGV (ligne 752000, longueurs tirées des PK, non des distances à vol
-  d'oiseau), une marche tendue est simulée : rame type TGV Duplex (puissance,
-  effort au démarrage, résistance à l'avancement de type Davis), freinage de
-  service, 270 km/h de Moisenay à Saint-Florentin (bifurcation de Vergigny),
-  300 km/h au-delà, aiguillages de Mâcon-Loché à 160 km/h ;
+- sur la LGV (ligne 752000, longueurs tirées des PK où se projettent les
+  coordonnées des points, non des distances à vol d'oiseau), une marche tendue est simulée sur le profil de ligne extrait de
+  data/csv/rail_pk.csv (line_profile.py) : vitesses limites nominales et
+  déclivités, moyennées sur la longueur du train ; rame type TGV Duplex
+  (puissance, effort au démarrage, résistance à l'avancement de type Davis),
+  freinage de service, aiguillages de Mâcon-Loché à 160 km/h ; une hausse de
+  limite ne s'applique qu'une fois la queue du train dégagée ;
 - la différence entre l'horaire commercial et la marche tendue est la marge de
   régularité ; elle est répartie au prorata du temps de marche tendue de chaque
   segment (marge en pourcentage du temps, et non de la distance), de sorte que
-  démarrage et freinage reçoivent une part conforme à leur durée physique ;
-- les déclivités, absentes des données, ne sont pas modélisées : leur effet
-  est absorbé par la marge.
+  démarrage, freinage et rampes reçoivent une part conforme à leur durée.
 
 Chaque trajet porte les durées actuelles attendues : si les données ont changé
 depuis l'analyse, le script refuse d'écrire. Des durées déjà recalées sont
@@ -33,6 +33,7 @@ import sys
 from datetime import date
 
 from fix_route_durations import BACKUP_DIR, DATA_FILE, ROOT, write_atomic
+from line_profile import load_line_profile
 
 LGV_LINE = '752000'
 JUNCTION = 'BIF_DE_MOISENAY'
@@ -46,43 +47,42 @@ REFERENCE_TOTALS_S = {
 
 # Durées actuelles de Moisenay à Mâcon-Loché, dans l'ordre du trajet.
 EXPECTED_LGV_DURATIONS_S = {
-    'PAR_MAC_SUD': [350, 87, 300, 283, 305, 21, 310, 286, 320, 230, 85, 236,
-                    280, 87, 290, 276, 289, 115, 340],
-    'MAC_PAR_NORD': [290, 115, 279, 284, 270, 85, 270, 225, 95, 255, 330, 294,
-                     281, 35, 290, 290, 299, 83, 343],
+    'PAR_MAC_SUD': [359, 90, 315, 290, 314, 20, 310, 286, 341, 235, 93, 261,
+                    297, 86, 308, 294, 314, 119, 289],
+    'MAC_PAR_NORD': [304, 117, 309, 287, 305, 84, 290, 256, 93, 229, 320, 295,
+                     293, 29, 311, 278, 308, 88, 348],
 }
 
-# Vitesse au passage de Moisenay, cohérente avec la portion francilienne figée.
-JUNCTION_SPEED_KMH = {'PAR_MAC_SUD': 250, 'MAC_PAR_NORD': 220}
+# Vitesse au passage de Moisenay : limite de la ligne 752100 côté Paris. Le
+# 160 km/h que rail_pk.csv porte sur la 752000 jusqu'au PK 18,5 vise la
+# branche d'Interconnexion, non le tronc venant de Paris.
+JUNCTION_SPEED_KMH = 270
+JUNCTION_ZONE_END_PK = 18.5
 
 TRAIN = {
     'mass_kg': 450_000,          # rame chargée
     'rotating_factor': 1.06,     # masses tournantes
+    'length_m': 400,             # unité multiple
     'power_w': 8_800_000,        # puissance à la jante
     'max_effort_n': 220_000,     # effort au démarrage
     'davis_kn': (2.7, 0.032, 0.00055),  # A + B·V + C·V², V en km/h
     'service_braking_ms2': 0.45,
 }
-LINE_SPEED_KMH = {'before_saint_florentin': 270, 'after_saint_florentin': 300}
 STATION_TURNOUT = {'speed_kmh': 160, 'length_km': 1.6}
+GRAVITY_MS2 = 9.81
 STEP_M = 5.0
 
 
-def parse_pk_km(value):
-    if value in (None, ''):
-        return None
-    return float(str(value).replace(',', '.'))
+def lgv_pk_km(profile, point, voie):
+    """PK de la position du point sur la LGV, projetée depuis ses coordonnées de voie.
 
-
-def lgv_pk_km(point, voie):
-    """PK du point sur la LGV pour la voie donnée (bifurcations : repère propre à la voie)."""
-    if point.get('type') == 'bifurcation':
-        if point.get('code_ligne') == LGV_LINE:
-            return parse_pk_km(point.get(f'PK_V{voie}'))
-        if point.get('code_ligne_2') == LGV_LINE:
-            return parse_pk_km(point.get(f'PK_2_V{voie}'))
-        return None
-    return parse_pk_km(point.get('PK')) if point.get('code_ligne') == LGV_LINE else None
+    Le moteur suit les coordonnées (règle de buildEffectiveRoute) : les champs PK
+    des bifurcations, parfois intervertis entre voies, ne font pas foi.
+    """
+    lat, lon = point.get(f'lat_V{voie}'), point.get(f'lon_V{voie}')
+    if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+        lat, lon = point['lat'], point['lon']
+    return profile.project_pk(lat, lon)
 
 
 def lgv_slice(route):
@@ -97,19 +97,31 @@ def davis_resistance_n(speed_ms):
     return (a + b * v + c * v * v) * 1000
 
 
-def tight_run_times(distances_km, limit_at, start_ms, end_ms):
-    """Temps de marche tendue par segment, distances cumulées dans le sens de marche."""
+def tight_run_times(distances_km, limit_at, gradient_at, start_ms, end_ms):
+    """Temps de marche tendue par segment, distances cumulées dans le sens de marche.
+
+    limit_at(km) en m/s et gradient_at(km) en ‰ (positif en montée) sont donnés
+    pour la tête du train, en km parcourus depuis l'origine.
+    """
     total_m = sum(distances_km) * 1000
     steps = int(round(total_m / STEP_M))
-    xs = [i * STEP_M for i in range(steps + 1)]
+    xs = [i * STEP_M / 1000 for i in range(steps + 1)]
+    window = int(round(TRAIN['length_m'] / STEP_M))
+    head_limit = [limit_at(x) for x in xs]
+    # Le train entier doit respecter chaque limite : minimum sur sa longueur.
+    limit = [min(head_limit[max(0, i - window):i + 1]) for i in range(steps + 1)]
+    head_gradient = [gradient_at(x) for x in xs]
+    gradient = [sum(head_gradient[max(0, i - window):i + 1]) / (i + 1 - max(0, i - window))
+                for i in range(steps + 1)]
     mass = TRAIN['mass_kg'] * TRAIN['rotating_factor']
     speed = [0.0] * (steps + 1)
-    speed[0] = min(start_ms, limit_at(0))
+    speed[0] = min(start_ms, limit[0])
     for i in range(steps):
         v = max(speed[i], 0.5)
         effort = min(TRAIN['max_effort_n'], TRAIN['power_w'] / v)
-        accel = (effort - davis_resistance_n(v)) / mass
-        speed[i + 1] = min(max(v * v + 2 * accel * STEP_M, 0) ** 0.5, limit_at(xs[i + 1] / 1000))
+        slope = TRAIN['mass_kg'] * GRAVITY_MS2 * gradient[i] / 1000
+        accel = (effort - davis_resistance_n(v) - slope) / mass
+        speed[i + 1] = min(max(v * v + 2 * accel * STEP_M, 1.0) ** 0.5, limit[i + 1])
     speed[steps] = min(speed[steps], end_ms)
     braking = TRAIN['service_braking_ms2']
     for i in range(steps - 1, -1, -1):
@@ -140,25 +152,32 @@ def calibrate(data, route_id):
     first, last = lgv_slice(route)
     seq = route['points']
     lgv = seq[first:last + 1]
-    pks = [lgv_pk_km(points[p['id']], voie) for p in lgv]
-    if any(pk is None for pk in pks):
-        raise ValueError(f'{route_id} : PK LGV manquant')
+    profile = load_line_profile(LGV_LINE)
+    pks = [lgv_pk_km(profile, points[p['id']], voie) for p in lgv]
     distances = [abs(b - a) for a, b in zip(pks, pks[1:])]
-    saint_florentin = lgv_pk_km(points['BIF_DE_VERGIGNY'], voie)
-    station_pk = lgv_pk_km(points[STATION], voie)
+    station_pk = pks[-1] if lgv[-1]['id'] == STATION else pks[0]
     towards_station = pks[-1] > pks[0]
     origin = pks[0]
+    direction = 1 if towards_station else -1
+
+    def pk_at(km_travelled):
+        return origin + direction * km_travelled
 
     def limit_at(km_travelled):
-        pk = origin + km_travelled if towards_station else origin - km_travelled
+        pk = pk_at(km_travelled)
         if abs(station_pk - pk) <= STATION_TURNOUT['length_km']:
             return STATION_TURNOUT['speed_kmh'] / 3.6
-        key = 'before_saint_florentin' if pk < saint_florentin else 'after_saint_florentin'
-        return LINE_SPEED_KMH[key] / 3.6
+        if pk < JUNCTION_ZONE_END_PK:
+            return JUNCTION_SPEED_KMH / 3.6
+        return profile.speed_limit_kmh(pk) / 3.6
 
-    junction_ms = JUNCTION_SPEED_KMH[route_id] / 3.6
+    def gradient_at(km_travelled):
+        pk = pk_at(km_travelled)
+        return profile.gradient_permil(pk - direction * STEP_M / 1000, pk)
+
+    junction_ms = JUNCTION_SPEED_KMH / 3.6
     start, end = (junction_ms, 0.0) if towards_station else (0.0, junction_ms)
-    tight = tight_run_times(distances, limit_at, start, end)
+    tight = tight_run_times(distances, limit_at, gradient_at, start, end)
 
     fixed = sum(p['durationToNext'] or 0 for i, p in enumerate(seq[:-1]) if not first <= i < last)
     target = REFERENCE_TOTALS_S[route_id] - fixed

@@ -29,8 +29,11 @@ Relancer ces scripts si d'autres lignes SNCF / corridors routiers sont ajoutés
   (accès Montanay–Lyon-Saint-Clair), 830000 et 893000 (accès Lyon-Part-Dieu).
 - ✅ **Utilisé** : source de `data/csv/rail_pk.csv` ; le descripteur `data/datasets/rail-pk.json`
   filtre la 752000 pour l'affichage PK d'index.html.
-- 🔮 **Futur** : `vitesse` (vitesse de ligne au PK courant), `altitude`/`altitude_declivites`
-  (profil altimétrique) — colonnes déjà présentes dans le CSV extrait, aucune ré-extraction nécessaire ;
+- ✅ **Utilisé** : `vitesse` et `altitude_declivites` alimentent `python/line_profile.py`
+  (profil de ligne pour le recalage des durées) ; `altitude`/`altitude_tunnels` sont des
+  altitudes de terrain, inexploitables pour une déclivité.
+- 🔮 **Futur** : vitesse de ligne au PK courant dans l'app — colonnes déjà présentes dans le
+  CSV extrait, aucune ré-extraction nécessaire ;
   corridors multi-lignes (752100/830000 déjà extraits, sélectionnables par le filtre du descripteur).
 
 ## rail/lignes-vitesses.geojson — 25 Mo, 2469 LineString
