@@ -1,5 +1,21 @@
 # Changelog
 
+## Non publié
+
+### Durées Paris ⇄ Mâcon recalées sur les horaires commerciaux
+
+- Depuis la correction de la v3.2.0, les deux trajets directs étaient courts
+  de 2 min 11 : Paris → Mâcon 1 h 31 min 49 s (référence 18 h 46 → 20 h 20,
+  1 h 34) et Mâcon → Paris 1 h 33 min 49 s (référence 7 h 38 → 9 h 14, 1 h 36).
+- Le déficit n'était pas réparti : sur la section limitée à 270 km/h
+  (Moisenay ⇄ Saint-Florentin, ~100 km), les durées correspondaient à la
+  marche tendue, voire à des moyennes de 277-284 km/h au retour, sans aucune
+  marge, alors que la section à 300 km/h en portait 14 à 22 %.
+- `python/calibrate_lgv_durations.py` simule la marche tendue sur les PK de la
+  LGV (vitesses limites, démarrage et freinage à Mâcon-Loché) puis répartit la
+  marge de régularité au prorata du temps de marche (14,6 % à l'aller, 12,1 %
+  au retour). Paris ⇄ Moisenay est inchangé. Totaux : 1 h 34 et 1 h 36.
+
 ## v3.2.0 - 2026-11-22
 
 ### Noms des bifurcations

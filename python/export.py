@@ -64,6 +64,7 @@ MODULE_SUMMARY = {
     'js/editor-shell.js': "Coquille commune des éditeurs : navigation, bandeau de brouillon, état.",
     'js/route-profile-page.js': "Page du profil de vitesse : graphique aller/retour et tableau des segments.",
     'python/fix_route_durations.py': "Correction datée des durées mal réparties Paris ⇄ Mâcon/Lyon (sauvegarde + écriture atomique).",
+    'python/calibrate_lgv_durations.py': "Recalage des durées LGV Paris ⇄ Mâcon sur les horaires commerciaux (marche tendue + marge).",
     'data/masterRoutes.normalized.json': "Source de vérité géo/horaire (schéma v3) : points + trajets.",
     'data/servicePatterns.json': "Patterns de desserte nommés (arrêts intermédiaires par trajet).",
     'agent.md': "Instructions IA : règles transverses + invariants spécifiques au projet.",

@@ -23,6 +23,10 @@ Principes retenus (voir CHANGELOG) :
   conservé et réparti selon les distances de la voie 2. De Mâcon à Paris, il
   reprend LPD_PAR_NORD, qui passe aussi Mâcon sans s'arrêter.
 
+Les durées LGV de PAR_MAC_SUD et MAC_PAR_NORD ont depuis été recalées sur les
+horaires commerciaux par calibrate_lgv_durations.py : une relance de ce script
+refuse donc d'écrire sur MAC_PAR_NORD, ce qui est attendu.
+
 Stdlib uniquement.
 """
 
