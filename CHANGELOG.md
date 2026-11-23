@@ -12,16 +12,20 @@
   PK 227 au PK 256, 270 km/h ailleurs, dont l'approche de Mâcon) et
   déclivités (jusqu'à 35 ‰).
 - `python/calibrate_lgv_durations.py` simule sur ce profil (lignes 830000,
-  752100 et 752000) la marche tendue d'une rame Duplex (rampes, sortie de
-  Paris-Gare-de-Lyon, démarrage et freinage à Mâcon-Loché) puis répartit la
-  marge de régularité au prorata du temps de marche. Chaque point est repéré
-  au PK où se projettent ses coordonnées de voie, comme le moteur de suivi.
-- Paris → Mâcon (marge 10,8 %) : Paris → Moisenay était à la marche tendue
-  (16 min 59 s, Villecresnes → Chevry-Cossigny plus rapide que physiquement
-  possible) ; il passe à 19 min 10 s. Le temps ajouté sur la LGV va aux
-  rampes du Morvan et à la section sud à 270 km/h.
-- Mâcon → Paris (marge 11,6 % de Mâcon à Moisenay) : même répartition ;
-  l'approche de Paris (20 min 16 s) garde sa marge d'arrivée au terminus.
+  752100 et 752000) la marche d'une rame Duplex : rampes, sortie de
+  Paris-Gare-de-Lyon à 30 puis 60 km/h sur les voies à quai et le faisceau,
+  démarrage et freinage à Mâcon-Loché. Chaque point est repéré au PK où se
+  projettent ses coordonnées de voie, comme le moteur de suivi.
+- La marge au-delà de la marche tendue comprend une réserve de régularité de
+  5 % du temps, uniforme ; le reste est consommé par la conduite économe :
+  vitesse de croisière plafonnée (283 km/h à l'aller, 275 km/h au retour) et
+  marche sur l'erre en tête des descentes, de sorte que la rame atteigne la
+  limite au creux sans traction ni freinage (environ 35 s par sens).
+- Paris → Mâcon : Paris → Moisenay était à la marche tendue (16 min 59 s,
+  Villecresnes → Chevry-Cossigny plus rapide que physiquement possible) ; il
+  passe à 19 min 56 s, dont 7 min 36 s jusqu'à la bifurcation de Créteil.
+- Mâcon → Paris : l'approche de Paris (20 min 16 s) garde sa marge d'arrivée
+  au terminus et n'est pas recalée.
 - Totaux : 1 h 34 et 1 h 36.
 
 ## v3.2.0 - 2026-11-22

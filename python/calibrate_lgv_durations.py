@@ -15,10 +15,14 @@ Méthode :
   (puissance, effort au démarrage, résistance à l'avancement de type Davis),
   freinage de service ; une hausse de limite ne s'applique qu'une fois la queue
   du train dégagée ; sorties et entrées de gare aux vitesses de STATION_ZONES ;
-- la différence entre l'horaire commercial et la marche tendue est la marge de
-  régularité ; elle est répartie au prorata du temps de marche tendue de chaque
-  segment (marge en pourcentage du temps, et non de la distance), de sorte que
-  démarrage, freinage et rampes reçoivent une part conforme à leur durée ;
+- la différence entre l'horaire commercial et la marche tendue est la marge ;
+  une réserve de régularité (ECO_DRIVING, uniforme en pourcentage du temps)
+  couvre les aléas, et le reste est consommé par la conduite économe : vitesse
+  de croisière plafonnée, cherchée pour tenir l'horaire, et marche sur l'erre
+  avant les descentes et les baisses de limite (vitesse en tête de pente telle
+  que la rame atteigne la limite au creux sans traction ni freinage). La marge
+  se place donc là où la conduite la dépense, surtout sur les sections les plus
+  rapides, et non au prorata des distances ;
 - seule l'étendue CALIBRATED_SPANS est recalée. L'approche de Paris au retour
   (Moisenay → Paris) en est exclue : elle porte la marge d'arrivée au terminus,
   supérieure à celle de la ligne, et le reste de la marge ne s'y répartit pas.
@@ -35,6 +39,7 @@ import json
 import os
 import shutil
 import sys
+from collections import deque
 from datetime import date
 
 from fix_route_durations import BACKUP_DIR, DATA_FILE, ROOT, write_atomic
@@ -61,8 +66,8 @@ CALIBRATED_SPANS = {
 
 # Durées actuelles sur l'étendue recalée, dans l'ordre du trajet.
 EXPECTED_DURATIONS_S = {
-    'PAR_MAC_SUD': [350, 112, 82, 230, 70, 175, 357, 91, 314, 289, 316, 20, 310,
-                    306, 320, 236, 93, 260, 301, 83, 307, 293, 315, 120, 290],
+    'PAR_MAC_SUD': [370, 109, 87, 304, 89, 191, 347, 88, 306, 280, 307, 19, 301,
+                    298, 311, 229, 91, 253, 292, 81, 298, 285, 307, 116, 281],
     'MAC_PAR_NORD': [298, 124, 310, 286, 299, 87, 293, 253, 96, 228, 341, 275,
                      282, 38, 315, 277, 307, 86, 349],
 }
@@ -74,11 +79,13 @@ JUNCTION_LIMIT = {'line': '752000', 'below_pk': 18.5, 'speed_kmh': 270}
 # Vitesse de passage à Moisenay quand l'étendue recalée s'y arrête.
 JUNCTION_SPEED_KMH = 270
 
-# Gorge de gare et aiguillages d'accès : vitesse plafond sur une distance (km)
-# autour du point d'arrêt.
+# Gorge de gare et aiguillages d'accès : paliers (distance au point d'arrêt en
+# km, vitesse plafond en km/h), du plus proche au plus lointain. rail_pk.csv
+# porte la vitesse des voies principales (100 km/h dès le PK 0 à Paris), non
+# celle des voies à quai et du faisceau d'avant-gare.
 STATION_ZONES = {
-    'PARIS_LYON': {'speed_kmh': 60, 'length_km': 1.0},
-    'MACON_LOCHE': {'speed_kmh': 160, 'length_km': 1.6},
+    'PARIS_LYON': [(0.8, 30), (2.2, 60)],
+    'MACON_LOCHE': [(1.6, 160)],
 }
 
 TRAIN = {
@@ -91,6 +98,10 @@ TRAIN = {
     'service_braking_ms2': 0.45,
 }
 GRAVITY_MS2 = 9.81
+# Conduite économe : la marge au-delà de la réserve de régularité (uniforme, en
+# pourcentage du temps, pour les aléas) est consommée par un plafond de vitesse
+# de croisière et la marche sur l'erre ; le plafond est cherché dans l'intervalle.
+ECO_DRIVING = {'regularity_reserve': 0.05, 'cruise_search_kmh': (120, 320)}
 # Écart toléré entre un point et la ligne du corridor sur laquelle il se projette.
 MAX_PROJECTION_KM = 0.3
 STEP_M = 5.0
@@ -144,10 +155,16 @@ class Corridor:
             raise ValueError(f'{point_id} à {best[0]:.2f} km du corridor')
         return best[1]
 
-    def speed_limit_ms(self, x):
+    def speed_limit_ms(self, x, stations=True):
         for point_id, zone in STATION_ZONES.items():
-            if point_id in self.positions and abs(self.positions[point_id] - x) <= zone['length_km']:
-                return zone['speed_kmh'] / 3.6
+            if not stations:
+                break
+            if point_id not in self.positions:
+                continue
+            gap = abs(self.positions[point_id] - x)
+            for length_km, speed_kmh in zone:
+                if gap <= length_km:
+                    return speed_kmh / 3.6
         line, pk, _ = self.locate(x)
         if line == JUNCTION_LIMIT['line'] and pk < JUNCTION_LIMIT['below_pk']:
             return JUNCTION_LIMIT['speed_kmh'] / 3.6
@@ -165,43 +182,81 @@ def davis_resistance_n(speed_ms):
     return (a + b * v + c * v * v) * 1000
 
 
-def tight_run_times(distances_km, limit_at, gradient_at, start_ms, end_ms):
-    """Temps de marche tendue par segment, distances cumulées dans le sens de marche.
+def sliding_min(values, window):
+    """Minimum de values[i - window .. i] pour chaque i (file monotone)."""
+    result, queue = [], deque()
+    for i, value in enumerate(values):
+        while queue and values[queue[-1]] >= value:
+            queue.pop()
+        queue.append(i)
+        if queue[0] < i - window:
+            queue.popleft()
+        result.append(values[queue[0]])
+    return result
 
-    limit_at(km) en m/s et gradient_at(km) en ‰ (positif en montée) sont donnés
-    pour la tête du train, en km parcourus depuis l'origine.
+
+class RunModel:
+    """Marche d'une rame sur une étendue, distances cumulées dans le sens de marche.
+
+    limit_at(km) (limites de ligne et zones de gare) et line_limit_at(km)
+    (limites de ligne seules) en m/s, gradient_at(km) en ‰ (positif en montée),
+    sont donnés pour la tête du train, en km parcourus depuis l'origine. Le
+    train entier respecte chaque limite (minimum sur sa longueur) et subit la
+    déclivité moyenne sur sa longueur.
     """
-    total_m = sum(distances_km) * 1000
-    steps = int(round(total_m / STEP_M))
-    xs = [i * STEP_M / 1000 for i in range(steps + 1)]
-    window = int(round(TRAIN['length_m'] / STEP_M))
-    head_limit = [limit_at(x) for x in xs]
-    # Le train entier doit respecter chaque limite : minimum sur sa longueur.
-    limit = [min(head_limit[max(0, i - window):i + 1]) for i in range(steps + 1)]
-    head_gradient = [gradient_at(x) for x in xs]
-    gradient = [sum(head_gradient[max(0, i - window):i + 1]) / (i + 1 - max(0, i - window))
-                for i in range(steps + 1)]
-    mass = TRAIN['mass_kg'] * TRAIN['rotating_factor']
-    speed = [0.0] * (steps + 1)
-    speed[0] = min(start_ms, limit[0])
-    for i in range(steps):
-        v = max(speed[i], 0.5)
-        effort = min(TRAIN['max_effort_n'], TRAIN['power_w'] / v)
-        slope = TRAIN['mass_kg'] * GRAVITY_MS2 * gradient[i] / 1000
-        accel = (effort - davis_resistance_n(v) - slope) / mass
-        speed[i + 1] = min(max(v * v + 2 * accel * STEP_M, 1.0) ** 0.5, limit[i + 1])
-    speed[steps] = min(speed[steps], end_ms)
-    braking = TRAIN['service_braking_ms2']
-    for i in range(steps - 1, -1, -1):
-        speed[i] = min(speed[i], (speed[i + 1] ** 2 + 2 * braking * STEP_M) ** 0.5)
-    elapsed = [0.0]
-    for i in range(steps):
-        elapsed.append(elapsed[-1] + 2 * STEP_M / (speed[i] + speed[i + 1]))
-    bounds, cumulated = [0], 0.0
-    for km in distances_km:
-        cumulated += km
-        bounds.append(min(steps, int(round(cumulated * 1000 / STEP_M))))
-    return [elapsed[b] - elapsed[a] for a, b in zip(bounds, bounds[1:])]
+
+    def __init__(self, distances_km, limit_at, line_limit_at, gradient_at, start_ms, end_ms):
+        self.steps = int(round(sum(distances_km) * 1000 / STEP_M))
+        xs = [i * STEP_M / 1000 for i in range(self.steps + 1)]
+        window = int(round(TRAIN['length_m'] / STEP_M))
+        self.limit = sliding_min([limit_at(x) for x in xs], window)
+        self.line_limit = sliding_min([line_limit_at(x) for x in xs], window)
+        head = [gradient_at(x) for x in xs]
+        prefix = [0.0]
+        for value in head:
+            prefix.append(prefix[-1] + value)
+        self.slope_n = [TRAIN['mass_kg'] * GRAVITY_MS2 / 1000
+                        * (prefix[i + 1] - prefix[max(0, i - window)]) / (i + 1 - max(0, i - window))
+                        for i in range(self.steps + 1)]
+        self.start_ms, self.end_ms = start_ms, end_ms
+        self.bounds, cumulated = [0], 0.0
+        for km in distances_km:
+            cumulated += km
+            self.bounds.append(min(self.steps, int(round(cumulated * 1000 / STEP_M))))
+
+    def segment_times(self, cruise_ms=float('inf'), eco=False):
+        """Temps par segment.
+
+        Sans eco : marche tendue (traction maximale jusqu'à la limite, freinage
+        de service). Avec eco : conduite économe, vitesse plafonnée à cruise_ms
+        et marche sur l'erre avant chaque descente ou baisse de limite, la
+        vitesse en tête de pente étant celle qui, sans traction ni freinage,
+        atteint la limite au creux. Les arrêts restent abordés au freinage.
+        """
+        steps, mass = self.steps, TRAIN['mass_kg'] * TRAIN['rotating_factor']
+        ceiling = [min(v, cruise_ms) for v in self.limit]
+        if eco:
+            coast = [min(v, cruise_ms) for v in self.line_limit]
+            for i in range(steps - 1, -1, -1):
+                v = coast[i + 1]
+                accel = (-davis_resistance_n(v) - self.slope_n[i]) / mass
+                coast[i] = min(coast[i], max(v * v - 2 * accel * STEP_M, 1.0) ** 0.5)
+            ceiling = [min(a, b) for a, b in zip(ceiling, coast)]
+        speed = [0.0] * (steps + 1)
+        speed[0] = min(self.start_ms, ceiling[0])
+        for i in range(steps):
+            v = max(speed[i], 0.5)
+            effort = min(TRAIN['max_effort_n'], TRAIN['power_w'] / v)
+            accel = (effort - davis_resistance_n(v) - self.slope_n[i]) / mass
+            speed[i + 1] = min(max(v * v + 2 * accel * STEP_M, 1.0) ** 0.5, ceiling[i + 1])
+        speed[steps] = min(speed[steps], self.end_ms)
+        braking = TRAIN['service_braking_ms2']
+        for i in range(steps - 1, -1, -1):
+            speed[i] = min(speed[i], (speed[i + 1] ** 2 + 2 * braking * STEP_M) ** 0.5)
+        elapsed = [0.0]
+        for i in range(steps):
+            elapsed.append(elapsed[-1] + 2 * STEP_M / (speed[i] + speed[i + 1]))
+        return [elapsed[b] - elapsed[a] for a, b in zip(self.bounds, self.bounds[1:])]
 
 
 def round_preserving_total(values, total):
@@ -234,17 +289,34 @@ def calibrate(data, route_id):
     def limit_at(km_travelled):
         return corridor.speed_limit_ms(origin + direction * km_travelled)
 
+    def line_limit_at(km_travelled):
+        return corridor.speed_limit_ms(origin + direction * km_travelled, stations=False)
+
     def gradient_at(km_travelled):
         return direction * corridor.gradient_permil(origin + direction * km_travelled)
 
-    tight = tight_run_times(distances, limit_at, gradient_at,
-                            boundary_speed_ms(first_id), boundary_speed_ms(last_id))
+    model = RunModel(distances, limit_at, line_limit_at, gradient_at,
+                     boundary_speed_ms(first_id), boundary_speed_ms(last_id))
+    tight = model.segment_times()
     fixed = sum(p['durationToNext'] or 0 for i, p in enumerate(seq[:-1]) if not first <= i < last)
     target = REFERENCE_TOTALS_S[route_id] - fixed
-    scale = target / sum(tight)
-    durations = round_preserving_total([t * scale for t in tight], target)
+    reserve = 1 + ECO_DRIVING['regularity_reserve']
+    if sum(tight) * reserve >= target:
+        raise ValueError(f'{route_id} : marche tendue + réserve ({sum(tight) * reserve:.0f} s) '
+                         f'au-delà de l\'horaire ({target} s)')
+    low, high = (speed / 3.6 for speed in ECO_DRIVING['cruise_search_kmh'])
+    while high - low > 0.01:
+        middle = (low + high) / 2
+        if sum(model.segment_times(middle, eco=True)) * reserve > target:
+            low = middle
+        else:
+            high = middle
+    eco = model.segment_times(high, eco=True)
+    # Le résidu de la recherche (< 1 s) suit la même répartition que la réserve.
+    scale = target / sum(eco)
+    durations = round_preserving_total([t * scale for t in eco], target)
     segments = [(a['id'], b['id'], km, t) for a, b, km, t in zip(span, span[1:], distances, tight)]
-    return route, first, durations, segments, scale - 1
+    return route, first, durations, segments, sum(tight), high * 3.6
 
 
 def main():
@@ -255,7 +327,7 @@ def main():
     data = json.loads(DATA_FILE.read_text(encoding='utf-8'))
     changed, errors = 0, []
     for route_id, expected in EXPECTED_DURATIONS_S.items():
-        route, first, durations, segments, margin = calibrate(data, route_id)
+        route, first, durations, segments, tight_total, cruise_kmh = calibrate(data, route_id)
         current = [p['durationToNext'] for p in route['points'][first:first + len(durations)]]
         if current == durations:
             print(f'{route_id} : déjà recalé.')
@@ -263,7 +335,9 @@ def main():
         if current != expected:
             errors.append(f'{route_id} : durées {current}, {expected} attendues')
             continue
-        print(f'{route_id} : marge de régularité {margin:.1%} sur la marche tendue')
+        print(f'{route_id} : marge totale {sum(durations) / tight_total - 1:.1%} sur la marche tendue, '
+              f'conduite économe à {cruise_kmh:.0f} km/h au plus, '
+              f'réserve {ECO_DRIVING["regularity_reserve"]:.0%}')
         for (a, b, km, tight), old, new in zip(segments, current, durations):
             print(f'  {a[:26]:26} → {b[:26]:26} {km:6.2f} km  tendue {tight:4.0f} s  '
                   f'{old:4d} → {new:4d} s ({new - old:+4d})  {km / new * 3600:4.0f} km/h')
